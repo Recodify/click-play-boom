@@ -84,6 +84,11 @@
             --navigator-text-color: #182225;
             --navigator-muted-color: #5F6B76;
             --navigator-link-hover-color: #0B57D0;
+
+            --result-color-rotate: var(--background-color-rotate);
+            --result-header-color: oklch(92% 0.0296 var(--result-color-rotate));
+            --result-tab-accent-color: oklch(62% 0.12 var(--result-color-rotate));
+            --result-tab-background-color: color-mix(in srgb, var(--table-header-color) 86%, var(--result-tab-accent-color));
         }
 
         [data-theme="dark"] {
@@ -128,6 +133,10 @@
             --navigator-text-color: #E2EBEF;
             --navigator-muted-color: #9AACB5;
             --navigator-link-hover-color: #84C7FF;
+
+            --result-header-color: oklch(15% 0.0296 var(--result-color-rotate));
+            --result-tab-accent-color: oklch(70% 0.12 var(--result-color-rotate));
+            --result-tab-background-color: color-mix(in srgb, var(--table-header-color) 84%, var(--result-tab-accent-color));
         }
 
         ::selection {
@@ -1742,7 +1751,7 @@
         .result-tab
         {
             border: 1px solid var(--border-color);
-            background: var(--table-header-color);
+            background: var(--result-tab-background-color);
             padding: 0.25rem 0.5rem;
             cursor: pointer;
             max-width: 16rem;
@@ -1755,6 +1764,8 @@
         {
             background: var(--button-color);
             color: var(--button-text-color);
+            border-color: var(--result-tab-accent-color);
+            box-shadow: inset 0 -2px 0 var(--result-tab-accent-color);
         }
 
         #results_panels
@@ -2083,6 +2094,12 @@
             text-align: right;
             background-color: var(--table-header-color);
             color: var(--misc-text-color);
+        }
+
+        #results_workspace .data-table th,
+        #results_workspace .data-table .row-number
+        {
+            background-color: var(--result-header-color);
         }
 
         div.empty-result
@@ -4572,12 +4589,15 @@ function createResultPanel(requestNum, query) {
     const template = document.getElementById('result-panel-template');
     const panel = template.content.firstElementChild.cloneNode(true);
     const resultId = `result-${requestNum}`;
+    const resultColor = queryToColor(query);
     panel.dataset.resultId = resultId;
+    panel.style.setProperty('--result-color-rotate', resultColor);
 
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.className = 'result-tab';
     tab.dataset.resultId = resultId;
+    tab.style.setProperty('--result-color-rotate', resultColor);
     tab.innerText = `#${requestNum} ${query.replace(/\s+/g, ' ').slice(0, 48) || 'result'}`;
     tab.addEventListener('click', () => activateResultPanel(resultId));
 
@@ -5315,7 +5335,6 @@ async function postImpl(posted_request_num, query)
     applyClickHouseSummary(response);
     updateProgressText();
     document.documentElement.style.setProperty('--progress', '0');
-    document.documentElement.style.setProperty('--background-color-rotate', queryToColor(query));
 
     if (current_result_meta) {
         current_result_meta.ok = true;
@@ -5435,7 +5454,6 @@ async function restoreFromHistory(state) {
 
     updateProgressText();
     document.documentElement.style.setProperty('--progress', '0');
-    document.documentElement.style.setProperty('--background-color-rotate', queryToColor(query));
 }
 
 appendTextareaResizer();
