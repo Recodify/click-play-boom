@@ -2,7 +2,16 @@
 
 `click-play-boom` is a single-file ClickHouse HTTP query interface.
 
-It started as a rework of the ClickHouse Play page and keeps the same lightweight shape: one self-contained HTML file, no build step, no framework, and no external resources loaded on startup. The rework focuses on making the browser UI useful for real query work rather than only one-off single-statement experiments.
+![dark theme query editor](./imgs/dark.png)
+
+A rework of the ClickHouse Play page that keeps the same lightweight shape:
+
+- one self-contained HTML file
+- no build step, no framework
+- no external resources loaded on startup.
+
+The rework focuses on making the browser UI useful for real query work rather than only one-off single-statement experiments.
+
 
 ## What It Does
 
