@@ -3483,6 +3483,10 @@ function isViewEngine(engine) {
     return /view/i.test(engine || '');
 }
 
+function isReplicatedTableEngine(engine) {
+    return /^Replicated/i.test(engine || '') && !isViewEngine(engine);
+}
+
 function getSchemaItemKind(engine) {
     if (isMaterializedViewEngine(engine)) {
         return 'materialized-view';
@@ -3565,7 +3569,12 @@ LIMIT 100;`;
 }
 
 function buildDropStatement(database, table, engine) {
-    return `${/view/i.test(engine) ? 'DROP VIEW' : 'DROP TABLE'} ${database}.${table};`;
+    if (isViewEngine(engine)) {
+        return `DROP VIEW ${database}.${table};`;
+    }
+
+    const cluster_clause = isReplicatedTableEngine(engine) ? ` ON CLUSTER '{cluster}' SYNC` : '';
+    return `DROP TABLE ${database}.${table}${cluster_clause};`;
 }
 
 function createNavigatorLabel(icon, text, icon_class = '') {
