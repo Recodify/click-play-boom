@@ -262,7 +262,7 @@
         .sidebar-tabs
         {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.25rem;
         }
 
@@ -1867,60 +1867,177 @@
             font-size: 0.85em;
         }
 
+        #history-panel
+        {
+            min-height: 0;
+        }
+
         #action_history
         {
-            display: none;
-            margin-top: 1rem;
-        }
-
-        #action_history_header
-        {
             display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
+            flex: 1 1 auto;
+            min-height: 0;
+            flex-direction: column;
         }
 
-        #action_history_header button
+        #action-history-empty
         {
-            border: 1px solid var(--border-color);
-            background: var(--element-background-color);
-            color: var(--text-color);
-            padding: 0.2rem 0.4rem;
+            color: var(--navigator-muted-color);
+            margin-top: 0.25rem;
         }
 
-        #action-table
+        #action_body
+        {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            padding-right: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .history-entry
         {
             width: 100%;
-            table-layout: fixed;
+            min-width: 0;
+            border: 1px solid var(--navigator-card-border);
+            background: var(--navigator-card-background);
+            color: var(--navigator-text-color);
+            padding: 0.45rem;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.28rem;
+            align-items: start;
+            text-align: left;
+            font: inherit;
         }
 
-        #action-table th:nth-child(1) { width: 2rem; }
-        #action-table th:nth-child(2) { width: 3rem; }
-        #action-table th:nth-child(3) { width: 7rem; }
-        #action-table th:nth-child(4) { /* Action - takes remaining space */ }
-        #action-table th:nth-child(5) { width: 5.5rem; }
-        #action-table th:nth-child(6) { width: 3rem; }
-
-        #action-table .action-cell
+        .history-entry:hover,
+        .history-entry.active
         {
-            max-height: 3.6em;
+            border-color: var(--border-color-selected);
+            background: var(--navigator-card-header-active);
+        }
+
+        .history-entry-main
+        {
+            min-width: 0;
+            border: none;
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            display: grid;
+            gap: 0.28rem;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .history-entry-main[aria-disabled="true"]
+        {
+            cursor: default;
+            opacity: 0.62;
+        }
+
+        .history-entry-copy
+        {
+            width: 1.45rem;
+            height: 1.45rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--navigator-card-border);
+            background: color-mix(in srgb, var(--navigator-card-header) 70%, transparent);
+            color: var(--navigator-text-color);
+            padding: 0;
+            cursor: pointer;
+            line-height: 1;
+            font: inherit;
+        }
+
+        .history-entry-copy:hover,
+        .history-entry-copy:focus,
+        .history-entry-copy.copied
+        {
+            background: var(--navigator-card-header-active);
+            color: var(--navigator-link-hover-color);
+        }
+
+        .history-entry-meta,
+        .history-entry-detail
+        {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .history-entry-meta
+        {
+            font-size: 0.76rem;
+            font-weight: 700;
+        }
+
+        .history-entry-number,
+        .history-entry-detail
+        {
+            color: var(--navigator-muted-color);
+        }
+
+        .history-entry-status.ok
+        {
+            color: var(--element-color-ok);
+        }
+
+        .history-entry-status.fail
+        {
+            color: var(--border-color-selected);
+        }
+
+        .history-entry-connection,
+        .history-entry-message,
+        .history-entry-stats
+        {
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            white-space: pre-wrap;
-            word-break: break-all;
-            cursor: pointer;
-            font-size: 0.85em;
+            white-space: nowrap;
         }
 
-        #action-table .action-cell.expanded
+        .history-entry-connection
         {
-            max-height: none;
-            -webkit-line-clamp: unset;
-            display: block;
+            flex: 1 1 auto;
+        }
+
+        .history-entry-query
+        {
+            min-width: 0;
+            color: var(--navigator-text-color);
+            font-size: 0.78rem;
+            line-height: 1.28;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+
+        .history-entry-detail
+        {
+            font-size: 0.72rem;
+        }
+
+        .history-entry-message
+        {
+            flex: 1 1 auto;
+        }
+
+        .history-entry-stats
+        {
+            flex: 0 0 auto;
+            max-width: 45%;
         }
 
         #data_div, .data-div
@@ -2262,6 +2379,7 @@
             <div class="sidebar-tabs">
                 <button id="sidebar-tab-navigator" class="sidebar-tab active" type="button" data-sidebar-tab="navigator">Navigator</button>
                 <button id="sidebar-tab-snippets" class="sidebar-tab" type="button" data-sidebar-tab="snippets">Snippets</button>
+                <button id="sidebar-tab-history" class="sidebar-tab" type="button" data-sidebar-tab="history">History</button>
             </div>
             <div id="navigator-panel" class="sidebar-panel active" data-sidebar-panel="navigator">
                 <div class="navigator-heading">
@@ -2314,6 +2432,18 @@
                 <div id="snippets-browser-empty">No saved snippets.</div>
                 <div id="snippets-browser"></div>
             </div>
+            <div id="history-panel" class="sidebar-panel" data-sidebar-panel="history">
+                <div class="navigator-heading">
+                    <div class="menu-section-title">History</div>
+                    <div class="navigator-heading-actions">
+                        <button id="clear-history" class="navigator-icon-button" type="button" title="Clear history">×</button>
+                    </div>
+                </div>
+                <div id="action_history">
+                    <div id="action-history-empty">No actions yet.</div>
+                    <div id="action_body"></div>
+                </div>
+            </div>
             <div id="navigator-context-menu" class="navigator-context-menu"></div>
         </div>
         <div id="sidebar-resizer" aria-hidden="true"></div>
@@ -2361,25 +2491,6 @@
         <div id="results_workspace">
             <div id="results_tabs"></div>
             <div id="results_panels"></div>
-            <div id="action_history">
-                <div id="action_history_header">
-                    <div>Action History</div>
-                    <button id="clear-history" type="button">Clear</button>
-                </div>
-                <table id="action-table">
-                    <thead>
-                        <tr>
-                            <th class="row-number">№</th>
-                            <th>Status</th>
-                            <th>Connection</th>
-                            <th>Action</th>
-                            <th>Message</th>
-                            <th>Stats</th>
-                        </tr>
-                    </thead>
-                    <tbody id="action_body"></tbody>
-                </table>
-            </div>
             <p id="logo-container">
                 <a href="https://clickhouse.com/">
             <svg version="1.1" id="logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
@@ -2530,7 +2641,7 @@ let navigator_footer_primary_elem = document.getElementById('navigator-footer-pr
 let results_workspace_elem = document.getElementById('results_workspace');
 let results_tabs_elem = document.getElementById('results_tabs');
 let results_panels_elem = document.getElementById('results_panels');
-let action_history_elem = document.getElementById('action_history');
+let action_history_empty_elem = document.getElementById('action-history-empty');
 let action_body = document.getElementById('action_body');
 let download_use_cache_elem = document.getElementById('download-use-cache');
 let refresh_schema_elem = document.getElementById('refresh-schema');
@@ -2985,7 +3096,7 @@ function getSnippetFolderSnippets(folder_id) {
 }
 
 function setSidebarTab(tab_name, persist = true) {
-    const next_tab = tab_name == 'snippets' ? 'snippets' : 'navigator';
+    const next_tab = ['navigator', 'snippets', 'history'].includes(tab_name) ? tab_name : 'navigator';
 
     for (const tab of document.querySelectorAll('[data-sidebar-tab]')) {
         tab.classList.toggle('active', tab.dataset.sidebarTab == next_tab);
@@ -3003,11 +3114,32 @@ function formatSnippetPreview(query) {
     return query.replace(/\s+/g, ' ').trim().slice(0, 120) || '(empty query)';
 }
 
-function setQueryEditorValue(query) {
-    query_area.value = query;
-    query_area.selectionStart = query_area.selectionEnd = query_area.value.length;
-    query_area.focus();
-    updateRunButtonText();
+async function copyTextToClipboard(text) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText == 'function') {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (e) {
+            // Fall back to a temporary textarea below.
+        }
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } finally {
+        document.body.removeChild(textarea);
+    }
+
+    return copied;
 }
 
 function promptSnippetFolder(default_folder = null) {
@@ -3440,6 +3572,7 @@ function insertTextIntoEditor(text) {
     }
 
     query_area.focus();
+    updateRunButtonText();
 }
 
 function getTableQueryLogQuery(database, table) {
@@ -3766,9 +3899,9 @@ function openSnippetFolderMenu(folder, anchor_rect) {
 function openSnippetMenu(snippet, anchor_rect) {
     const items = [
         {
-            icon: '↩',
-            label: 'Load into editor',
-            onClick: () => setQueryEditorValue(snippet.query)
+            icon: '+',
+            label: 'Append to editor',
+            onClick: () => insertTextIntoEditor(snippet.query)
         },
         {
             icon: '▣',
@@ -3908,7 +4041,7 @@ function renderSnippets() {
                 button.type = 'button';
                 button.className = 'snippet-button';
                 button.title = snippet.query;
-                button.addEventListener('click', () => setQueryEditorValue(snippet.query));
+                button.addEventListener('click', () => insertTextIntoEditor(snippet.query));
 
                 const name = document.createElement('span');
                 name.className = 'snippet-name';
@@ -4585,6 +4718,10 @@ function keepResultTabVisible(result) {
     result?.tab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
+function hasResultPanel(resultId) {
+    return result_history.some(result => result.id == resultId);
+}
+
 function createResultPanel(requestNum, query) {
     const template = document.getElementById('result-panel-template');
     const panel = template.content.firstElementChild.cloneNode(true);
@@ -4637,6 +4774,11 @@ function createResultPanel(requestNum, query) {
 }
 
 function activateResultPanel(resultId) {
+    if (!hasResultPanel(resultId)) {
+        updateActiveHistoryEntry(active_result_id);
+        return;
+    }
+
     active_result_id = resultId;
     let active_result = null;
     for (const result of result_history) {
@@ -4654,6 +4796,7 @@ function activateResultPanel(resultId) {
     }
 
     keepResultTabVisible(active_result);
+    updateActiveHistoryEntry(resultId);
 }
 
 function resetResultPanels() {
@@ -4667,36 +4810,103 @@ function resetResultPanels() {
     document.getElementById('download-div').style.display = 'none';
     document.getElementById('logo-container').style.display = 'block';
     updateResultsStickyOffset();
+    renderActionHistory();
 }
 
 function renderActionHistory() {
+    action_body.replaceChildren();
+
     if (!action_history.length) {
-        action_history_elem.style.display = 'none';
-        action_body.innerHTML = '';
+        action_history_empty_elem.style.display = 'block';
         return;
     }
 
-    action_history_elem.style.display = 'block';
-    action_body.innerHTML = [...action_history].reverse().map(entry => `
-        <tr data-result-id="${entry.result_id}">
-            <td class="row-number">${entry.request_num}</td>
-            <td>${entry.ok ? '✔' : '✘'}</td>
-            <td>${entry.connection_name}</td>
-            <td><div class="action-cell" title="${entry.query.replace(/"/g, '&quot;').replace(/</g, '&lt;')}">${entry.query.replace(/</g, '&lt;')}</div></td>
-            <td>${entry.message.replace(/</g, '&lt;')}</td>
-            <td>${(entry.stats || '-').replace(/</g, '&lt;')}</td>
-        </tr>
-    `).join('');
+    action_history_empty_elem.style.display = 'none';
 
-    for (const row of action_body.querySelectorAll('tr[data-result-id]')) {
-        row.addEventListener('click', () => activateResultPanel(row.dataset.resultId));
-        const actionCell = row.querySelector('.action-cell');
-        if (actionCell) {
-            actionCell.addEventListener('click', (e) => {
-                e.stopPropagation();
-                actionCell.classList.toggle('expanded');
-            });
+    for (const entry of [...action_history].reverse()) {
+        const row = document.createElement('div');
+        row.className = 'history-entry';
+        row.dataset.resultId = entry.result_id;
+        const result_available = hasResultPanel(entry.result_id);
+
+        const main = document.createElement('button');
+        main.type = 'button';
+        main.className = 'history-entry-main';
+        if (!result_available) {
+            main.setAttribute('aria-disabled', 'true');
         }
+        main.title = result_available ? entry.query : `${entry.query}\n\nResult is no longer open.`;
+        main.addEventListener('click', () => {
+            if (result_available) {
+                activateResultPanel(entry.result_id);
+            }
+        });
+
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'history-entry-copy';
+        copy.textContent = '⧉';
+        copy.title = `Copy query\n\n${entry.query}`;
+        copy.setAttribute('aria-label', `Copy query #${entry.request_num}`);
+        copy.addEventListener('click', async e => {
+            e.stopPropagation();
+            const copied = await copyTextToClipboard(entry.query);
+            if (!copied) {
+                return;
+            }
+
+            copy.classList.add('copied');
+            copy.textContent = '✓';
+            window.setTimeout(() => {
+                copy.classList.remove('copied');
+                copy.textContent = '⧉';
+            }, 1200);
+        });
+
+        const meta = document.createElement('div');
+        meta.className = 'history-entry-meta';
+
+        const number = document.createElement('span');
+        number.className = 'history-entry-number';
+        number.textContent = `#${entry.request_num}`;
+
+        const status = document.createElement('span');
+        status.className = `history-entry-status ${entry.ok ? 'ok' : 'fail'}`;
+        status.textContent = entry.ok ? '✔' : '✘';
+
+        const connection = document.createElement('span');
+        connection.className = 'history-entry-connection';
+        connection.textContent = entry.connection_name;
+
+        const query = document.createElement('span');
+        query.className = 'history-entry-query monospace';
+        query.textContent = entry.query;
+        query.title = entry.query;
+
+        const detail = document.createElement('div');
+        detail.className = 'history-entry-detail';
+
+        const message = document.createElement('span');
+        message.className = 'history-entry-message';
+        message.textContent = entry.message;
+
+        const stats = document.createElement('span');
+        stats.className = 'history-entry-stats';
+        stats.textContent = entry.stats || '-';
+
+        meta.append(number, status, connection);
+        detail.append(message, stats);
+        main.append(meta, query, detail);
+        row.append(main, copy);
+        action_body.appendChild(row);
+    }
+
+    updateActiveHistoryEntry(active_result_id);
+}
+
+function updateActiveHistoryEntry(resultId) {
+    for (const entry of action_body.querySelectorAll('.history-entry')) {
+        entry.classList.toggle('active', !!resultId && entry.dataset.resultId == resultId);
     }
 }
 
