@@ -2046,6 +2046,37 @@
             background-color: var(--element-background-color);
         }
 
+        .result-copy
+        {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 1.8rem;
+            height: 1.8rem;
+            margin: 0 0 0.35rem auto;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+            color: var(--text-color);
+            padding: 0;
+            cursor: pointer;
+            line-height: 1;
+            font: inherit;
+        }
+
+        .result-copy:hover,
+        .result-copy:focus,
+        .result-copy.copied
+        {
+            border-color: var(--border-color-selected);
+            color: var(--text-color-active);
+            background: var(--button-color);
+        }
+
+        .result-copy.copy-failed
+        {
+            background: var(--element-background-color-fail);
+        }
+
         #data_div.fixed, .data-div.fixed
         {
             width: fit-content;
@@ -2583,6 +2614,7 @@
                     <pre class="result-query monospace"></pre>
                 </details>
                 <div class="data-div">
+                    <button type="button" class="result-copy" title="Copy formatted result" aria-label="Copy formatted result">⧉</button>
                     <table class="monospace shadow data-table"></table>
                     <pre class="monospace shadow data-unparsed"></pre>
                 </div>
@@ -4743,12 +4775,16 @@ function createResultPanel(requestNum, query) {
         result_query: panel.querySelector('.result-query'),
         result_stats: panel.querySelector('.result-stats'),
         data_div: panel.querySelector('.data-div'),
+        result_copy: panel.querySelector('.result-copy'),
+        copy_text: '',
         data_table: panel.querySelector('.data-table'),
         data_unparsed: panel.querySelector('.data-unparsed'),
         chart: panel.querySelector('.chart-output'),
         graph: panel.querySelector('.graph-output'),
         error: panel.querySelector('.error-output')
     };
+
+    attachResultCopyButton(elements);
 
     elements.result_query.innerText = query;
     results_tabs_elem.appendChild(tab);
@@ -4811,6 +4847,77 @@ function resetResultPanels() {
     document.getElementById('logo-container').style.display = 'block';
     updateResultsStickyOffset();
     renderActionHistory();
+}
+
+function resetResultCopyButton(elements = current_result_elements) {
+    const button = elements?.result_copy;
+    if (!button) {
+        return;
+    }
+
+    if (button.copy_feedback_timeout) {
+        clearTimeout(button.copy_feedback_timeout);
+        button.copy_feedback_timeout = null;
+    }
+
+    button.style.display = 'none';
+    button.disabled = true;
+    button.classList.remove('copied', 'copy-failed');
+    button.innerText = '⧉';
+    button.title = 'Copy formatted result';
+    button.setAttribute('aria-label', 'Copy formatted result');
+    elements.copy_text = '';
+}
+
+function showResultCopyButton(elements = current_result_elements, format = '') {
+    const button = elements?.result_copy;
+    if (!button) {
+        return;
+    }
+
+    button.style.display = 'flex';
+    button.disabled = false;
+    button.title = format ? `Copy ${format} result` : 'Copy formatted result';
+    button.setAttribute('aria-label', button.title);
+}
+
+function showResultCopyFeedback(button, copied) {
+    if (button.copy_feedback_timeout) {
+        clearTimeout(button.copy_feedback_timeout);
+    }
+
+    button.classList.toggle('copied', copied);
+    button.classList.toggle('copy-failed', !copied);
+    button.innerText = copied ? '✓' : '!';
+
+    const original_title = button.getAttribute('aria-label') || 'Copy formatted result';
+    button.title = copied ? 'Copied' : 'Copy failed';
+
+    button.copy_feedback_timeout = setTimeout(() => {
+        button.classList.remove('copied', 'copy-failed');
+        button.innerText = '⧉';
+        button.title = original_title;
+        button.copy_feedback_timeout = null;
+    }, 1200);
+}
+
+function attachResultCopyButton(elements) {
+    const button = elements?.result_copy;
+    if (!button) {
+        return;
+    }
+
+    resetResultCopyButton(elements);
+    button.addEventListener('click', async e => {
+        e.stopPropagation();
+
+        if (button.disabled) {
+            return;
+        }
+
+        const copied = await copyTextToClipboard(elements.copy_text || elements.data_unparsed.textContent || '');
+        showResultCopyFeedback(button, copied);
+    });
 }
 
 function renderActionHistory() {
@@ -5258,6 +5365,37 @@ let extremes = {};
 let header = {};
 
 const default_format = 'JSONStringsEachRowWithProgress';
+const non_clipboard_result_formats = new Set([
+    'null',
+    'rawblob'
+]);
+const binary_result_format_prefixes = [
+    'arrow',
+    'avro',
+    'bson',
+    'capnproto',
+    'cbor',
+    'msgpack',
+    'native',
+    'orc',
+    'parquet',
+    'protobuf',
+    'rowbinary'
+];
+
+function getExplicitFormatName(query) {
+    const match = query.match(/\bFORMAT\s+([A-Za-z][A-Za-z0-9_]*)/i);
+    return match ? match[1] : '';
+}
+
+function isClipboardTextFormat(format) {
+    const normalized_format = (format || '').toLowerCase();
+    if (!normalized_format || non_clipboard_result_formats.has(normalized_format)) {
+        return false;
+    }
+
+    return !binary_result_format_prefixes.some(prefix => normalized_format.startsWith(prefix));
+}
 
 function getClickHouseSummary(response) {
     const summary = response?.headers?.get('X-ClickHouse-Summary');
@@ -5324,6 +5462,7 @@ async function postImpl(posted_request_num, query)
     const user = user_elem.value;
     const password = password_elem.value;
     const server_address = url_elem.value;
+    const explicit_format = getExplicitFormatName(query);
     let url = server_address +
         (server_address.indexOf('?') >= 0 ? '&' : '?') +
         /// Ask server to allow cross-domain requests.
@@ -5337,7 +5476,7 @@ async function postImpl(posted_request_num, query)
     }
 
     /// Extremes only if the format is likely to be unchanged. This is imprecise.
-    if (!query.match(/\bFORMAT\s+\w+/i)) url += '&extremes=1';
+    if (!explicit_format) url += '&extremes=1';
 
     last_query_start = performance.now();
 
@@ -5538,6 +5677,14 @@ async function postImpl(posted_request_num, query)
     document.getElementById('download-div').style.display = 'block';
     last_query_for_download = query;
 
+    const copy_format = explicit_format || format;
+    if ((is_raw || is_table) && explicit_format && isClipboardTextFormat(copy_format)) {
+        current_result_elements.copy_text = reply;
+        showResultCopyButton(current_result_elements, copy_format);
+    } else {
+        resetResultCopyButton();
+    }
+
     if (is_raw || !elapsed_ns) {
         elapsed_ns = 1e6 * (performance.now() - last_query_start);
     }
@@ -5610,6 +5757,7 @@ async function restoreFromHistory(state) {
     let is_error = false;
 
     let format = state.format;
+    const explicit_format = getExplicitFormatName(state.query);
 
     if (!state.ok) {
         is_error = true;
@@ -5659,6 +5807,14 @@ async function restoreFromHistory(state) {
 
     document.getElementById('check-mark').style.display = 'inline-block';
     document.getElementById('hourglass').style.display = 'none';
+
+    const copy_format = explicit_format || format;
+    if ((is_raw || is_table) && explicit_format && isClipboardTextFormat(copy_format)) {
+        current_result_elements.copy_text = state.data;
+        showResultCopyButton(current_result_elements, copy_format);
+    } else {
+        resetResultCopyButton();
+    }
 
     if (is_raw) elapsed_ns = state.elapsed_ns;
 
@@ -5883,6 +6039,7 @@ function clear()
     clearElement(current_result_elements?.data_unparsed);
     clearElement(current_result_elements?.error);
     clearElement(document.getElementById('progress'));
+    resetResultCopyButton();
 
     current_result_elements?.data_table?.classList.remove('fixed');
     current_result_elements?.data_div?.classList.remove('fixed');
