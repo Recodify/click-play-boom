@@ -3568,6 +3568,42 @@ FROM ${database}.${table}
 LIMIT 100;`;
 }
 
+function buildReadableCountStatement(database, table) {
+    return `SELECT formatReadableQuantity(count(*)) AS readable_count FROM ${database}.${table};`;
+}
+
+function buildColumnStatsStatement(database, table, column) {
+    return `SELECT
+    quantile(0.50)(${column}) AS p50_${column},
+    quantile(0.95)(${column}) AS p95_${column},
+    quantile(0.99)(${column}) AS p99_${column},
+    min(${column}) AS min_${column},
+    avg(${column}) AS avg_${column},
+    max(${column}) AS max_${column}
+FROM ${database}.${table};`;
+}
+
+function getClickHouseBaseType(type) {
+    let base_type = (type || '').trim();
+    let previous_type = '';
+
+    while (base_type && base_type != previous_type) {
+        previous_type = base_type;
+        const wrapper_match = base_type.match(/^(Nullable|LowCardinality)\((.*)\)$/i);
+        if (wrapper_match) {
+            base_type = wrapper_match[2].trim();
+        }
+    }
+
+    return base_type;
+}
+
+function isNumericClickHouseType(type) {
+    const base_type = getClickHouseBaseType(type);
+    return /^(U?Int(8|16|32|64|128|256)|Float(32|64)|BFloat16)\b/i.test(base_type)
+        || /^Decimal(32|64|128|256)?\s*\(/i.test(base_type);
+}
+
 function buildDropStatement(database, table, engine) {
     if (isViewEngine(engine)) {
         return `DROP VIEW ${database}.${table};`;
@@ -3878,6 +3914,11 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
             onClick: () => insertTextIntoEditor(`SELECT count(*) FROM ${database}.${table};`)
         },
         {
+            icon: '#',
+            label: 'Generate SELECT readable count',
+            onClick: () => insertTextIntoEditor(buildReadableCountStatement(database, table))
+        },
+        {
             icon: '⌘',
             label: 'Generate SHOW TABLE',
             onClick: () => insertTextIntoEditor(`SHOW TABLE ${database}.${table};`)
@@ -3909,6 +3950,19 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
             icon: '✕',
             label: is_materialized_view ? 'Generate DROP MATERIALIZED VIEW' : is_view ? 'Generate DROP VIEW' : 'Generate DROP TABLE',
             onClick: () => insertTextIntoEditor(buildDropStatement(database, table, engine))
+        }
+    ];
+
+    showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
+}
+
+function openColumnMenu(anchor_rect, database, table, column) {
+    const items = [
+        {
+            icon: '∑',
+            label: 'Generate Stats',
+            disabled: !isNumericClickHouseType(column.type),
+            onClick: () => insertTextIntoEditor(buildColumnStatsStatement(database, table, column.name))
         }
     ];
 
@@ -5189,18 +5243,29 @@ async function loadTables(server_address, user, password, database) {
 }
 
 let load_columns_request_num = 0;
-function renderColumns(container, columns) {
+function renderColumns(container, columns, database, table) {
     container.innerHTML = '';
     container.dataset.loaded = '1';
 
     for (let column of columns) {
         let row = document.createElement('div');
         row.className = 'column';
+        const is_numeric_column = isNumericClickHouseType(column.type);
+
+        if (is_numeric_column) {
+            row.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                openColumnMenu({ left: e.clientX, bottom: e.clientY }, database, table, column);
+            });
+        }
 
         let name = document.createElement('span');
         name.className = 'column-name monospace';
         name.innerText = column.name;
-        name.title = 'Double-click to insert column name';
+        name.title = is_numeric_column
+            ? 'Double-click to insert column name. Right-click to generate stats'
+            : 'Double-click to insert column name';
         name.addEventListener('dblclick', e => {
             e.stopPropagation();
             insertTextIntoEditor(`${column.name}`);
@@ -5222,7 +5287,7 @@ async function loadColumns(server_address, user, password, database, table, cont
     const cache_key = getSchemaTableKey(database, table);
 
     if (schema_state.columns[cache_key]) {
-        renderColumns(container, schema_state.columns[cache_key]);
+        renderColumns(container, schema_state.columns[cache_key], database, table);
         return schema_state.columns[cache_key];
     }
 
@@ -5236,7 +5301,7 @@ async function loadColumns(server_address, user, password, database, table, cont
     if (current_load_columns_request_num != load_columns_request_num) return false;
 
     schema_state.columns[cache_key] = columns;
-    renderColumns(container, columns);
+    renderColumns(container, columns, database, table);
     return columns;
 }
 
