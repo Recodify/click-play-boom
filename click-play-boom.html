@@ -84,6 +84,11 @@
             --navigator-text-color: #182225;
             --navigator-muted-color: #5F6B76;
             --navigator-link-hover-color: #0B57D0;
+
+            --result-color-rotate: var(--background-color-rotate);
+            --result-header-color: oklch(92% 0.0296 var(--result-color-rotate));
+            --result-tab-accent-color: oklch(62% 0.12 var(--result-color-rotate));
+            --result-tab-background-color: color-mix(in srgb, var(--table-header-color) 86%, var(--result-tab-accent-color));
         }
 
         [data-theme="dark"] {
@@ -128,6 +133,10 @@
             --navigator-text-color: #E2EBEF;
             --navigator-muted-color: #9AACB5;
             --navigator-link-hover-color: #84C7FF;
+
+            --result-header-color: oklch(15% 0.0296 var(--result-color-rotate));
+            --result-tab-accent-color: oklch(70% 0.12 var(--result-color-rotate));
+            --result-tab-background-color: color-mix(in srgb, var(--table-header-color) 84%, var(--result-tab-accent-color));
         }
 
         ::selection {
@@ -253,7 +262,7 @@
         .sidebar-tabs
         {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.25rem;
         }
 
@@ -1742,7 +1751,7 @@
         .result-tab
         {
             border: 1px solid var(--border-color);
-            background: var(--table-header-color);
+            background: var(--result-tab-background-color);
             padding: 0.25rem 0.5rem;
             cursor: pointer;
             max-width: 16rem;
@@ -1755,6 +1764,8 @@
         {
             background: var(--button-color);
             color: var(--button-text-color);
+            border-color: var(--result-tab-accent-color);
+            box-shadow: inset 0 -2px 0 var(--result-tab-accent-color);
         }
 
         #results_panels
@@ -1856,66 +1867,214 @@
             font-size: 0.85em;
         }
 
+        #history-panel
+        {
+            min-height: 0;
+        }
+
         #action_history
         {
-            display: none;
-            margin-top: 1rem;
-        }
-
-        #action_history_header
-        {
             display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
+            flex: 1 1 auto;
+            min-height: 0;
+            flex-direction: column;
         }
 
-        #action_history_header button
+        #action-history-empty
         {
-            border: 1px solid var(--border-color);
-            background: var(--element-background-color);
-            color: var(--text-color);
-            padding: 0.2rem 0.4rem;
+            color: var(--navigator-muted-color);
+            margin-top: 0.25rem;
         }
 
-        #action-table
+        #action_body
+        {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            padding-right: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .history-entry
         {
             width: 100%;
-            table-layout: fixed;
+            min-width: 0;
+            border: 1px solid var(--navigator-card-border);
+            background: var(--navigator-card-background);
+            color: var(--navigator-text-color);
+            padding: 0.45rem;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.28rem;
+            align-items: start;
+            text-align: left;
+            font: inherit;
         }
 
-        #action-table th:nth-child(1) { width: 2rem; }
-        #action-table th:nth-child(2) { width: 3rem; }
-        #action-table th:nth-child(3) { width: 7rem; }
-        #action-table th:nth-child(4) { /* Action - takes remaining space */ }
-        #action-table th:nth-child(5) { width: 5.5rem; }
-        #action-table th:nth-child(6) { width: 3rem; }
-
-        #action-table .action-cell
+        .history-entry:hover,
+        .history-entry.active
         {
-            max-height: 3.6em;
+            border-color: var(--border-color-selected);
+            background: var(--navigator-card-header-active);
+        }
+
+        .history-entry-main
+        {
+            min-width: 0;
+            border: none;
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            display: grid;
+            gap: 0.28rem;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .history-entry-main[aria-disabled="true"]
+        {
+            cursor: default;
+            opacity: 0.62;
+        }
+
+        .history-entry-copy
+        {
+            width: 1.45rem;
+            height: 1.45rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--navigator-card-border);
+            background: color-mix(in srgb, var(--navigator-card-header) 70%, transparent);
+            color: var(--navigator-text-color);
+            padding: 0;
+            cursor: pointer;
+            line-height: 1;
+            font: inherit;
+        }
+
+        .history-entry-copy:hover,
+        .history-entry-copy:focus,
+        .history-entry-copy.copied
+        {
+            background: var(--navigator-card-header-active);
+            color: var(--navigator-link-hover-color);
+        }
+
+        .history-entry-meta,
+        .history-entry-detail
+        {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .history-entry-meta
+        {
+            font-size: 0.76rem;
+            font-weight: 700;
+        }
+
+        .history-entry-number,
+        .history-entry-detail
+        {
+            color: var(--navigator-muted-color);
+        }
+
+        .history-entry-status.ok
+        {
+            color: var(--element-color-ok);
+        }
+
+        .history-entry-status.fail
+        {
+            color: var(--border-color-selected);
+        }
+
+        .history-entry-connection,
+        .history-entry-message,
+        .history-entry-stats
+        {
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            white-space: pre-wrap;
-            word-break: break-all;
-            cursor: pointer;
-            font-size: 0.85em;
+            white-space: nowrap;
         }
 
-        #action-table .action-cell.expanded
+        .history-entry-connection
         {
-            max-height: none;
-            -webkit-line-clamp: unset;
-            display: block;
+            flex: 1 1 auto;
+        }
+
+        .history-entry-query
+        {
+            min-width: 0;
+            color: var(--navigator-text-color);
+            font-size: 0.78rem;
+            line-height: 1.28;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+
+        .history-entry-detail
+        {
+            font-size: 0.72rem;
+        }
+
+        .history-entry-message
+        {
+            flex: 1 1 auto;
+        }
+
+        .history-entry-stats
+        {
+            flex: 0 0 auto;
+            max-width: 45%;
         }
 
         #data_div, .data-div
         {
             margin-top: 1rem;
             background-color: var(--element-background-color);
+        }
+
+        .result-copy
+        {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 1.8rem;
+            height: 1.8rem;
+            margin: 0 0 0.35rem auto;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+            color: var(--text-color);
+            padding: 0;
+            cursor: pointer;
+            line-height: 1;
+            font: inherit;
+        }
+
+        .result-copy:hover,
+        .result-copy:focus,
+        .result-copy.copied
+        {
+            border-color: var(--border-color-selected);
+            color: var(--text-color-active);
+            background: var(--button-color);
+        }
+
+        .result-copy.copy-failed
+        {
+            background: var(--element-background-color-fail);
         }
 
         #data_div.fixed, .data-div.fixed
@@ -2085,6 +2244,12 @@
             color: var(--misc-text-color);
         }
 
+        #results_workspace .data-table th,
+        #results_workspace .data-table .row-number
+        {
+            background-color: var(--result-header-color);
+        }
+
         div.empty-result
         {
             opacity: 10%;
@@ -2245,6 +2410,7 @@
             <div class="sidebar-tabs">
                 <button id="sidebar-tab-navigator" class="sidebar-tab active" type="button" data-sidebar-tab="navigator">Navigator</button>
                 <button id="sidebar-tab-snippets" class="sidebar-tab" type="button" data-sidebar-tab="snippets">Snippets</button>
+                <button id="sidebar-tab-history" class="sidebar-tab" type="button" data-sidebar-tab="history">History</button>
             </div>
             <div id="navigator-panel" class="sidebar-panel active" data-sidebar-panel="navigator">
                 <div class="navigator-heading">
@@ -2297,6 +2463,18 @@
                 <div id="snippets-browser-empty">No saved snippets.</div>
                 <div id="snippets-browser"></div>
             </div>
+            <div id="history-panel" class="sidebar-panel" data-sidebar-panel="history">
+                <div class="navigator-heading">
+                    <div class="menu-section-title">History</div>
+                    <div class="navigator-heading-actions">
+                        <button id="clear-history" class="navigator-icon-button" type="button" title="Clear history">×</button>
+                    </div>
+                </div>
+                <div id="action_history">
+                    <div id="action-history-empty">No actions yet.</div>
+                    <div id="action_body"></div>
+                </div>
+            </div>
             <div id="navigator-context-menu" class="navigator-context-menu"></div>
         </div>
         <div id="sidebar-resizer" aria-hidden="true"></div>
@@ -2344,25 +2522,6 @@
         <div id="results_workspace">
             <div id="results_tabs"></div>
             <div id="results_panels"></div>
-            <div id="action_history">
-                <div id="action_history_header">
-                    <div>Action History</div>
-                    <button id="clear-history" type="button">Clear</button>
-                </div>
-                <table id="action-table">
-                    <thead>
-                        <tr>
-                            <th class="row-number">№</th>
-                            <th>Status</th>
-                            <th>Connection</th>
-                            <th>Action</th>
-                            <th>Message</th>
-                            <th>Stats</th>
-                        </tr>
-                    </thead>
-                    <tbody id="action_body"></tbody>
-                </table>
-            </div>
             <p id="logo-container">
                 <a href="https://clickhouse.com/">
             <svg version="1.1" id="logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
@@ -2455,6 +2614,7 @@
                     <pre class="result-query monospace"></pre>
                 </details>
                 <div class="data-div">
+                    <button type="button" class="result-copy" title="Copy formatted result" aria-label="Copy formatted result">⧉</button>
                     <table class="monospace shadow data-table"></table>
                     <pre class="monospace shadow data-unparsed"></pre>
                 </div>
@@ -2513,7 +2673,7 @@ let navigator_footer_primary_elem = document.getElementById('navigator-footer-pr
 let results_workspace_elem = document.getElementById('results_workspace');
 let results_tabs_elem = document.getElementById('results_tabs');
 let results_panels_elem = document.getElementById('results_panels');
-let action_history_elem = document.getElementById('action_history');
+let action_history_empty_elem = document.getElementById('action-history-empty');
 let action_body = document.getElementById('action_body');
 let download_use_cache_elem = document.getElementById('download-use-cache');
 let refresh_schema_elem = document.getElementById('refresh-schema');
@@ -2968,7 +3128,7 @@ function getSnippetFolderSnippets(folder_id) {
 }
 
 function setSidebarTab(tab_name, persist = true) {
-    const next_tab = tab_name == 'snippets' ? 'snippets' : 'navigator';
+    const next_tab = ['navigator', 'snippets', 'history'].includes(tab_name) ? tab_name : 'navigator';
 
     for (const tab of document.querySelectorAll('[data-sidebar-tab]')) {
         tab.classList.toggle('active', tab.dataset.sidebarTab == next_tab);
@@ -2986,11 +3146,32 @@ function formatSnippetPreview(query) {
     return query.replace(/\s+/g, ' ').trim().slice(0, 120) || '(empty query)';
 }
 
-function setQueryEditorValue(query) {
-    query_area.value = query;
-    query_area.selectionStart = query_area.selectionEnd = query_area.value.length;
-    query_area.focus();
-    updateRunButtonText();
+async function copyTextToClipboard(text) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText == 'function') {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (e) {
+            // Fall back to a temporary textarea below.
+        }
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } finally {
+        document.body.removeChild(textarea);
+    }
+
+    return copied;
 }
 
 function promptSnippetFolder(default_folder = null) {
@@ -3302,6 +3483,10 @@ function isViewEngine(engine) {
     return /view/i.test(engine || '');
 }
 
+function isReplicatedTableEngine(engine) {
+    return /^Replicated/i.test(engine || '') && !isViewEngine(engine);
+}
+
 function getSchemaItemKind(engine) {
     if (isMaterializedViewEngine(engine)) {
         return 'materialized-view';
@@ -3383,8 +3568,49 @@ FROM ${database}.${table}
 LIMIT 100;`;
 }
 
+function buildReadableCountStatement(database, table) {
+    return `SELECT formatReadableQuantity(count(*)) AS readable_count FROM ${database}.${table};`;
+}
+
+function buildColumnStatsStatement(database, table, column) {
+    return `SELECT
+    quantile(0.50)(${column}) AS p50_${column},
+    quantile(0.95)(${column}) AS p95_${column},
+    quantile(0.99)(${column}) AS p99_${column},
+    min(${column}) AS min_${column},
+    avg(${column}) AS avg_${column},
+    max(${column}) AS max_${column}
+FROM ${database}.${table};`;
+}
+
+function getClickHouseBaseType(type) {
+    let base_type = (type || '').trim();
+    let previous_type = '';
+
+    while (base_type && base_type != previous_type) {
+        previous_type = base_type;
+        const wrapper_match = base_type.match(/^(Nullable|LowCardinality)\((.*)\)$/i);
+        if (wrapper_match) {
+            base_type = wrapper_match[2].trim();
+        }
+    }
+
+    return base_type;
+}
+
+function isNumericClickHouseType(type) {
+    const base_type = getClickHouseBaseType(type);
+    return /^(U?Int(8|16|32|64|128|256)|Float(32|64)|BFloat16)\b/i.test(base_type)
+        || /^Decimal(32|64|128|256)?\s*\(/i.test(base_type);
+}
+
 function buildDropStatement(database, table, engine) {
-    return `${/view/i.test(engine) ? 'DROP VIEW' : 'DROP TABLE'} ${database}.${table};`;
+    if (isViewEngine(engine)) {
+        return `DROP VIEW ${database}.${table};`;
+    }
+
+    const cluster_clause = isReplicatedTableEngine(engine) ? ` ON CLUSTER '{cluster}' SYNC` : '';
+    return `DROP TABLE ${database}.${table}${cluster_clause};`;
 }
 
 function createNavigatorLabel(icon, text, icon_class = '') {
@@ -3423,6 +3649,7 @@ function insertTextIntoEditor(text) {
     }
 
     query_area.focus();
+    updateRunButtonText();
 }
 
 function getTableQueryLogQuery(database, table) {
@@ -3687,6 +3914,11 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
             onClick: () => insertTextIntoEditor(`SELECT count(*) FROM ${database}.${table};`)
         },
         {
+            icon: '#',
+            label: 'Generate SELECT readable count',
+            onClick: () => insertTextIntoEditor(buildReadableCountStatement(database, table))
+        },
+        {
             icon: '⌘',
             label: 'Generate SHOW TABLE',
             onClick: () => insertTextIntoEditor(`SHOW TABLE ${database}.${table};`)
@@ -3724,6 +3956,19 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
     showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
 }
 
+function openColumnMenu(anchor_rect, database, table, column) {
+    const items = [
+        {
+            icon: '∑',
+            label: 'Generate Stats',
+            disabled: !isNumericClickHouseType(column.type),
+            onClick: () => insertTextIntoEditor(buildColumnStatsStatement(database, table, column.name))
+        }
+    ];
+
+    showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
+}
+
 function openSnippetFolderMenu(folder, anchor_rect) {
     const items = [
         {
@@ -3749,9 +3994,9 @@ function openSnippetFolderMenu(folder, anchor_rect) {
 function openSnippetMenu(snippet, anchor_rect) {
     const items = [
         {
-            icon: '↩',
-            label: 'Load into editor',
-            onClick: () => setQueryEditorValue(snippet.query)
+            icon: '+',
+            label: 'Append to editor',
+            onClick: () => insertTextIntoEditor(snippet.query)
         },
         {
             icon: '▣',
@@ -3891,7 +4136,7 @@ function renderSnippets() {
                 button.type = 'button';
                 button.className = 'snippet-button';
                 button.title = snippet.query;
-                button.addEventListener('click', () => setQueryEditorValue(snippet.query));
+                button.addEventListener('click', () => insertTextIntoEditor(snippet.query));
 
                 const name = document.createElement('span');
                 name.className = 'snippet-name';
@@ -4568,16 +4813,23 @@ function keepResultTabVisible(result) {
     result?.tab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
+function hasResultPanel(resultId) {
+    return result_history.some(result => result.id == resultId);
+}
+
 function createResultPanel(requestNum, query) {
     const template = document.getElementById('result-panel-template');
     const panel = template.content.firstElementChild.cloneNode(true);
     const resultId = `result-${requestNum}`;
+    const resultColor = queryToColor(query);
     panel.dataset.resultId = resultId;
+    panel.style.setProperty('--result-color-rotate', resultColor);
 
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.className = 'result-tab';
     tab.dataset.resultId = resultId;
+    tab.style.setProperty('--result-color-rotate', resultColor);
     tab.innerText = `#${requestNum} ${query.replace(/\s+/g, ' ').slice(0, 48) || 'result'}`;
     tab.addEventListener('click', () => activateResultPanel(resultId));
 
@@ -4586,12 +4838,16 @@ function createResultPanel(requestNum, query) {
         result_query: panel.querySelector('.result-query'),
         result_stats: panel.querySelector('.result-stats'),
         data_div: panel.querySelector('.data-div'),
+        result_copy: panel.querySelector('.result-copy'),
+        copy_text: '',
         data_table: panel.querySelector('.data-table'),
         data_unparsed: panel.querySelector('.data-unparsed'),
         chart: panel.querySelector('.chart-output'),
         graph: panel.querySelector('.graph-output'),
         error: panel.querySelector('.error-output')
     };
+
+    attachResultCopyButton(elements);
 
     elements.result_query.innerText = query;
     results_tabs_elem.appendChild(tab);
@@ -4617,6 +4873,11 @@ function createResultPanel(requestNum, query) {
 }
 
 function activateResultPanel(resultId) {
+    if (!hasResultPanel(resultId)) {
+        updateActiveHistoryEntry(active_result_id);
+        return;
+    }
+
     active_result_id = resultId;
     let active_result = null;
     for (const result of result_history) {
@@ -4634,6 +4895,7 @@ function activateResultPanel(resultId) {
     }
 
     keepResultTabVisible(active_result);
+    updateActiveHistoryEntry(resultId);
 }
 
 function resetResultPanels() {
@@ -4647,36 +4909,174 @@ function resetResultPanels() {
     document.getElementById('download-div').style.display = 'none';
     document.getElementById('logo-container').style.display = 'block';
     updateResultsStickyOffset();
+    renderActionHistory();
 }
 
-function renderActionHistory() {
-    if (!action_history.length) {
-        action_history_elem.style.display = 'none';
-        action_body.innerHTML = '';
+function resetResultCopyButton(elements = current_result_elements) {
+    const button = elements?.result_copy;
+    if (!button) {
         return;
     }
 
-    action_history_elem.style.display = 'block';
-    action_body.innerHTML = [...action_history].reverse().map(entry => `
-        <tr data-result-id="${entry.result_id}">
-            <td class="row-number">${entry.request_num}</td>
-            <td>${entry.ok ? '✔' : '✘'}</td>
-            <td>${entry.connection_name}</td>
-            <td><div class="action-cell" title="${entry.query.replace(/"/g, '&quot;').replace(/</g, '&lt;')}">${entry.query.replace(/</g, '&lt;')}</div></td>
-            <td>${entry.message.replace(/</g, '&lt;')}</td>
-            <td>${(entry.stats || '-').replace(/</g, '&lt;')}</td>
-        </tr>
-    `).join('');
+    if (button.copy_feedback_timeout) {
+        clearTimeout(button.copy_feedback_timeout);
+        button.copy_feedback_timeout = null;
+    }
 
-    for (const row of action_body.querySelectorAll('tr[data-result-id]')) {
-        row.addEventListener('click', () => activateResultPanel(row.dataset.resultId));
-        const actionCell = row.querySelector('.action-cell');
-        if (actionCell) {
-            actionCell.addEventListener('click', (e) => {
-                e.stopPropagation();
-                actionCell.classList.toggle('expanded');
-            });
+    button.style.display = 'none';
+    button.disabled = true;
+    button.classList.remove('copied', 'copy-failed');
+    button.innerText = '⧉';
+    button.title = 'Copy formatted result';
+    button.setAttribute('aria-label', 'Copy formatted result');
+    elements.copy_text = '';
+}
+
+function showResultCopyButton(elements = current_result_elements, format = '') {
+    const button = elements?.result_copy;
+    if (!button) {
+        return;
+    }
+
+    button.style.display = 'flex';
+    button.disabled = false;
+    button.title = format ? `Copy ${format} result` : 'Copy formatted result';
+    button.setAttribute('aria-label', button.title);
+}
+
+function showResultCopyFeedback(button, copied) {
+    if (button.copy_feedback_timeout) {
+        clearTimeout(button.copy_feedback_timeout);
+    }
+
+    button.classList.toggle('copied', copied);
+    button.classList.toggle('copy-failed', !copied);
+    button.innerText = copied ? '✓' : '!';
+
+    const original_title = button.getAttribute('aria-label') || 'Copy formatted result';
+    button.title = copied ? 'Copied' : 'Copy failed';
+
+    button.copy_feedback_timeout = setTimeout(() => {
+        button.classList.remove('copied', 'copy-failed');
+        button.innerText = '⧉';
+        button.title = original_title;
+        button.copy_feedback_timeout = null;
+    }, 1200);
+}
+
+function attachResultCopyButton(elements) {
+    const button = elements?.result_copy;
+    if (!button) {
+        return;
+    }
+
+    resetResultCopyButton(elements);
+    button.addEventListener('click', async e => {
+        e.stopPropagation();
+
+        if (button.disabled) {
+            return;
         }
+
+        const copied = await copyTextToClipboard(elements.copy_text || elements.data_unparsed.textContent || '');
+        showResultCopyFeedback(button, copied);
+    });
+}
+
+function renderActionHistory() {
+    action_body.replaceChildren();
+
+    if (!action_history.length) {
+        action_history_empty_elem.style.display = 'block';
+        return;
+    }
+
+    action_history_empty_elem.style.display = 'none';
+
+    for (const entry of [...action_history].reverse()) {
+        const row = document.createElement('div');
+        row.className = 'history-entry';
+        row.dataset.resultId = entry.result_id;
+        const result_available = hasResultPanel(entry.result_id);
+
+        const main = document.createElement('button');
+        main.type = 'button';
+        main.className = 'history-entry-main';
+        if (!result_available) {
+            main.setAttribute('aria-disabled', 'true');
+        }
+        main.title = result_available ? entry.query : `${entry.query}\n\nResult is no longer open.`;
+        main.addEventListener('click', () => {
+            if (result_available) {
+                activateResultPanel(entry.result_id);
+            }
+        });
+
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'history-entry-copy';
+        copy.textContent = '⧉';
+        copy.title = `Copy query\n\n${entry.query}`;
+        copy.setAttribute('aria-label', `Copy query #${entry.request_num}`);
+        copy.addEventListener('click', async e => {
+            e.stopPropagation();
+            const copied = await copyTextToClipboard(entry.query);
+            if (!copied) {
+                return;
+            }
+
+            copy.classList.add('copied');
+            copy.textContent = '✓';
+            window.setTimeout(() => {
+                copy.classList.remove('copied');
+                copy.textContent = '⧉';
+            }, 1200);
+        });
+
+        const meta = document.createElement('div');
+        meta.className = 'history-entry-meta';
+
+        const number = document.createElement('span');
+        number.className = 'history-entry-number';
+        number.textContent = `#${entry.request_num}`;
+
+        const status = document.createElement('span');
+        status.className = `history-entry-status ${entry.ok ? 'ok' : 'fail'}`;
+        status.textContent = entry.ok ? '✔' : '✘';
+
+        const connection = document.createElement('span');
+        connection.className = 'history-entry-connection';
+        connection.textContent = entry.connection_name;
+
+        const query = document.createElement('span');
+        query.className = 'history-entry-query monospace';
+        query.textContent = entry.query;
+        query.title = entry.query;
+
+        const detail = document.createElement('div');
+        detail.className = 'history-entry-detail';
+
+        const message = document.createElement('span');
+        message.className = 'history-entry-message';
+        message.textContent = entry.message;
+
+        const stats = document.createElement('span');
+        stats.className = 'history-entry-stats';
+        stats.textContent = entry.stats || '-';
+
+        meta.append(number, status, connection);
+        detail.append(message, stats);
+        main.append(meta, query, detail);
+        row.append(main, copy);
+        action_body.appendChild(row);
+    }
+
+    updateActiveHistoryEntry(active_result_id);
+}
+
+function updateActiveHistoryEntry(resultId) {
+    for (const entry of action_body.querySelectorAll('.history-entry')) {
+        entry.classList.toggle('active', !!resultId && entry.dataset.resultId == resultId);
     }
 }
 
@@ -4843,18 +5243,29 @@ async function loadTables(server_address, user, password, database) {
 }
 
 let load_columns_request_num = 0;
-function renderColumns(container, columns) {
+function renderColumns(container, columns, database, table) {
     container.innerHTML = '';
     container.dataset.loaded = '1';
 
     for (let column of columns) {
         let row = document.createElement('div');
         row.className = 'column';
+        const is_numeric_column = isNumericClickHouseType(column.type);
+
+        if (is_numeric_column) {
+            row.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                openColumnMenu({ left: e.clientX, bottom: e.clientY }, database, table, column);
+            });
+        }
 
         let name = document.createElement('span');
         name.className = 'column-name monospace';
         name.innerText = column.name;
-        name.title = 'Double-click to insert column name';
+        name.title = is_numeric_column
+            ? 'Double-click to insert column name. Right-click to generate stats'
+            : 'Double-click to insert column name';
         name.addEventListener('dblclick', e => {
             e.stopPropagation();
             insertTextIntoEditor(`${column.name}`);
@@ -4876,7 +5287,7 @@ async function loadColumns(server_address, user, password, database, table, cont
     const cache_key = getSchemaTableKey(database, table);
 
     if (schema_state.columns[cache_key]) {
-        renderColumns(container, schema_state.columns[cache_key]);
+        renderColumns(container, schema_state.columns[cache_key], database, table);
         return schema_state.columns[cache_key];
     }
 
@@ -4890,7 +5301,7 @@ async function loadColumns(server_address, user, password, database, table, cont
     if (current_load_columns_request_num != load_columns_request_num) return false;
 
     schema_state.columns[cache_key] = columns;
-    renderColumns(container, columns);
+    renderColumns(container, columns, database, table);
     return columns;
 }
 
@@ -5028,6 +5439,37 @@ let extremes = {};
 let header = {};
 
 const default_format = 'JSONStringsEachRowWithProgress';
+const non_clipboard_result_formats = new Set([
+    'null',
+    'rawblob'
+]);
+const binary_result_format_prefixes = [
+    'arrow',
+    'avro',
+    'bson',
+    'capnproto',
+    'cbor',
+    'msgpack',
+    'native',
+    'orc',
+    'parquet',
+    'protobuf',
+    'rowbinary'
+];
+
+function getExplicitFormatName(query) {
+    const match = query.match(/\bFORMAT\s+([A-Za-z][A-Za-z0-9_]*)/i);
+    return match ? match[1] : '';
+}
+
+function isClipboardTextFormat(format) {
+    const normalized_format = (format || '').toLowerCase();
+    if (!normalized_format || non_clipboard_result_formats.has(normalized_format)) {
+        return false;
+    }
+
+    return !binary_result_format_prefixes.some(prefix => normalized_format.startsWith(prefix));
+}
 
 function getClickHouseSummary(response) {
     const summary = response?.headers?.get('X-ClickHouse-Summary');
@@ -5094,6 +5536,7 @@ async function postImpl(posted_request_num, query)
     const user = user_elem.value;
     const password = password_elem.value;
     const server_address = url_elem.value;
+    const explicit_format = getExplicitFormatName(query);
     let url = server_address +
         (server_address.indexOf('?') >= 0 ? '&' : '?') +
         /// Ask server to allow cross-domain requests.
@@ -5107,7 +5550,7 @@ async function postImpl(posted_request_num, query)
     }
 
     /// Extremes only if the format is likely to be unchanged. This is imprecise.
-    if (!query.match(/\bFORMAT\s+\w+/i)) url += '&extremes=1';
+    if (!explicit_format) url += '&extremes=1';
 
     last_query_start = performance.now();
 
@@ -5308,6 +5751,14 @@ async function postImpl(posted_request_num, query)
     document.getElementById('download-div').style.display = 'block';
     last_query_for_download = query;
 
+    const copy_format = explicit_format || format;
+    if ((is_raw || is_table) && explicit_format && isClipboardTextFormat(copy_format)) {
+        current_result_elements.copy_text = reply;
+        showResultCopyButton(current_result_elements, copy_format);
+    } else {
+        resetResultCopyButton();
+    }
+
     if (is_raw || !elapsed_ns) {
         elapsed_ns = 1e6 * (performance.now() - last_query_start);
     }
@@ -5315,7 +5766,6 @@ async function postImpl(posted_request_num, query)
     applyClickHouseSummary(response);
     updateProgressText();
     document.documentElement.style.setProperty('--progress', '0');
-    document.documentElement.style.setProperty('--background-color-rotate', queryToColor(query));
 
     if (current_result_meta) {
         current_result_meta.ok = true;
@@ -5381,6 +5831,7 @@ async function restoreFromHistory(state) {
     let is_error = false;
 
     let format = state.format;
+    const explicit_format = getExplicitFormatName(state.query);
 
     if (!state.ok) {
         is_error = true;
@@ -5431,11 +5882,18 @@ async function restoreFromHistory(state) {
     document.getElementById('check-mark').style.display = 'inline-block';
     document.getElementById('hourglass').style.display = 'none';
 
+    const copy_format = explicit_format || format;
+    if ((is_raw || is_table) && explicit_format && isClipboardTextFormat(copy_format)) {
+        current_result_elements.copy_text = state.data;
+        showResultCopyButton(current_result_elements, copy_format);
+    } else {
+        resetResultCopyButton();
+    }
+
     if (is_raw) elapsed_ns = state.elapsed_ns;
 
     updateProgressText();
     document.documentElement.style.setProperty('--progress', '0');
-    document.documentElement.style.setProperty('--background-color-rotate', queryToColor(query));
 }
 
 appendTextareaResizer();
@@ -5655,6 +6113,7 @@ function clear()
     clearElement(current_result_elements?.data_unparsed);
     clearElement(current_result_elements?.error);
     clearElement(document.getElementById('progress'));
+    resetResultCopyButton();
 
     current_result_elements?.data_table?.classList.remove('fixed');
     current_result_elements?.data_div?.classList.remove('fixed');

@@ -27,11 +27,13 @@ The rework focuses on making the browser UI useful for real query work rather th
   - `SELECT *`
   - `SELECT` with all column names
   - `SELECT count(*)`
+  - `SELECT formatReadableQuantity(count(*))`
   - `SHOW TABLE`
   - `system.tables` lookup
   - `system.query_log` lookup
   - `INSERT` template
   - `DROP TABLE` / `DROP VIEW`
+- Provides numeric column actions to generate quantile/min/avg/max stats SQL.
 - Stores query snippets in local folders.
 - Supports result downloads in ClickHouse formats such as CSV, TSV, JSON, JSONLines, Parquet, Markdown, or a custom format.
 - Can optionally write preview results to ClickHouse query cache so a later download can reuse the same result.
@@ -152,4 +154,3 @@ The app is usable as a local/development ClickHouse HTTP query UI. Known rough e
 - result copy-to-clipboard options are still pending
 - session/server settings management is still future work
 - saved/admin query panels are still future work
-
