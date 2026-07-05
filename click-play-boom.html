@@ -1345,7 +1345,7 @@
         .active-connection-banner
         {
             display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
+            grid-template-columns: auto minmax(0, 1fr) auto;
             gap: 0.35rem 0.75rem;
             align-items: center;
             margin-bottom: 0.5rem;
@@ -1482,8 +1482,8 @@
             display: grid;
             place-items: center;
             gap: 1rem;
-            grid-template-columns: auto auto auto auto minmax(6rem, 1fr) auto minmax(0, 32rem) auto;
-            grid-template-areas: "run hint editor-toggle hourglass progress-bar download progress-text theme";
+            grid-template-columns: auto auto auto auto minmax(6rem, 1fr) minmax(0, 32rem);
+            grid-template-areas: "run editor-toggle download hourglass progress-bar progress-text";
         }
 
         #run
@@ -1526,12 +1526,6 @@
             color: var(--text-color-active);
         }
 
-        #hint
-        {
-            grid-area: hint;
-            color: var(--misc-text-color);
-        }
-
         #hourglass
         {
             grid-area: hourglass;
@@ -1569,10 +1563,14 @@
         {
             grid-area: download;
             display: none;
+            align-items: center;
+            justify-content: center;
             user-select: none;
             color: var(--button-text-color);
             background-color: var(--button-color);
-            padding: 0.25rem 0.65rem;
+            width: 2rem;
+            height: 1.8rem;
+            padding: 0;
             cursor: pointer;
             position: relative;
         }
@@ -1654,9 +1652,11 @@
         }
 
         .download-option select,
+        #download-filename,
         #download-format-other
         {
             flex: 1;
+            min-width: 0;
             padding: 0.25rem;
             background-color: var(--element-background-color);
             color: var(--text-color);
@@ -1711,7 +1711,12 @@
 
         #theme
         {
-            grid-area: theme;
+            justify-self: end;
+            display: flex;
+            align-items: center;
+            color: var(--misc-text-color);
+            font-size: 1rem;
+            line-height: 1;
         }
 
         #toggle-light, #toggle-dark
@@ -1744,7 +1749,7 @@
             flex-wrap: wrap;
             gap: 0.25rem;
             margin-top: 0;
-            padding: 0.25rem 0;
+            padding: 0.25rem 0 0;
             background: var(--background-color);
         }
 
@@ -1767,16 +1772,19 @@
 
         .result-tab.active
         {
-            background: var(--button-color);
-            color: var(--button-text-color);
+            background: var(--element-background-color);
+            color: var(--text-color-active);
             border-color: var(--result-tab-accent-color);
-            box-shadow: inset 0 -2px 0 var(--result-tab-accent-color);
+            border-bottom-color: var(--element-background-color);
+            box-shadow: inset 0 2px 0 var(--result-tab-accent-color);
+            position: relative;
+            z-index: 1;
         }
 
         #results_panels
         {
             min-width: 0;
-            margin-top: 0.25rem;
+            margin-top: -1px;
         }
 
         #results_workspace th
@@ -1804,7 +1812,7 @@
         .result-summary-toggle
         {
             display: grid;
-            grid-template-columns: auto auto minmax(0, 1fr);
+            grid-template-columns: auto minmax(0, 1fr);
             align-items: center;
             gap: 0.45rem;
             padding: 0.3rem 0.5rem;
@@ -1850,12 +1858,7 @@
 
         .result-stats
         {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-size: 0.85em;
-            text-align: right;
+            display: none;
         }
 
         .result-query
@@ -2510,11 +2513,11 @@
                     <div id="active-connection-name" class="active-connection-name">No active connection</div>
                     <div id="active-connection-meta" class="active-connection-meta monospace">Select a connection in the navigator to run queries.</div>
                 </div>
+                <div id="theme"><span id="toggle-dark" title="Switch to dark theme">🌘</span><span id="toggle-light" title="Switch to light theme">☀️</span></div>
             </div>
             <div id="query_div"><textarea autofocus="" spellcheck="false" autocorrect="false" autocomplete="false" data-gramm="false" class="monospace shadow" id="query"></textarea><div class="textarea-resizer"></div></div>
             <div id="run_div">
-                <button type="submit" class="shadow" id="run">Run</button>
-                <div id="hint">&nbsp;(Ctrl/Cmd+Enter)</div>
+                <button type="submit" class="shadow" id="run" title="Run all (Ctrl/Cmd+Enter)" aria-label="Run all (Ctrl/Cmd+Enter)">Run</button>
                 <button type="button" class="shadow" id="toggle-editor" title="Compact query editor" aria-label="Compact query editor" aria-pressed="false">▴</button>
                 <div id="hourglass">⧗</div>
                 <div id="check-mark">✔</div>
@@ -2527,7 +2530,6 @@
                     </svg>
                 </div>
                 <div id="stats"></div>
-                <div id="theme"><span id="toggle-dark">🌘</span><span id="toggle-light">☀️</span></div>
             </div>
         </form>
         <div id="results_workspace">
@@ -2589,18 +2591,52 @@
         <div id="download-dropdown">
             <div>
                 <div class="download-option">
+                    <label for="download-filename">Download as:</label>
+                    <input type="text" id="download-filename" spellcheck="false">
+                </div>
+                <div class="download-option">
                     <label for="download-format">Format:</label>
                     <select id="download-format">
-                        <option value="CSV">CSV</option>
-                        <option value="TSV">TSV</option>
-                        <option value="JSON">JSON</option>
-                        <option value="NDJSON" selected="">JSONLines</option>
-                        <option value="Parquet">Parquet</option>
-                        <option value="Markdown">Markdown</option>
+                        <optgroup label="Common">
+                            <option value="CSVWithNames" selected="">CSV (with headers)</option>
+                            <option value="TSVWithNames">TSV (with headers)</option>
+                            <option value="JSON">JSON</option>
+                            <option value="Parquet">Parquet</option>
+                            <option value="Markdown">Markdown</option>
+                        </optgroup>
+                        <optgroup label="Additional">
+                            <option value="CSV">CSV</option>
+                            <option value="TSV">TSV</option>
+                            <option value="CSVWithNamesAndTypes">CSVWithNamesAndTypes</option>
+                            <option value="TSVWithNamesAndTypes">TSVWithNamesAndTypes</option>
+                            <option value="JSONEachRow">JSONEachRow</option>
+                            <option value="JSONCompact">JSONCompact</option>
+                            <option value="JSONCompactEachRow">JSONCompactEachRow</option>
+                            <option value="JSONStringsEachRow">JSONStringsEachRow</option>
+                            <option value="Pretty">Pretty</option>
+                            <option value="PrettyCompact">PrettyCompact</option>
+                            <option value="Vertical">Vertical</option>
+                            <option value="Values">Values</option>
+                            <option value="TSKV">TSKV</option>
+                            <option value="XML">XML</option>
+                            <option value="YAML">YAML</option>
+                            <option value="SQLInsert">SQLInsert</option>
+                            <option value="Native">Native</option>
+                            <option value="RowBinary">RowBinary</option>
+                            <option value="Arrow">Arrow</option>
+                            <option value="ArrowStream">ArrowStream</option>
+                            <option value="Avro">Avro</option>
+                            <option value="ORC">ORC</option>
+                            <option value="Protobuf">Protobuf</option>
+                            <option value="CapnProto">CapnProto</option>
+                            <option value="BSON">BSON</option>
+                            <option value="MsgPack">MsgPack</option>
+                            <option value="RawBLOB">RawBLOB</option>
+                        </optgroup>
                         <option value="other">Other...</option>
                     </select>
                 </div>
-                <input type="text" id="download-format-other" placeholder="Enter format name (e.g., Arrow, Avro)">
+                <input type="text" id="download-format-other" placeholder="Enter format name (e.g., CustomSeparated)">
                 <div class="download-section-title">Result Reuse</div>
                 <div class="download-option checkbox">
                     <label for="download-use-cache">
@@ -4947,7 +4983,7 @@ function activateResultPanel(resultId) {
             current_result_meta = result;
             document.getElementById('stats').innerText = result.stats || '';
             last_query_for_download = result.query;
-            document.getElementById('download-div').style.display = result.ok ? 'block' : 'none';
+            document.getElementById('download-div').style.display = result.ok ? 'inline-flex' : 'none';
         }
     }
 
@@ -5816,7 +5852,7 @@ async function postImpl(posted_request_num, query)
 
     document.getElementById('check-mark').style.display = 'inline-block';
     document.getElementById('hourglass').style.display = 'none';
-    document.getElementById('download-div').style.display = 'block';
+    document.getElementById('download-div').style.display = 'inline-flex';
     last_query_for_download = query;
 
     const copy_format = explicit_format || format;
@@ -5977,7 +6013,12 @@ if (window.location.hash) {
 
 function updateRunButtonText() {
     const has_selection = query_area.selectionStart != query_area.selectionEnd;
-    document.getElementById('run').innerText = in_flight ? 'Stop' : (has_selection ? 'Run selected' : 'Run all');
+    const run = document.getElementById('run');
+    const text = in_flight ? 'Stop' : (has_selection ? 'Run selected' : 'Run all');
+    const label = in_flight ? 'Stop running query' : `${text} (Ctrl/Cmd+Enter)`;
+    run.innerText = text;
+    run.title = label;
+    run.setAttribute('aria-label', label);
 }
 
 function setEditorCompact(compact, save = true) {
@@ -6016,8 +6057,7 @@ async function post()
     resetResultPanels();
     scrollResultsToTop();
     in_flight = true;
-    let run = document.getElementById('run');
-    run.innerText = 'Stop';
+    updateRunButtonText();
 
     for (const query of queries) {
         if (stop_after_current) {
@@ -7189,6 +7229,161 @@ document.getElementById('toggle-dark').onclick = function() {
 
 // Download functionality
 let last_query_for_download = '';
+const download_format_extensions = new Map([
+    ['csv', 'csv'],
+    ['csvwithnames', 'csv'],
+    ['csvwithnamesandtypes', 'csv'],
+    ['tsv', 'tsv'],
+    ['tsvwithnames', 'tsv'],
+    ['tsvwithnamesandtypes', 'tsv'],
+    ['tabseparated', 'tsv'],
+    ['tabseparatedwithnames', 'tsv'],
+    ['tabseparatedwithnamesandtypes', 'tsv'],
+    ['json', 'json'],
+    ['jsonlines', 'jsonl'],
+    ['ndjson', 'jsonl'],
+    ['parquet', 'parquet'],
+    ['markdown', 'md'],
+    ['xml', 'xml'],
+    ['yaml', 'yaml'],
+    ['sqlinsert', 'sql'],
+    ['tskv', 'tskv'],
+    ['native', 'native'],
+    ['rowbinary', 'bin'],
+    ['rawblob', 'blob'],
+    ['arrow', 'arrow'],
+    ['arrowstream', 'arrow'],
+    ['avro', 'avro'],
+    ['orc', 'orc'],
+    ['protobuf', 'protobuf'],
+    ['capnproto', 'capnp'],
+    ['bson', 'bson'],
+    ['msgpack', 'msgpack']
+]);
+const known_download_extensions = new Set([
+    ...download_format_extensions.values(),
+    'txt'
+]);
+
+function normalizeDownloadFormatName(format) {
+    return (format || '').trim().toLowerCase();
+}
+
+function getSelectedDownloadFormat() {
+    const format_select = document.getElementById('download-format');
+    const format_other = document.getElementById('download-format-other');
+    const selected_format = format_select.value;
+    return selected_format == 'other' ? format_other.value.trim() : selected_format;
+}
+
+function getDownloadFormatExtension(format) {
+    const normalized_format = normalizeDownloadFormatName(format);
+    if (!normalized_format) {
+        return 'txt';
+    }
+
+    const mapped_extension = download_format_extensions.get(normalized_format);
+    if (mapped_extension) {
+        return mapped_extension;
+    }
+
+    if (normalized_format.startsWith('csv')) {
+        return 'csv';
+    }
+
+    if (normalized_format.startsWith('tsv') || normalized_format.startsWith('tabseparated')) {
+        return 'tsv';
+    }
+
+    if (normalized_format.startsWith('json')) {
+        return normalized_format.includes('eachrow') || normalized_format.includes('lines')
+            ? 'jsonl'
+            : 'json';
+    }
+
+    if (normalized_format.startsWith('pretty') || normalized_format == 'vertical' || normalized_format == 'values') {
+        return 'txt';
+    }
+
+    return normalized_format.replace(/[^a-z0-9]+/g, '') || 'txt';
+}
+
+function stripClickHouseIdentifierQuotes(identifier_part) {
+    const trimmed = (identifier_part || '').trim();
+    if (trimmed.length >= 2 && trimmed[0] == '`' && trimmed[trimmed.length - 1] == '`') {
+        return trimmed.slice(1, -1).replaceAll('``', '`');
+    }
+    if (trimmed.length >= 2 && trimmed[0] == '"' && trimmed[trimmed.length - 1] == '"') {
+        return trimmed.slice(1, -1).replaceAll('""', '"');
+    }
+    return trimmed;
+}
+
+function getDownloadBasenameFromQuery(query) {
+    const identifier = '`(?:``|[^`])+`|"(?:""|[^"])+"|[A-Za-z_][A-Za-z0-9_$]*';
+    const match = query.match(new RegExp(`\\bFROM\\s+(${identifier}(?:\\s*\\.\\s*${identifier})?)`, 'i'));
+    if (!match) {
+        return 'results';
+    }
+
+    const parts = match[1].split(/\s*\.\s*/).map(stripClickHouseIdentifierQuotes);
+    return parts[parts.length - 1] || 'results';
+}
+
+function sanitizeDownloadFilenamePart(value) {
+    return (value || '')
+        .trim()
+        .replace(/[\x00-\x1F\x7F<>:"'\/\\|?*]+/g, '-')
+        .replace(/\s+/g, ' ')
+        .replace(/^\.+/, '')
+        .replace(/[. -]+$/g, '')
+        .slice(0, 120);
+}
+
+function stripKnownDownloadExtension(filename) {
+    const match = filename.match(/\.([A-Za-z0-9]+)$/);
+    if (match && known_download_extensions.has(match[1].toLowerCase())) {
+        return filename.slice(0, -match[0].length);
+    }
+    return filename;
+}
+
+function buildDownloadFilename(query, format, requested_name = '') {
+    const extension = getDownloadFormatExtension(format);
+    let basename = sanitizeDownloadFilenamePart(requested_name);
+    if (!basename) {
+        basename = sanitizeDownloadFilenamePart(getDownloadBasenameFromQuery(query));
+    }
+    if (!basename) {
+        basename = 'results';
+    }
+
+    return `${stripKnownDownloadExtension(basename)}.${extension}`;
+}
+
+function updateDownloadFormatOtherVisibility() {
+    const format_select = document.getElementById('download-format');
+    const format_other = document.getElementById('download-format-other');
+    if (format_select.value == 'other') {
+        format_other.classList.add('show');
+        format_other.focus();
+    } else {
+        format_other.classList.remove('show');
+    }
+}
+
+function updateDownloadFilenamePlaceholder() {
+    const filename_input = document.getElementById('download-filename');
+    if (!filename_input) {
+        return;
+    }
+
+    filename_input.placeholder = buildDownloadFilename(
+        last_query_for_download || query_area.value,
+        getSelectedDownloadFormat() || 'Custom',
+        ''
+    );
+}
 
 // Toggle download dropdown
 document.getElementById('download-div').addEventListener('click', function(e) {
@@ -7205,9 +7400,12 @@ document.getElementById('download-div').addEventListener('click', function(e) {
         const button_rect = button.getBoundingClientRect();
         const context_rect = context.getBoundingClientRect();
         const dropdown_rect = dropdown.getBoundingClientRect();
+        const preferred_left = button_rect.left - context_rect.left;
+        const max_left = Math.max(0, context_rect.width - dropdown_rect.width);
 
-        dropdown.style.top = (button_rect.top - context_rect.top) + 'px';
-        dropdown.style.left = (button_rect.left - context_rect.left + button_rect.width - dropdown_rect.width) + 'px';
+        dropdown.style.top = (button_rect.bottom - context_rect.top + 4) + 'px';
+        dropdown.style.left = Math.min(preferred_left, max_left) + 'px';
+        updateDownloadFilenamePlaceholder();
     }
 });
 
@@ -7224,27 +7422,21 @@ document.addEventListener('click', function() {
 
 // Handle "Other" format selection
 document.getElementById('download-format').addEventListener('change', function() {
-    const otherInput = document.getElementById('download-format-other');
-    if (this.value === 'other') {
-        otherInput.classList.add('show');
-        otherInput.focus();
-    } else {
-        otherInput.classList.remove('show');
-    }
+    updateDownloadFormatOtherVisibility();
+    updateDownloadFilenamePlaceholder();
 });
+
+document.getElementById('download-format-other').addEventListener('input', updateDownloadFilenamePlaceholder);
 
 // Handle download button click
 document.getElementById('download-button').addEventListener('click', async function() {
-    const formatSelect = document.getElementById('download-format');
-    const formatOther = document.getElementById('download-format-other');
+    const format_select = document.getElementById('download-format');
+    const filename_input = document.getElementById('download-filename');
 
-    let format = formatSelect.value;
-    if (format === 'other') {
-        format = formatOther.value.trim();
-        if (!format) {
-            alert('Please enter a format name');
-            return;
-        }
+    let format = getSelectedDownloadFormat();
+    if (format_select.value == 'other' && !format) {
+        alert('Please enter a format name');
+        return;
     }
 
     // Get current values
@@ -7258,13 +7450,15 @@ document.getElementById('download-button').addEventListener('click', async funct
         return;
     }
 
+    const filename = buildDownloadFilename(query, format, filename_input.value);
+
     // Build download URL
     let url = server_address +
         (server_address.indexOf('?') >= 0 ? '&' : '?') +
         'add_http_cors_header=1' +
         '&enable_http_compression=1' +
         '&default_format=' + encodeURIComponent(format) +
-        '&http_response_headers=' + encodeURIComponent(`{'Content-Disposition':'attachment; filename="result.${encodeURIComponent(format.toLowerCase())}"'}`);
+        '&http_response_headers=' + encodeURIComponent(`{'Content-Disposition':'attachment; filename="${filename}"'}`);
     if (shouldUseQueryCacheForDownload()) {
         url += '&use_query_cache=1&enable_reads_from_query_cache=1&enable_writes_to_query_cache=0&query_cache_ttl=600&query_cache_nondeterministic_function_handling=save';
     }
