@@ -59,6 +59,8 @@
             --text-color-active: #000;
             --button-active-color: #FE0;
             --button-active-text-color: #000;
+            --copy-success-background-color: var(--button-color);
+            --copy-success-text-color: var(--button-text-color);
             --misc-text-color: #888;
             --error-color: #FEE; /* Light-pink on light-cyan is so neat, I even want to trigger errors to see this cool combination of colors. */
             --table-header-color: #EEE;
@@ -109,6 +111,8 @@
             --button-text-color: #000;
             --button-active-color: #FE0;
             --button-active-text-color: #000;
+            --copy-success-background-color: var(--button-color);
+            --copy-success-text-color: var(--button-text-color);
             --misc-text-color: #888;
             --error-color: #400;
             --table-header-color: oklch(15% 0.0296 var(--background-color-rotate));
@@ -763,6 +767,7 @@
 
         .navigator-node-icon.table,
         .navigator-node-icon.view,
+        .navigator-node-icon.dictionary,
         .navigator-node-icon.materialized-view
         {
             font-size: 0.9rem;
@@ -2064,12 +2069,18 @@
         }
 
         .result-copy:hover,
-        .result-copy:focus,
+        .result-copy:focus
+        {
+            border-color: var(--result-tab-accent-color);
+            color: var(--text-color-active);
+            background: var(--result-tab-background-color);
+        }
+
         .result-copy.copied
         {
-            border-color: var(--border-color-selected);
-            color: var(--text-color-active);
-            background: var(--button-color);
+            border-color: var(--copy-success-background-color);
+            color: var(--copy-success-text-color);
+            background: var(--copy-success-background-color);
         }
 
         .result-copy.copy-failed
@@ -3483,11 +3494,19 @@ function isViewEngine(engine) {
     return /view/i.test(engine || '');
 }
 
+function isDictionaryEngine(engine) {
+    return /^Dictionary$/i.test((engine || '').trim());
+}
+
 function isReplicatedTableEngine(engine) {
     return /^Replicated/i.test(engine || '') && !isViewEngine(engine);
 }
 
 function getSchemaItemKind(engine) {
+    if (isDictionaryEngine(engine)) {
+        return 'dictionary';
+    }
+
     if (isMaterializedViewEngine(engine)) {
         return 'materialized-view';
     }
@@ -3499,6 +3518,8 @@ function getSchemaItemIcon(kind) {
     switch (kind) {
         case 'materialized-view':
             return '◳';
+        case 'dictionary':
+            return '▧';
         case 'view':
             return '◰';
         case 'table':
@@ -3605,12 +3626,20 @@ function isNumericClickHouseType(type) {
 }
 
 function buildDropStatement(database, table, engine) {
+    if (isDictionaryEngine(engine)) {
+        return `DROP DICTIONARY ${database}.${table};`;
+    }
+
     if (isViewEngine(engine)) {
         return `DROP VIEW ${database}.${table};`;
     }
 
     const cluster_clause = isReplicatedTableEngine(engine) ? ` ON CLUSTER '{cluster}' SYNC` : '';
     return `DROP TABLE ${database}.${table}${cluster_clause};`;
+}
+
+function buildDropDictionaryOnClusterStatement(database, table) {
+    return `DROP DICTIONARY ${database}.${table} ON CLUSTER '{cluster}' SYNC;`;
 }
 
 function createNavigatorLabel(icon, text, icon_class = '') {
@@ -3635,21 +3664,42 @@ function createNavigatorLabel(icon, text, icon_class = '') {
     return label;
 }
 
-function insertTextIntoEditor(text) {
-    const has_focus = document.activeElement == query_area;
-    const start = query_area.selectionStart ?? query_area.value.length;
-    const end = query_area.selectionEnd ?? query_area.value.length;
+function replaceQueryEditorRange(text, start = query_area.selectionStart ?? query_area.value.length, end = query_area.selectionEnd ?? query_area.value.length, selection_start = null, selection_end = null) {
+    query_area.focus();
+    query_area.setSelectionRange(start, end);
 
-    if (has_focus) {
-        query_area.setRangeText(text, start, end, 'end');
-    } else {
-        const separator = query_area.value.trim() ? '\n\n' : '';
-        query_area.value += separator + text;
-        query_area.selectionStart = query_area.selectionEnd = query_area.value.length;
+    let inserted = false;
+    const value_before_insert = query_area.value;
+    if (typeof document.execCommand == 'function') {
+        try {
+            inserted = document.execCommand('insertText', false, text);
+        } catch (e) {
+            inserted = false;
+        }
     }
 
-    query_area.focus();
+    if (!inserted && query_area.value != value_before_insert) {
+        inserted = true;
+    }
+
+    if (!inserted) {
+        query_area.setRangeText(text, start, end, 'end');
+    }
+
+    if (selection_start !== null && selection_end !== null) {
+        query_area.setSelectionRange(selection_start, selection_end);
+    }
+
     updateRunButtonText();
+}
+
+function insertTextIntoEditor(text) {
+    const has_focus = document.activeElement == query_area;
+    const start = has_focus ? query_area.selectionStart ?? query_area.value.length : query_area.value.length;
+    const end = has_focus ? query_area.selectionEnd ?? query_area.value.length : query_area.value.length;
+    const text_to_insert = has_focus ? text : `${query_area.value.trim() ? '\n\n' : ''}${text}`;
+
+    replaceQueryEditorRange(text_to_insert, start, end);
 }
 
 function getTableQueryLogQuery(database, table) {
@@ -3890,10 +3940,11 @@ function openConnectionMenu(connection, anchor_rect) {
 function openTableMenu(anchor_rect, server_address, user, password, database, table, engine) {
     const is_view = isViewEngine(engine);
     const is_materialized_view = isMaterializedViewEngine(engine);
+    const is_dictionary = isDictionaryEngine(engine);
     const items = [
         {
             icon: '≡',
-            label: is_materialized_view ? 'Generate SELECT from materialized view' : is_view ? 'Generate SELECT from view' : 'Generate SELECT',
+            label: is_dictionary ? 'Generate SELECT from dictionary' : is_materialized_view ? 'Generate SELECT from materialized view' : is_view ? 'Generate SELECT from view' : 'Generate SELECT',
             onClick: () => insertTextIntoEditor(`SELECT * FROM ${database}.${table} LIMIT 100;`)
         },
         {
@@ -3933,7 +3984,7 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
             label: 'Generate Query log lookup',
             onClick: () => insertTextIntoEditor(getTableQueryLogQuery(database, table))
         },
-        {
+        ...(is_dictionary ? [] : [{
             icon: '✚',
             label: 'Generate INSERT',
             disabled: is_view,
@@ -3945,12 +3996,17 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
                 }
                 insertTextIntoEditor(buildInsertStatement(database, table, columns));
             }
-        },
+        }]),
         {
             icon: '✕',
-            label: is_materialized_view ? 'Generate DROP MATERIALIZED VIEW' : is_view ? 'Generate DROP VIEW' : 'Generate DROP TABLE',
+            label: is_dictionary ? 'Generate DROP DICTIONARY' : is_materialized_view ? 'Generate DROP MATERIALIZED VIEW' : is_view ? 'Generate DROP VIEW' : 'Generate DROP TABLE',
             onClick: () => insertTextIntoEditor(buildDropStatement(database, table, engine))
-        }
+        },
+        ...(is_dictionary ? [{
+            icon: '✕',
+            label: 'Generate DROP DICTIONARY ON CLUSTER',
+            onClick: () => insertTextIntoEditor(buildDropDictionaryOnClusterStatement(database, table))
+        }] : [])
     ];
 
     showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
@@ -4617,6 +4673,7 @@ function renderTableGroups(connection_id, server_address, user, password, databa
     const sorted_rows = [...table_rows].sort((a, b) => a.table.localeCompare(b.table, undefined, { numeric: true }));
     const groups = [
         { name: 'Tables', kind: 'table', rows: sorted_rows.filter(elem => getSchemaItemKind(elem.engine) == 'table') },
+        { name: 'Dictionaries', kind: 'dictionary', rows: sorted_rows.filter(elem => getSchemaItemKind(elem.engine) == 'dictionary') },
         { name: 'Materialized Views', kind: 'materialized-view', rows: sorted_rows.filter(elem => getSchemaItemKind(elem.engine) == 'materialized-view') },
         { name: 'Views', kind: 'view', rows: sorted_rows.filter(elem => getSchemaItemKind(elem.engine) == 'view') }
     ];
@@ -4693,7 +4750,7 @@ function renderTableGroups(connection_id, server_address, user, password, databa
             table_menu_button.type = 'button';
             table_menu_button.className = 'table-menu';
             table_menu_button.innerText = '⋯';
-            table_menu_button.title = 'Table actions';
+            table_menu_button.title = item_kind == 'dictionary' ? 'Dictionary actions' : 'Table actions';
             table_menu_button.addEventListener('click', e => {
                 e.stopPropagation();
                 const rect = table_menu_button.getBoundingClientRect();
@@ -4926,7 +4983,7 @@ function resetResultCopyButton(elements = current_result_elements) {
     button.style.display = 'none';
     button.disabled = true;
     button.classList.remove('copied', 'copy-failed');
-    button.innerText = '⧉';
+    button.textContent = '⧉';
     button.title = 'Copy formatted result';
     button.setAttribute('aria-label', 'Copy formatted result');
     elements.copy_text = '';
@@ -4951,14 +5008,14 @@ function showResultCopyFeedback(button, copied) {
 
     button.classList.toggle('copied', copied);
     button.classList.toggle('copy-failed', !copied);
-    button.innerText = copied ? '✓' : '!';
+    button.textContent = copied ? '✓' : '!';
 
     const original_title = button.getAttribute('aria-label') || 'Copy formatted result';
     button.title = copied ? 'Copied' : 'Copy failed';
 
     button.copy_feedback_timeout = setTimeout(() => {
         button.classList.remove('copied', 'copy-failed');
-        button.innerText = '⧉';
+        button.textContent = '⧉';
         button.title = original_title;
         button.copy_feedback_timeout = null;
     }, 1200);
@@ -5443,6 +5500,9 @@ const non_clipboard_result_formats = new Set([
     'null',
     'rawblob'
 ]);
+const always_clipboard_text_result_formats = new Set([
+    'vertical'
+]);
 const binary_result_format_prefixes = [
     'arrow',
     'avro',
@@ -5468,7 +5528,15 @@ function isClipboardTextFormat(format) {
         return false;
     }
 
+    if (always_clipboard_text_result_formats.has(normalized_format)) {
+        return true;
+    }
+
     return !binary_result_format_prefixes.some(prefix => normalized_format.startsWith(prefix));
+}
+
+function canCopyRenderedResult(is_raw, is_table, format) {
+    return is_raw || is_table || always_clipboard_text_result_formats.has((format || '').toLowerCase());
 }
 
 function getClickHouseSummary(response) {
@@ -5752,7 +5820,7 @@ async function postImpl(posted_request_num, query)
     last_query_for_download = query;
 
     const copy_format = explicit_format || format;
-    if ((is_raw || is_table) && explicit_format && isClipboardTextFormat(copy_format)) {
+    if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
         current_result_elements.copy_text = reply;
         showResultCopyButton(current_result_elements, copy_format);
     } else {
@@ -5883,7 +5951,7 @@ async function restoreFromHistory(state) {
     document.getElementById('hourglass').style.display = 'none';
 
     const copy_format = explicit_format || format;
-    if ((is_raw || is_table) && explicit_format && isClipboardTextFormat(copy_format)) {
+    if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
         current_result_elements.copy_text = state.data;
         showResultCopyButton(current_result_elements, copy_format);
     } else {
@@ -6022,11 +6090,11 @@ let user_prefers_tab_navigation = false;
 });
 
 query_area.onkeydown = (e) => {
-    if (e.key == 'Tab' && !event.shiftKey && !user_prefers_tab_navigation) {
-        document.execCommand('insertText', false, '    ');
+    if (e.key == 'Tab' && !e.shiftKey && !user_prefers_tab_navigation) {
         e.preventDefault();
+        replaceQueryEditorRange('    ');
         return false;
-    } else if (e.key === 'Enter' && !(event.metaKey || event.ctrlKey)) {
+    } else if (e.key === 'Enter' && !(e.metaKey || e.ctrlKey)) {
         // If the user presses Enter, and the previous line starts with spaces,
         // then we will insert the same number of spaces.
         const elem = e.target;
@@ -6038,7 +6106,6 @@ query_area.onkeydown = (e) => {
 
         const elem_value = elem.value;
         const text_before_cursor = elem_value.substring(0, cursor_pos);
-        const text_after_cursor = elem_value.substring(cursor_pos);
         const prev_lines = text_before_cursor.split('\n');
         const prev_line = prev_lines.pop();
         const lead_spaces = prev_line.match(/^\s*/)[0];
@@ -6046,12 +6113,8 @@ query_area.onkeydown = (e) => {
             return;
         }
 
-        // Add leading spaces to the current line.
-        elem.value = text_before_cursor + '\n' + lead_spaces + text_after_cursor;
-        elem.selectionStart = cursor_pos + lead_spaces.length + 1;
-        elem.selectionEnd = elem.selectionStart;
-
         e.preventDefault();
+        replaceQueryEditorRange('\n' + lead_spaces, cursor_pos, cursor_pos);
         return false;
     } else if ((e.ctrlKey || e.metaKey) && e.key === '/' && !e.shiftKey) {
         // Comment/uncomment selected lines on Ctrl+/ or Cmd+/
@@ -6083,13 +6146,10 @@ query_area.onkeydown = (e) => {
         }
 
         const replacedText = lines.join('\n');
-        elem.value = value.slice(0, lineStart) + replacedText + value.slice(lineEnd);
-
-        // Adjust selection to keep the user in flow and enable quick reversal
-        elem.selectionStart = lineStart;
-        elem.selectionEnd = lineStart + replacedText.length;
 
         e.preventDefault();
+        // Adjust selection to keep the user in flow and enable quick reversal
+        replaceQueryEditorRange(replacedText, lineStart, lineEnd, lineStart, lineStart + replacedText.length);
         return false;
     }
 };

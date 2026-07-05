@@ -22,7 +22,7 @@ The rework focuses on making the browser UI useful for real query work rather th
 - Keeps an action history for executed statements and their status.
 - Manages multiple saved connections in browser local storage.
 - Shows the active connection clearly above the editor.
-- Loads schemas through a navigator with databases, tables, views, materialized views, and columns.
+- Loads schemas through a navigator with databases, tables, dictionaries, views, materialized views, and columns.
 - Provides table actions to generate common SQL:
   - `SELECT *`
   - `SELECT` with all column names
@@ -32,7 +32,7 @@ The rework focuses on making the browser UI useful for real query work rather th
   - `system.tables` lookup
   - `system.query_log` lookup
   - `INSERT` template
-  - `DROP TABLE` / `DROP VIEW`
+  - `DROP TABLE` / `DROP DICTIONARY` / `DROP VIEW`
 - Provides numeric column actions to generate quantile/min/avg/max stats SQL.
 - Stores query snippets in local folders.
 - Supports result downloads in ClickHouse formats such as CSV, TSV, JSON, JSONLines, Parquet, Markdown, or a custom format.
@@ -80,7 +80,7 @@ The current implementation uses ClickHouse lexer tokenization for statement spli
 The left navigator stores connections locally and lazy-loads schema information from ClickHouse system tables.
 
 - Select a connection to make it active and load databases.
-- Expand databases to load tables and views.
+- Expand databases to load tables, dictionaries, and views.
 - Expand tables to load columns.
 - Use the filter box to search connections and loaded schema.
 - Use table context menus to generate SQL into the editor.
