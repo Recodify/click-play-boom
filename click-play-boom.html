@@ -49,6 +49,7 @@
             --query-editor-background-color: var(--element-background-color);
             --query-editor-text-color: var(--text-color);
             --element-color-ok: #080;
+            --element-color-fail: #C00;
             --element-background-color-fail: #FEE;
             --bar-color: #FF8; /* Light bar in background of table cells. */
             --bar-color-negative: #FEE;
@@ -100,6 +101,7 @@
             --query-editor-background-color: oklch(25% 0.0296 var(--background-color-rotate));
             --query-editor-text-color: #E6EDF3;
             --element-color-ok: #8F8;
+            --element-color-fail: #F66;
             --element-background-color-fail: #300;
             --bar-color: #320;
             --bar-color-negative: #311;
@@ -329,7 +331,9 @@
         {
             display: flex;
             justify-content: flex-end;
+            gap: 0.75rem;
             margin-top: -0.2rem;
+            flex-wrap: wrap;
         }
 
         .navigator-setting
@@ -1345,7 +1349,7 @@
         .active-connection-banner
         {
             display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
+            grid-template-columns: auto minmax(0, 1fr) auto;
             gap: 0.35rem 0.75rem;
             align-items: center;
             margin-bottom: 0.5rem;
@@ -1481,9 +1485,9 @@
             margin-top: 0.5rem;
             display: grid;
             place-items: center;
-            gap: 1rem;
-            grid-template-columns: auto auto auto auto minmax(6rem, 1fr) auto minmax(0, 32rem) auto;
-            grid-template-areas: "run hint editor-toggle hourglass progress-bar download progress-text theme";
+            gap: 0.75rem;
+            grid-template-columns: auto auto minmax(6rem, 1fr);
+            grid-template-areas: "run hourglass progress-bar";
         }
 
         #run
@@ -1498,7 +1502,9 @@
             font-size: 100%; /* Otherwise button element will have a lower font size. */
         }
 
-        #run:hover, #run:focus, #download-div:hover, #download-div:focus
+        #run:hover, #run:focus,
+        .result-action-button:hover,
+        .result-action-button:focus
         {
             color: var(--button-active-text-color);
             background-color: var(--button-active-color);
@@ -1506,7 +1512,10 @@
 
         #toggle-editor
         {
-            grid-area: editor-toggle;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            z-index: 5;
             user-select: none;
             border: 1px solid var(--border-color);
             background-color: var(--element-background-color);
@@ -1516,6 +1525,7 @@
             cursor: pointer;
             line-height: 1;
             font-size: 0.95rem;
+            box-shadow: none;
         }
 
         #toggle-editor:hover,
@@ -1524,12 +1534,6 @@
         {
             border-color: var(--border-color-selected);
             color: var(--text-color-active);
-        }
-
-        #hint
-        {
-            grid-area: hint;
-            color: var(--misc-text-color);
         }
 
         #hourglass
@@ -1541,17 +1545,9 @@
             animation: hourglass-animation 2s linear infinite;
         }
 
-        #check-mark
-        {
-            grid-area: hourglass;
-            display: none;
-            font-size: 110%;
-            color: #080;
-        }
-
         #stats
         {
-            grid-area: progress-text;
+            display: none;
             color: var(--misc-text-color);
             min-width: 0;
             max-width: 100%;
@@ -1565,19 +1561,7 @@
             color: var(--progress-color);
         }
 
-        #download-div
-        {
-            grid-area: download;
-            display: none;
-            user-select: none;
-            color: var(--button-text-color);
-            background-color: var(--button-color);
-            padding: 0.25rem 0.65rem;
-            cursor: pointer;
-            position: relative;
-        }
-
-        #download
+        .download-icon
         {
             width: 1em;
             height: 1em;
@@ -1654,9 +1638,11 @@
         }
 
         .download-option select,
+        #download-filename,
         #download-format-other
         {
             flex: 1;
+            min-width: 0;
             padding: 0.25rem;
             background-color: var(--element-background-color);
             color: var(--text-color);
@@ -1711,7 +1697,12 @@
 
         #theme
         {
-            grid-area: theme;
+            justify-self: end;
+            display: flex;
+            align-items: center;
+            color: var(--misc-text-color);
+            font-size: 1rem;
+            line-height: 1;
         }
 
         #toggle-light, #toggle-dark
@@ -1727,25 +1718,31 @@
 
         #results_workspace
         {
-            --results-tabs-height: 0px;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
             min-width: 0;
             min-height: 0;
-            overflow: auto;
-            scrollbar-color: var(--border-color) var(--element-background-color);
+            overflow: hidden;
+        }
+
+        #results_header
+        {
+            grid-row: 1;
+            grid-column: 1;
+            position: relative;
+            z-index: 25;
+            display: block;
+            margin-top: 0;
+            padding: 0.25rem 0 0;
+            background: var(--background-color);
         }
 
         #results_tabs
         {
-            position: sticky;
-            top: 0;
-            left: 0;
-            z-index: 25;
             display: flex;
             flex-wrap: wrap;
             gap: 0.25rem;
-            margin-top: 0;
-            padding: 0.25rem 0;
-            background: var(--background-color);
+            min-width: 0;
         }
 
         #results_tabs:empty
@@ -1755,6 +1752,9 @@
 
         .result-tab
         {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
             border: 1px solid var(--border-color);
             background: var(--result-tab-background-color);
             padding: 0.25rem 0.5rem;
@@ -1765,46 +1765,113 @@
             white-space: nowrap;
         }
 
+        .result-tab-title
+        {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .result-tab-status
+        {
+            flex: 0 0 auto;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .result-tab.succeeded .result-tab-status
+        {
+            color: var(--element-color-ok);
+        }
+
+        .result-tab.failed .result-tab-status
+        {
+            color: var(--element-color-fail);
+        }
+
         .result-tab.active
         {
-            background: var(--button-color);
-            color: var(--button-text-color);
+            background: var(--element-background-color);
+            color: var(--text-color-active);
             border-color: var(--result-tab-accent-color);
-            box-shadow: inset 0 -2px 0 var(--result-tab-accent-color);
+            border-bottom-color: var(--element-background-color);
+            box-shadow: inset 0 2px 0 var(--result-tab-accent-color);
+            position: relative;
+            z-index: 1;
         }
 
         #results_panels
         {
+            grid-row: 2;
+            grid-column: 1;
             min-width: 0;
-            margin-top: 0.25rem;
+            min-height: 0;
+            margin-top: -1px;
+            overflow: hidden;
         }
 
         #results_workspace th
         {
-            top: var(--results-tabs-height);
+            position: relative;
+            top: auto;
+            z-index: auto;
+        }
+
+        #results_workspace .data-table thead
+        {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: var(--result-header-color);
         }
 
         .result-panel
         {
             display: none;
+            min-width: 0;
+            min-height: 0;
+            height: 100%;
         }
 
         .result-panel.active
         {
-            display: block;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+        }
+
+        .result-chrome
+        {
+            position: relative;
+            z-index: 24;
+            width: 100%;
+            min-width: 0;
+            margin-bottom: 0;
+            background: var(--background-color);
+        }
+
+        .result-body
+        {
+            min-width: 0;
+            min-height: 0;
+            margin-top: -1px;
+            overflow: auto;
+            background: var(--element-background-color);
+            scrollbar-color: var(--border-color) var(--element-background-color);
         }
 
         .result-summary
         {
             color: var(--misc-text-color);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0;
             min-width: 0;
         }
 
         .result-summary-toggle
         {
             display: grid;
-            grid-template-columns: auto auto minmax(0, 1fr);
+            grid-template-columns: auto auto minmax(0, 1fr) auto;
             align-items: center;
             gap: 0.45rem;
             padding: 0.3rem 0.5rem;
@@ -1850,12 +1917,33 @@
 
         .result-stats
         {
+            color: var(--misc-text-color);
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             font-size: 0.85em;
             text-align: right;
+            cursor: text;
+            user-select: text;
+        }
+
+        .result-stats.loading::after
+        {
+            content: " | fetching stats";
+            display: inline-block;
+            width: 9.8em;
+            margin-left: 0.35rem;
+            text-align: left;
+            animation: result-stats-loading 1.2s steps(4, end) infinite;
+        }
+
+        @keyframes result-stats-loading
+        {
+            0% { content: " | fetching stats"; }
+            25% { content: " | fetching stats."; }
+            50% { content: " | fetching stats.."; }
+            75%, 100% { content: " | fetching stats..."; }
         }
 
         .result-query
@@ -2047,33 +2135,41 @@
 
         #data_div, .data-div
         {
-            margin-top: 1rem;
+            margin-top: 0;
             background-color: var(--element-background-color);
         }
 
-        .result-copy
+        .result-output-actions
+        {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.35rem;
+            margin: 0 0 0 0.35rem;
+        }
+
+        .result-action-button
         {
             display: none;
             align-items: center;
             justify-content: center;
-            width: 1.8rem;
-            height: 1.8rem;
-            margin: 0 0 0.35rem auto;
-            border: 1px solid var(--border-color);
-            background: var(--table-header-color);
-            color: var(--text-color);
+            user-select: none;
+            color: var(--button-text-color);
+            background-color: var(--button-color);
+            width: 1.65rem;
+            height: 1.45rem;
+            border: 0;
             padding: 0;
             cursor: pointer;
+            position: relative;
             line-height: 1;
             font: inherit;
         }
 
-        .result-copy:hover,
-        .result-copy:focus
+        .result-action-button:hover,
+        .result-action-button:focus
         {
-            border-color: var(--result-tab-accent-color);
-            color: var(--text-color-active);
-            background: var(--result-tab-background-color);
+            color: var(--button-active-text-color);
+            background: var(--button-active-color);
         }
 
         .result-copy.copied
@@ -2336,11 +2432,13 @@
 
         #logo-container
         {
+            grid-row: 2;
+            grid-column: 1;
             text-align: center;
             margin-top: 5em;
             line-height: 0.75;
-            position: sticky;
-            left: 0;
+            min-width: 0;
+            min-height: 0;
         }
 
         #chart, .chart-output
@@ -2452,6 +2550,10 @@
                         <input id="navigator-show-types" type="checkbox">
                         <span>Show types</span>
                     </label>
+                    <label class="navigator-setting" title="Preserve upstream play behavior: abort the ClickHouse query once the preview row/cell limit is reached">
+                        <input id="abort-preview-limit" type="checkbox">
+                        <span>Abort at preview limit</span>
+                    </label>
                 </div>
                 <div id="schema-browser-empty">Loading navigator...</div>
                 <div id="schema-browser"></div>
@@ -2510,28 +2612,20 @@
                     <div id="active-connection-name" class="active-connection-name">No active connection</div>
                     <div id="active-connection-meta" class="active-connection-meta monospace">Select a connection in the navigator to run queries.</div>
                 </div>
+                <div id="theme"><span id="toggle-dark" title="Switch to dark theme">🌘</span><span id="toggle-light" title="Switch to light theme">☀️</span></div>
             </div>
-            <div id="query_div"><textarea autofocus="" spellcheck="false" autocorrect="false" autocomplete="false" data-gramm="false" class="monospace shadow" id="query"></textarea><div class="textarea-resizer"></div></div>
+            <div id="query_div"><textarea autofocus="" spellcheck="false" autocorrect="false" autocomplete="false" data-gramm="false" class="monospace shadow" id="query"></textarea><button type="button" id="toggle-editor" title="Compact query editor" aria-label="Compact query editor" aria-pressed="false">▴</button><div class="textarea-resizer"></div></div>
             <div id="run_div">
-                <button type="submit" class="shadow" id="run">Run</button>
-                <div id="hint">&nbsp;(Ctrl/Cmd+Enter)</div>
-                <button type="button" class="shadow" id="toggle-editor" title="Compact query editor" aria-label="Compact query editor" aria-pressed="false">▴</button>
+                <button type="submit" class="shadow" id="run" title="Run all (Ctrl/Cmd+Enter)" aria-label="Run all (Ctrl/Cmd+Enter)">Run</button>
                 <div id="hourglass">⧗</div>
-                <div id="check-mark">✔</div>
                 <div id="progress"></div>
-                <div id="download-div" class="shadow">
-                    <svg id="download" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                </div>
                 <div id="stats"></div>
-                <div id="theme"><span id="toggle-dark">🌘</span><span id="toggle-light">☀️</span></div>
             </div>
         </form>
         <div id="results_workspace">
-            <div id="results_tabs"></div>
+            <div id="results_header" hidden>
+                <div id="results_tabs"></div>
+            </div>
             <div id="results_panels"></div>
             <p id="logo-container">
                 <a href="https://clickhouse.com/">
@@ -2589,18 +2683,52 @@
         <div id="download-dropdown">
             <div>
                 <div class="download-option">
+                    <label for="download-filename">Download as:</label>
+                    <input type="text" id="download-filename" spellcheck="false">
+                </div>
+                <div class="download-option">
                     <label for="download-format">Format:</label>
                     <select id="download-format">
-                        <option value="CSV">CSV</option>
-                        <option value="TSV">TSV</option>
-                        <option value="JSON">JSON</option>
-                        <option value="NDJSON" selected="">JSONLines</option>
-                        <option value="Parquet">Parquet</option>
-                        <option value="Markdown">Markdown</option>
+                        <optgroup label="Common">
+                            <option value="CSVWithNames" selected="">CSV (with headers)</option>
+                            <option value="TSVWithNames">TSV (with headers)</option>
+                            <option value="JSON">JSON</option>
+                            <option value="Parquet">Parquet</option>
+                            <option value="Markdown">Markdown</option>
+                        </optgroup>
+                        <optgroup label="Additional">
+                            <option value="CSV">CSV</option>
+                            <option value="TSV">TSV</option>
+                            <option value="CSVWithNamesAndTypes">CSVWithNamesAndTypes</option>
+                            <option value="TSVWithNamesAndTypes">TSVWithNamesAndTypes</option>
+                            <option value="JSONEachRow">JSONEachRow</option>
+                            <option value="JSONCompact">JSONCompact</option>
+                            <option value="JSONCompactEachRow">JSONCompactEachRow</option>
+                            <option value="JSONStringsEachRow">JSONStringsEachRow</option>
+                            <option value="Pretty">Pretty</option>
+                            <option value="PrettyCompact">PrettyCompact</option>
+                            <option value="Vertical">Vertical</option>
+                            <option value="Values">Values</option>
+                            <option value="TSKV">TSKV</option>
+                            <option value="XML">XML</option>
+                            <option value="YAML">YAML</option>
+                            <option value="SQLInsert">SQLInsert</option>
+                            <option value="Native">Native</option>
+                            <option value="RowBinary">RowBinary</option>
+                            <option value="Arrow">Arrow</option>
+                            <option value="ArrowStream">ArrowStream</option>
+                            <option value="Avro">Avro</option>
+                            <option value="ORC">ORC</option>
+                            <option value="Protobuf">Protobuf</option>
+                            <option value="CapnProto">CapnProto</option>
+                            <option value="BSON">BSON</option>
+                            <option value="MsgPack">MsgPack</option>
+                            <option value="RawBLOB">RawBLOB</option>
+                        </optgroup>
                         <option value="other">Other...</option>
                     </select>
                 </div>
-                <input type="text" id="download-format-other" placeholder="Enter format name (e.g., Arrow, Avro)">
+                <input type="text" id="download-format-other" placeholder="Enter format name (e.g., CustomSeparated)">
                 <div class="download-section-title">Result Reuse</div>
                 <div class="download-option checkbox">
                     <label for="download-use-cache">
@@ -2616,22 +2744,35 @@
         </div>
         <template id="result-panel-template">
             <div class="result-panel">
-                <details class="result-summary">
-                    <summary class="result-summary-toggle" title="Query details">
-                        <span class="result-summary-marker">▸</span>
-                        <span class="result-summary-title">Query details</span>
-                        <span class="result-stats"></span>
-                    </summary>
-                    <pre class="result-query monospace"></pre>
-                </details>
-                <div class="data-div">
-                    <button type="button" class="result-copy" title="Copy formatted result" aria-label="Copy formatted result">⧉</button>
-                    <table class="monospace shadow data-table"></table>
-                    <pre class="monospace shadow data-unparsed"></pre>
+                <div class="result-chrome">
+                    <details class="result-summary">
+                        <summary class="result-summary-toggle" title="Query details">
+                            <span class="result-summary-marker">▸</span>
+                            <span class="result-summary-title">Query details</span>
+                            <span class="result-stats"></span>
+                            <span class="result-output-actions">
+                                <button type="button" class="result-download result-action-button shadow" title="Download result" aria-label="Download result">
+                                    <svg class="download-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                </button>
+                                <button type="button" class="result-copy result-action-button shadow" title="Copy formatted result" aria-label="Copy formatted result">⧉</button>
+                            </span>
+                        </summary>
+                        <pre class="result-query monospace"></pre>
+                    </details>
                 </div>
-                <div class="chart-output"></div>
-                <svg class="graph-output" fill="none"></svg>
-                <p class="error-output monospace shadow"></p>
+                <div class="result-body">
+                    <div class="data-div">
+                        <table class="monospace shadow data-table"></table>
+                        <pre class="monospace shadow data-unparsed"></pre>
+                    </div>
+                    <div class="chart-output"></div>
+                    <svg class="graph-output" fill="none"></svg>
+                    <p class="error-output monospace shadow"></p>
+                </div>
             </div>
         </template>
     </div>
@@ -2682,6 +2823,7 @@ let active_connection_name_elem = document.getElementById('active-connection-nam
 let active_connection_meta_elem = document.getElementById('active-connection-meta');
 let navigator_footer_primary_elem = document.getElementById('navigator-footer-primary');
 let results_workspace_elem = document.getElementById('results_workspace');
+let results_header_elem = document.getElementById('results_header');
 let results_tabs_elem = document.getElementById('results_tabs');
 let results_panels_elem = document.getElementById('results_panels');
 let action_history_empty_elem = document.getElementById('action-history-empty');
@@ -2692,6 +2834,7 @@ let new_connection_folder_elem = document.getElementById('new-connection-folder'
 let new_snippet_folder_elem = document.getElementById('new-snippet-folder');
 let save_query_snippet_elem = document.getElementById('save-query-snippet');
 let toggle_editor_elem = document.getElementById('toggle-editor');
+let abort_preview_limit_elem = document.getElementById('abort-preview-limit');
 let databases_elem = document.getElementById('databases');
 let menu_elem = document.getElementById('menu');
 let sidebar_resizer_elem = document.getElementById('sidebar-resizer');
@@ -2702,6 +2845,7 @@ const download_query_cache_key = 'play-reborn.download-query-cache.v1';
 const navigator_state_key = 'play-reborn.navigator-state.v1';
 const sidebar_collapsed_key = 'play-reborn.sidebar-collapsed.v1';
 const navigator_show_types_key = 'play-reborn.navigator-show-types.v1';
+const abort_preview_limit_key = 'play-reborn.abort-preview-limit.v1';
 const sidebar_width_key = 'play-reborn.sidebar-width.v1';
 const query_editor_compact_key = 'play-reborn.query-editor-compact.v1';
 const sidebar_active_tab_key = 'play-reborn.sidebar-active-tab.v1';
@@ -2718,6 +2862,8 @@ let connection_editor_state = null;
 let stop_after_current = false;
 let query_editor_expanded_height = '';
 let query_snippets_state = loadQuerySnippets();
+const query_log_poll_timeout_ms = 120000;
+const query_log_poll_fast_window_ms = 10000;
 let schema_state = {
     loading: false,
     connection_id: null,
@@ -2739,6 +2885,29 @@ function getCurrentError() { return current_result_elements?.error || null; }
 function getCurrentTbody() { return getCurrentDataTable()?.querySelector('tbody') || null; }
 function shouldUseQueryCacheForDownload() { return !!download_use_cache_elem?.checked; }
 function shouldShowNavigatorTypes() { return !!navigator_show_types_elem?.checked; }
+function shouldAbortAtPreviewLimit() { return !!abort_preview_limit_elem?.checked; }
+
+function buildClickHouseUrl(server_address, user, password, default_format = 'JSON', extra_params = {}) {
+    let url = server_address +
+        (server_address.indexOf('?') >= 0 ? '&' : '?');
+    const params = {
+        add_http_cors_header: '1',
+        default_format: default_format,
+        ...extra_params
+    };
+
+    if (user) {
+        params.user = user;
+    }
+    if (password) {
+        params.password = password;
+    }
+
+    return url + Object.entries(params)
+        .filter(([, value]) => value !== undefined && value !== null)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+}
 
 function setDownloadQueryCachePreference(enabled, persist = true) {
     download_use_cache_elem.checked = enabled;
@@ -2752,6 +2921,13 @@ function setNavigatorTypesVisible(enabled, persist = true) {
     databases_elem.classList.toggle('show-types', enabled);
     if (persist) {
         window.localStorage.setItem(navigator_show_types_key, enabled ? '1' : '0');
+    }
+}
+
+function setAbortPreviewLimit(enabled, persist = true) {
+    abort_preview_limit_elem.checked = enabled;
+    if (persist) {
+        window.localStorage.setItem(abort_preview_limit_key, enabled ? '1' : '0');
     }
 }
 
@@ -4849,24 +5025,11 @@ function loadConnections() {
     applyConnection(activeConnection);
 }
 
-function updateResultsStickyOffset() {
-    if (!results_workspace_elem) {
-        return;
-    }
-
-    const tabs_height = results_tabs_elem.children.length
-        ? Math.ceil(results_tabs_elem.getBoundingClientRect().height)
-        : 0;
-    results_workspace_elem.style.setProperty('--results-tabs-height', `${tabs_height}px`);
-}
-
 function scrollResultsToTop() {
-    updateResultsStickyOffset();
-    results_workspace_elem?.scrollTo({ top: 0, left: 0 });
+    current_result_elements?.result_body?.scrollTo({ top: 0, left: 0 });
 }
 
 function keepResultTabVisible(result) {
-    updateResultsStickyOffset();
     result?.tab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
@@ -4887,14 +5050,25 @@ function createResultPanel(requestNum, query) {
     tab.className = 'result-tab';
     tab.dataset.resultId = resultId;
     tab.style.setProperty('--result-color-rotate', resultColor);
-    tab.innerText = `#${requestNum} ${query.replace(/\s+/g, ' ').slice(0, 48) || 'result'}`;
+    const tabTitle = document.createElement('span');
+    tabTitle.className = 'result-tab-title';
+    tabTitle.textContent = `#${requestNum} ${query.replace(/\s+/g, ' ').slice(0, 48) || 'result'}`;
+    const tabStatus = document.createElement('span');
+    tabStatus.className = 'result-tab-status';
+    tabStatus.textContent = '✔';
+    tabStatus.hidden = true;
+    tab.append(tabTitle, tabStatus);
     tab.addEventListener('click', () => activateResultPanel(resultId));
 
     const elements = {
         panel: panel,
+        result_body: panel.querySelector('.result-body'),
+        result_chrome: panel.querySelector('.result-chrome'),
+        result_summary: panel.querySelector('.result-summary'),
         result_query: panel.querySelector('.result-query'),
         result_stats: panel.querySelector('.result-stats'),
         data_div: panel.querySelector('.data-div'),
+        result_download: panel.querySelector('.result-download'),
         result_copy: panel.querySelector('.result-copy'),
         copy_text: '',
         data_table: panel.querySelector('.data-table'),
@@ -4904,9 +5078,12 @@ function createResultPanel(requestNum, query) {
         error: panel.querySelector('.error-output')
     };
 
+    attachResultStatsSelection(elements.result_stats);
+    attachResultDownloadButton(elements, resultId);
     attachResultCopyButton(elements);
 
     elements.result_query.innerText = query;
+    results_header_elem.hidden = false;
     results_tabs_elem.appendChild(tab);
     results_panels_elem.appendChild(panel);
     document.getElementById('logo-container').style.display = 'none';
@@ -4917,8 +5094,15 @@ function createResultPanel(requestNum, query) {
         query: query,
         connection_name: current_connection_name,
         tab: tab,
+        tab_status: tabStatus,
         elements: elements,
         stats: '',
+        base_stats: '',
+        timing_stats: '',
+        query_log_stats: '',
+        summary_stats: '',
+        query_id: '',
+        stats_loading: false,
         ok: false
     };
 
@@ -4947,7 +5131,6 @@ function activateResultPanel(resultId) {
             current_result_meta = result;
             document.getElementById('stats').innerText = result.stats || '';
             last_query_for_download = result.query;
-            document.getElementById('download-div').style.display = result.ok ? 'block' : 'none';
         }
     }
 
@@ -4962,11 +5145,83 @@ function resetResultPanels() {
     current_result_meta = null;
     results_tabs_elem.innerHTML = '';
     results_panels_elem.innerHTML = '';
+    results_header_elem.hidden = true;
     document.getElementById('stats').innerText = '';
-    document.getElementById('download-div').style.display = 'none';
     document.getElementById('logo-container').style.display = 'block';
-    updateResultsStickyOffset();
     renderActionHistory();
+}
+
+function setResultTabStatus(result = current_result_meta, status = '') {
+    if (!result?.tab_status) {
+        return;
+    }
+
+    result.tab_status.hidden = !status;
+    result.tab_status.textContent = status == 'success' ? '✔' : '✕';
+    result.tab_status.title = status == 'success' ? 'Query succeeded' : status == 'failed' ? 'Query failed' : '';
+    result.tab.classList.toggle('succeeded', status == 'success');
+    result.tab.classList.toggle('failed', status == 'failed');
+}
+
+function setResultTabSucceeded(result = current_result_meta, succeeded = false) {
+    setResultTabStatus(result, succeeded ? 'success' : '');
+}
+
+function setResultTabFailed(result = current_result_meta) {
+    setResultTabStatus(result, 'failed');
+}
+
+function setResultDownloadButtonVisible(elements = current_result_elements, visible = false) {
+    const button = elements?.result_download;
+    if (!button) {
+        return;
+    }
+
+    button.style.display = visible ? 'inline-flex' : 'none';
+    button.disabled = !visible;
+}
+
+function attachResultDownloadButton(elements, resultId) {
+    const button = elements?.result_download;
+    if (!button) {
+        return;
+    }
+
+    setResultDownloadButtonVisible(elements, false);
+    button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (button.disabled) {
+            return;
+        }
+
+        const result = result_history.find(candidate => candidate.id == resultId);
+        if (!result?.ok) {
+            setResultDownloadButtonVisible(elements, false);
+            return;
+        }
+
+        last_query_for_download = result.query;
+        openDownloadDropdown(button);
+    });
+}
+
+function attachResultStatsSelection(stats) {
+    if (!stats) {
+        return;
+    }
+
+    ['pointerdown', 'mousedown', 'mouseup', 'dblclick'].forEach(eventName => {
+        stats.addEventListener(eventName, event => {
+            event.stopPropagation();
+        });
+    });
+
+    stats.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
 }
 
 function resetResultCopyButton(elements = current_result_elements) {
@@ -5557,7 +5812,6 @@ function formatClickHouseSummary(summary) {
     const read_bytes = Number(summary.read_bytes || 0);
     const written_rows = Number(summary.written_rows || 0);
     const written_bytes = Number(summary.written_bytes || 0);
-    const summary_elapsed_ns = Number(summary.elapsed_ns || 0);
     const parts = [];
 
     if (read_rows || read_bytes) {
@@ -5566,8 +5820,128 @@ function formatClickHouseSummary(summary) {
     if (written_rows || written_bytes) {
         parts.push(`Wrote ${formatReadableRows(written_rows)} rows, ${formatReadableBytes(written_bytes)}`);
     }
-    if (summary_elapsed_ns) {
-        parts.push(`${(summary_elapsed_ns / 1e9).toFixed(2)} sec.`);
+
+    return parts.join(', ');
+}
+
+function formatResultRows(rows, incomplete = false) {
+    const rowCount = Number(rows || 0);
+    if (!Number.isFinite(rowCount) || rowCount < 0) {
+        return '';
+    }
+
+    const unit = rowCount == 1 ? 'row' : 'rows';
+    return `${formatReadableRows(rowCount)}${incomplete ? '+' : ''} ${unit} in result`;
+}
+
+function formatElapsedMs(elapsedNs, label = '') {
+    const elapsedMs = Number(elapsedNs || 0) / 1e6;
+    if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
+        return '';
+    }
+
+    const roundedMs = elapsedMs < 10
+        ? elapsedMs.toFixed(1)
+        : Math.round(elapsedMs).toLocaleString('en-US');
+    return `${label ? `${label} ` : ''}${roundedMs} ms`;
+}
+
+function formatMsMetric(value, label) {
+    if (!hasMsMetricValue(value)) {
+        return '';
+    }
+
+    const ms = Number(value);
+    const roundedMs = ms < 10
+        ? ms.toFixed(1)
+        : Math.round(ms).toLocaleString('en-US');
+    return `${label} ${roundedMs}ms`;
+}
+
+function formatNsAsMsMetric(value, label) {
+    return formatMsMetric(Number(value || 0) / 1e6, label);
+}
+
+function hasMsMetricValue(value) {
+    if (value === null || value === undefined || value === '') {
+        return false;
+    }
+
+    const ms = Number(value);
+    return Number.isFinite(ms) && ms >= 0;
+}
+
+function sumMsMetrics(...values) {
+    const metric_values = values.filter(hasMsMetricValue);
+    if (!metric_values.length) {
+        return null;
+    }
+
+    return metric_values.reduce((sum, value) => sum + Number(value), 0);
+}
+
+function setResultStats(result = current_result_meta, base_stats = result?.base_stats || '', timing_stats = result?.timing_stats || '') {
+    if (!result) {
+        return '';
+    }
+
+    result.base_stats = base_stats;
+    result.timing_stats = timing_stats;
+    result.stats = [base_stats, timing_stats].filter(Boolean).join(', ');
+
+    if (result.elements?.result_stats) {
+        result.elements.result_stats.textContent = result.stats;
+        result.elements.result_stats.classList.toggle('loading', !!result.stats_loading);
+        result.elements.result_stats.title = result.timing_stats
+            ? 'query is total server wall time; parenthesized timings are ClickHouse profile counters and may not add up to query time.'
+            : '';
+    }
+    if (result.id == active_result_id) {
+        const stats = document.getElementById('stats');
+        stats.innerText = result.stats;
+        stats.title = result.elements?.result_stats?.title || '';
+    }
+
+    const history_entry = action_history.find(entry => entry.result_id == result.id);
+    if (history_entry) {
+        history_entry.stats = result.stats;
+        renderActionHistory();
+    }
+
+    return result.stats;
+}
+
+function setResultStatsLoading(result = current_result_meta, loading = false) {
+    if (!result) {
+        return;
+    }
+
+    result.stats_loading = loading;
+    result.elements?.result_stats?.classList.toggle('loading', loading);
+}
+
+function formatQueryLogStats(row) {
+    if (!row) {
+        return '';
+    }
+
+    const network_ms = sumMsMetrics(row.network_send_ms, row.network_receive_ms);
+    const query = formatMsMetric(row.query_ms, 'query');
+    const detail_parts = [
+        formatMsMetric(row.cpu_ms, 'cpu'),
+        formatMsMetric(network_ms, 'network'),
+        formatMsMetric(row.io_wait_ms, 'io wait')
+    ].filter(Boolean);
+    const parts = [];
+
+    if (query) {
+        parts.push(detail_parts.length ? `${query} (${detail_parts.join(', ')})` : query);
+    } else {
+        parts.push(...detail_parts);
+    }
+
+    if (Number(row.memory_usage || 0) > 0) {
+        parts.push(`memory ${formatReadableBytes(row.memory_usage)}`);
     }
 
     return parts.join(', ');
@@ -5588,14 +5962,126 @@ function applyClickHouseSummary(response) {
         return false;
     }
 
-    document.getElementById('stats').innerText = text;
     if (current_result_meta) {
-        current_result_meta.stats = text;
+        current_result_meta.summary_stats = text;
     }
-    if (current_result_elements?.result_stats) {
-        current_result_elements.result_stats.innerText = text;
+    return text;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getQueryLogPollDelay(elapsed_ms) {
+    if (!elapsed_ms) {
+        return 500;
     }
-    return true;
+
+    return elapsed_ms < query_log_poll_fast_window_ms ? 1000 : 5000;
+}
+
+async function fetchQueryLogStats(server_address, user, password, query_id) {
+    const url = buildClickHouseUrl(server_address, user, password, 'JSONEachRow', {
+        param_query_id: query_id
+    });
+
+    const response = await fetch(url, {
+        method: 'POST',
+        body: `SELECT
+    query_duration_ms AS query_ms,
+    if(
+        mapContains(ProfileEvents, 'UserTimeMicroseconds')
+            OR mapContains(ProfileEvents, 'OSUserTimeMicroseconds')
+            OR mapContains(ProfileEvents, 'OSCPUVirtualTimeMicroseconds'),
+        round(greatest(
+            ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds'],
+            ProfileEvents['OSUserTimeMicroseconds'] + ProfileEvents['OSSystemTimeMicroseconds'],
+            ProfileEvents['OSCPUVirtualTimeMicroseconds']
+        ) / 1000, 1),
+        NULL
+    ) AS cpu_ms,
+    if(
+        mapContains(ProfileEvents, 'NetworkSendElapsedMicroseconds'),
+        round(ProfileEvents['NetworkSendElapsedMicroseconds'] / 1000, 1),
+        NULL
+    ) AS network_send_ms,
+    if(
+        mapContains(ProfileEvents, 'NetworkReceiveElapsedMicroseconds'),
+        round(ProfileEvents['NetworkReceiveElapsedMicroseconds'] / 1000, 1),
+        NULL
+    ) AS network_receive_ms,
+    if(
+        mapContains(ProfileEvents, 'OSIOWaitMicroseconds'),
+        round(ProfileEvents['OSIOWaitMicroseconds'] / 1000, 1),
+        NULL
+    ) AS io_wait_ms,
+    memory_usage
+FROM system.query_log
+WHERE (
+    type = 'QueryFinish'
+    OR (
+        type = 'ExceptionWhileProcessing'
+        AND (
+            exception ILIKE '%Broken pipe%'
+            OR exception ILIKE '%socket%'
+            OR exception ILIKE '%NETWORK_ERROR%'
+        )
+    )
+)
+  AND (query_id = {query_id:String} OR initial_query_id = {query_id:String})
+ORDER BY event_time_microseconds DESC
+LIMIT 1`,
+    });
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const text = (await response.text()).trim();
+    if (!text) {
+        return null;
+    }
+
+    return JSON.parse(text.split('\n')[0]);
+}
+
+async function enrichResultStatsFromQueryLog(result, server_address, user, password, query_id) {
+    if (!query_id) {
+        return;
+    }
+
+    setResultStatsLoading(result, true);
+    const started_at = performance.now();
+    let elapsed_ms = 0;
+
+    while (elapsed_ms < query_log_poll_timeout_ms) {
+        const delay = Math.min(
+            getQueryLogPollDelay(elapsed_ms),
+            query_log_poll_timeout_ms - elapsed_ms
+        );
+        await sleep(delay);
+        if (!result_history.includes(result) || result.query_id != query_id) {
+            return;
+        }
+        elapsed_ms = performance.now() - started_at;
+
+        try {
+            const row = await fetchQueryLogStats(server_address, user, password, query_id);
+            const query_log_stats = formatQueryLogStats(row);
+            if (query_log_stats) {
+                result.query_log_stats = query_log_stats;
+                setResultStatsLoading(result, false);
+                setResultStats(result, result.base_stats, query_log_stats);
+                return;
+            }
+        } catch (e) {
+            console.log(e);
+            setResultStatsLoading(result, false);
+            return;
+        }
+    }
+
+    setResultStatsLoading(result, false);
 }
 
 let controller = null;
@@ -5622,8 +6108,8 @@ async function postImpl(posted_request_num, query)
 
     last_query_start = performance.now();
 
-    document.getElementById('check-mark').style.display = 'none';
-    document.getElementById('download-div').style.display = 'none';
+    setResultTabSucceeded(current_result_meta, false);
+    setResultDownloadButtonVisible(current_result_elements, false);
     document.getElementById('hourglass').style.display = 'inline-block';
 
     clear();
@@ -5633,7 +6119,7 @@ async function postImpl(posted_request_num, query)
     let is_chart = false;
     let is_error = false;
 
-    let response, reply, format;
+    let response, reply, format, query_id;
     reply = '';
     try {
         controller = new AbortController();
@@ -5641,6 +6127,10 @@ async function postImpl(posted_request_num, query)
             headers: { 'Authorization': 'never' } });
 
         format = response.headers.get('X-ClickHouse-Format') ?? default_format;
+        query_id = response.headers.get('X-ClickHouse-Query-Id') || '';
+        if (current_result_meta) {
+            current_result_meta.query_id = query_id;
+        }
 
         if (!response.ok) {
             is_error = true;
@@ -5661,6 +6151,7 @@ async function postImpl(posted_request_num, query)
 
             if (current_result_meta) {
                 current_result_meta.ok = false;
+                setResultTabFailed(current_result_meta);
                 current_result_meta.stats = document.getElementById('stats').innerText || '';
                 current_result_meta.elements.result_stats.innerText = current_result_meta.stats;
                 action_history.push({
@@ -5676,7 +6167,7 @@ async function postImpl(posted_request_num, query)
             }
 
             document.getElementById('hourglass').style.display = 'none';
-            document.getElementById('download-div').style.display = 'none';
+            setResultDownloadButtonVisible(current_result_elements, false);
             document.documentElement.style.setProperty('--progress', '0');
             return;
         } else if (format == default_format) {
@@ -5686,6 +6177,7 @@ async function postImpl(posted_request_num, query)
 
             let buffer = '';
             let stream_aborted = false;
+            let draining_after_preview_limit = false;
             const updateDefaultFormatLine = (line, fragment, append_raw_newline) => {
                 if (!line.trim()) {
                     return true;
@@ -5709,11 +6201,15 @@ async function postImpl(posted_request_num, query)
                 if (posted_request_num != request_num) { return; }
                 if (done) {
                     const trailing_content = decoder.decode();
-                    if (trailing_content) {
+                    if (trailing_content && !draining_after_preview_limit) {
                         buffer += trailing_content;
                         reply += trailing_content;
                     }
                     break;
+                }
+
+                if (draining_after_preview_limit) {
+                    continue;
                 }
 
                 let new_content = decoder.decode(value, { stream: true });
@@ -5735,21 +6231,29 @@ async function postImpl(posted_request_num, query)
 
                 if (!cont)
                 {
-                    stream_aborted = true;
-                    controller.abort();
-                    break;
+                    if (shouldAbortAtPreviewLimit()) {
+                        stream_aborted = true;
+                        controller.abort();
+                        break;
+                    }
+
+                    draining_after_preview_limit = true;
+                    buffer = '';
+                    continue;
                 }
                 buffer = lines[lines.length - 1];
             }
 
-            if (!stream_aborted && buffer.trim()) {
+            if (!stream_aborted && !draining_after_preview_limit && buffer.trim()) {
                 let fragment = document.createDocumentFragment();
                 const cont = updateDefaultFormatLine(buffer, fragment, false);
                 if (fragment.hasChildNodes()) {
                     getCurrentTbody()?.appendChild(fragment);
                 }
                 if (!cont) {
-                    controller.abort();
+                    if (shouldAbortAtPreviewLimit()) {
+                        controller.abort();
+                    }
                 }
             }
         } else if (format == 'JSONCompactColumns') {
@@ -5788,6 +6292,7 @@ async function postImpl(posted_request_num, query)
         renderError(reply);
         if (current_result_meta) {
             current_result_meta.ok = false;
+            setResultTabFailed(current_result_meta);
             current_result_meta.stats = '';
             current_result_meta.elements.result_stats.innerText = '';
             action_history.push({
@@ -5802,7 +6307,8 @@ async function postImpl(posted_request_num, query)
             renderActionHistory();
         }
         document.getElementById('hourglass').style.display = 'none';
-        document.getElementById('download-div').style.display = 'none';
+        setResultDownloadButtonVisible(current_result_elements, false);
+        setResultTabFailed(current_result_meta);
         document.documentElement.style.setProperty('--progress', '0');
         return;
     }
@@ -5814,9 +6320,8 @@ async function postImpl(posted_request_num, query)
         if (is_table) transposeTableIfNeeded();
     }
 
-    document.getElementById('check-mark').style.display = 'inline-block';
     document.getElementById('hourglass').style.display = 'none';
-    document.getElementById('download-div').style.display = 'block';
+    setResultDownloadButtonVisible(current_result_elements, true);
     last_query_for_download = query;
 
     const copy_format = explicit_format || format;
@@ -5831,14 +6336,21 @@ async function postImpl(posted_request_num, query)
         elapsed_ns = 1e6 * (performance.now() - last_query_start);
     }
 
-    applyClickHouseSummary(response);
-    updateProgressText();
+    const summary_text = applyClickHouseSummary(response) || '';
+    const progress_text = row_idx || is_table ? formatResultRows(row_idx, incomplete_result) : '';
+    const base_stats_text = [progress_text, summary_text].filter(Boolean).join(', ');
+    const timing_stats_text = query_id ? '' : formatNsAsMsMetric(elapsed_ns, 'query');
+    const result_stats_text = setResultStats(current_result_meta, base_stats_text, timing_stats_text);
     document.documentElement.style.setProperty('--progress', '0');
 
     if (current_result_meta) {
         current_result_meta.ok = true;
-        current_result_meta.stats = document.getElementById('stats').innerText || document.getElementById('progress').innerText || '';
-        current_result_meta.elements.result_stats.innerText = current_result_meta.stats;
+        setResultTabSucceeded(current_result_meta, true);
+        if (!current_result_meta.stats) {
+            current_result_meta.stats = result_stats_text || document.getElementById('stats').innerText || document.getElementById('progress').innerText || '';
+            current_result_meta.elements.result_stats.innerText = current_result_meta.stats;
+        }
+        clearElement(document.getElementById('progress'));
         action_history.push({
             result_id: current_result_meta.id,
             request_num: current_result_meta.request_num,
@@ -5849,6 +6361,7 @@ async function postImpl(posted_request_num, query)
             ok: true
         });
         renderActionHistory();
+        void enrichResultStatsFromQueryLog(current_result_meta, server_address, user, password, query_id);
     }
 
     if (posted_request_num != request_num) { return; }
@@ -5917,6 +6430,11 @@ async function restoreFromHistory(state) {
         }
 
         document.getElementById('hourglass').style.display = 'none';
+        setResultDownloadButtonVisible(current_result_elements, false);
+        if (current_result_meta) {
+            current_result_meta.ok = false;
+            setResultTabFailed(current_result_meta);
+        }
         document.documentElement.style.setProperty('--progress', '0');
         return;
     } else if (format == default_format) {
@@ -5947,8 +6465,13 @@ async function restoreFromHistory(state) {
         if (is_table) transposeTableIfNeeded();
     }
 
-    document.getElementById('check-mark').style.display = 'inline-block';
     document.getElementById('hourglass').style.display = 'none';
+    setResultDownloadButtonVisible(current_result_elements, true);
+    last_query_for_download = state.query;
+    if (current_result_meta) {
+        current_result_meta.ok = true;
+        setResultTabSucceeded(current_result_meta, true);
+    }
 
     const copy_format = explicit_format || format;
     if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
@@ -5960,7 +6483,11 @@ async function restoreFromHistory(state) {
 
     if (is_raw) elapsed_ns = state.elapsed_ns;
 
-    updateProgressText();
+    const restored_base_stats_text = row_idx ? formatResultRows(row_idx, incomplete_result) : '';
+    const restored_timing_stats_text = formatNsAsMsMetric(elapsed_ns, 'query');
+    if (current_result_meta) {
+        setResultStats(current_result_meta, restored_base_stats_text, restored_timing_stats_text);
+    }
     document.documentElement.style.setProperty('--progress', '0');
 }
 
@@ -5977,7 +6504,12 @@ if (window.location.hash) {
 
 function updateRunButtonText() {
     const has_selection = query_area.selectionStart != query_area.selectionEnd;
-    document.getElementById('run').innerText = in_flight ? 'Stop' : (has_selection ? 'Run selected' : 'Run all');
+    const run = document.getElementById('run');
+    const text = in_flight ? 'Stop' : (has_selection ? 'Run selected' : 'Run all');
+    const label = in_flight ? 'Stop running query' : `${text} (Ctrl/Cmd+Enter)`;
+    run.innerText = text;
+    run.title = label;
+    run.setAttribute('aria-label', label);
 }
 
 function setEditorCompact(compact, save = true) {
@@ -5991,7 +6523,7 @@ function setEditorCompact(compact, save = true) {
     toggle_editor_elem.setAttribute('aria-pressed', compact ? 'true' : 'false');
     toggle_editor_elem.title = compact ? 'Expand query editor' : 'Compact query editor';
     toggle_editor_elem.setAttribute('aria-label', toggle_editor_elem.title);
-    toggle_editor_elem.innerText = compact ? '▾' : '▴';
+    toggle_editor_elem.textContent = compact ? '▾' : '▴';
 
     if (!compact && query_editor_expanded_height) {
         query_area.style.height = query_editor_expanded_height;
@@ -6016,8 +6548,7 @@ async function post()
     resetResultPanels();
     scrollResultsToTop();
     in_flight = true;
-    let run = document.getElementById('run');
-    run.innerText = 'Stop';
+    updateRunButtonText();
 
     for (const query of queries) {
         if (stop_after_current) {
@@ -6075,8 +6606,6 @@ document.addEventListener('keydown', event => {
 toggle_editor_elem.addEventListener('click', () => {
     setEditorCompact(!document.getElementById('query_div').classList.contains('compact'));
 });
-
-window.addEventListener('resize', updateResultsStickyOffset);
 
 /// Pressing Tab in textarea will increase indentation.
 /// But for accessibility reasons, we will fall back to tab navigation if the user already used Tab for that.
@@ -6173,6 +6702,7 @@ function clear()
     clearElement(current_result_elements?.data_unparsed);
     clearElement(current_result_elements?.error);
     clearElement(document.getElementById('progress'));
+    setResultDownloadButtonVisible(current_result_elements, false);
     resetResultCopyButton();
 
     current_result_elements?.data_table?.classList.remove('fixed');
@@ -6180,11 +6710,15 @@ function clear()
     if (current_result_elements?.data_div) {
         current_result_elements.data_div.style.display = 'none';
     }
-    document.getElementById('check-mark').display = 'none';
-    document.getElementById('hourglass').display = 'none';
+    setResultTabSucceeded(current_result_meta, false);
+    document.getElementById('hourglass').style.display = 'none';
     document.getElementById('stats').innerText = '';
     if (current_result_elements?.result_stats) {
         current_result_elements.result_stats.innerText = '';
+        current_result_elements.result_stats.classList.remove('loading');
+    }
+    if (current_result_meta) {
+        current_result_meta.stats_loading = false;
     }
 
     extremes = {};
@@ -6382,19 +6916,23 @@ function updateRaw(data) {
     container.style.display = 'block';
 }
 
-function updateProgressText() {
+function updateProgressText(show_progress_status = true, show_elapsed = true, elapsed_label = 'Elapsed') {
     let progress_elem = document.getElementById('progress');
-    let progress_text = '';
+    const parts = [];
     if (row_idx) {
-        progress_text += `${row_idx}${incomplete_result ? '+' : ''} rows in result`;
-        if (elapsed_ns) progress_text += ', ';
+        parts.push(formatResultRows(row_idx, incomplete_result));
     }
-    if (elapsed_ns) { progress_text += `${(elapsed_ns / 1e9).toFixed(2)} sec.`; }
+    if (show_elapsed) {
+        parts.push(formatElapsedMs(elapsed_ns, elapsed_label));
+    }
+
+    const progress_text = parts.filter(Boolean).join(', ');
     progress_elem.innerText = progress_text;
-    progress_elem.style.display = 'block';
+    progress_elem.style.display = show_progress_status && progress_text ? 'block' : 'none';
     if (current_result_elements?.result_stats && !current_result_meta?.stats) {
         current_result_elements.result_stats.innerText = progress_text;
     }
+    return progress_text;
 }
 
 function updateProgress(progress) {
@@ -7111,6 +7649,10 @@ navigator_show_types_elem.addEventListener('change', () => {
     setNavigatorTypesVisible(navigator_show_types_elem.checked);
 });
 
+abort_preview_limit_elem.addEventListener('change', () => {
+    setAbortPreviewLimit(abort_preview_limit_elem.checked);
+});
+
 refresh_schema_elem.addEventListener('click', () => {
     if (!current_connection_id) {
         return;
@@ -7149,6 +7691,7 @@ download_use_cache_elem.addEventListener('change', () => {
 
 setEditorCompact(window.localStorage.getItem(query_editor_compact_key) === '1', false);
 setNavigatorTypesVisible(window.localStorage.getItem(navigator_show_types_key) === '1', false);
+setAbortPreviewLimit(window.localStorage.getItem(abort_preview_limit_key) === '1', false);
 setSidebarTab(window.localStorage.getItem(sidebar_active_tab_key) || 'navigator', false);
 renderSnippets();
 
@@ -7189,12 +7732,164 @@ document.getElementById('toggle-dark').onclick = function() {
 
 // Download functionality
 let last_query_for_download = '';
+const download_format_extensions = new Map([
+    ['csv', 'csv'],
+    ['csvwithnames', 'csv'],
+    ['csvwithnamesandtypes', 'csv'],
+    ['tsv', 'tsv'],
+    ['tsvwithnames', 'tsv'],
+    ['tsvwithnamesandtypes', 'tsv'],
+    ['tabseparated', 'tsv'],
+    ['tabseparatedwithnames', 'tsv'],
+    ['tabseparatedwithnamesandtypes', 'tsv'],
+    ['json', 'json'],
+    ['jsonlines', 'jsonl'],
+    ['ndjson', 'jsonl'],
+    ['parquet', 'parquet'],
+    ['markdown', 'md'],
+    ['xml', 'xml'],
+    ['yaml', 'yaml'],
+    ['sqlinsert', 'sql'],
+    ['tskv', 'tskv'],
+    ['native', 'native'],
+    ['rowbinary', 'bin'],
+    ['rawblob', 'blob'],
+    ['arrow', 'arrow'],
+    ['arrowstream', 'arrow'],
+    ['avro', 'avro'],
+    ['orc', 'orc'],
+    ['protobuf', 'protobuf'],
+    ['capnproto', 'capnp'],
+    ['bson', 'bson'],
+    ['msgpack', 'msgpack']
+]);
+const known_download_extensions = new Set([
+    ...download_format_extensions.values(),
+    'txt'
+]);
 
-// Toggle download dropdown
-document.getElementById('download-div').addEventListener('click', function(e) {
-    e.stopPropagation();
+function normalizeDownloadFormatName(format) {
+    return (format || '').trim().toLowerCase();
+}
+
+function getSelectedDownloadFormat() {
+    const format_select = document.getElementById('download-format');
+    const format_other = document.getElementById('download-format-other');
+    const selected_format = format_select.value;
+    return selected_format == 'other' ? format_other.value.trim() : selected_format;
+}
+
+function getDownloadFormatExtension(format) {
+    const normalized_format = normalizeDownloadFormatName(format);
+    if (!normalized_format) {
+        return 'txt';
+    }
+
+    const mapped_extension = download_format_extensions.get(normalized_format);
+    if (mapped_extension) {
+        return mapped_extension;
+    }
+
+    if (normalized_format.startsWith('csv')) {
+        return 'csv';
+    }
+
+    if (normalized_format.startsWith('tsv') || normalized_format.startsWith('tabseparated')) {
+        return 'tsv';
+    }
+
+    if (normalized_format.startsWith('json')) {
+        return normalized_format.includes('eachrow') || normalized_format.includes('lines')
+            ? 'jsonl'
+            : 'json';
+    }
+
+    if (normalized_format.startsWith('pretty') || normalized_format == 'vertical' || normalized_format == 'values') {
+        return 'txt';
+    }
+
+    return normalized_format.replace(/[^a-z0-9]+/g, '') || 'txt';
+}
+
+function stripClickHouseIdentifierQuotes(identifier_part) {
+    const trimmed = (identifier_part || '').trim();
+    if (trimmed.length >= 2 && trimmed[0] == '`' && trimmed[trimmed.length - 1] == '`') {
+        return trimmed.slice(1, -1).replaceAll('``', '`');
+    }
+    if (trimmed.length >= 2 && trimmed[0] == '"' && trimmed[trimmed.length - 1] == '"') {
+        return trimmed.slice(1, -1).replaceAll('""', '"');
+    }
+    return trimmed;
+}
+
+function getDownloadBasenameFromQuery(query) {
+    const identifier = '`(?:``|[^`])+`|"(?:""|[^"])+"|[A-Za-z_][A-Za-z0-9_$]*';
+    const match = query.match(new RegExp(`\\bFROM\\s+(${identifier}(?:\\s*\\.\\s*${identifier})?)`, 'i'));
+    if (!match) {
+        return 'results';
+    }
+
+    const parts = match[1].split(/\s*\.\s*/).map(stripClickHouseIdentifierQuotes);
+    return parts[parts.length - 1] || 'results';
+}
+
+function sanitizeDownloadFilenamePart(value) {
+    return (value || '')
+        .trim()
+        .replace(/[\x00-\x1F\x7F<>:"'\/\\|?*]+/g, '-')
+        .replace(/\s+/g, ' ')
+        .replace(/^\.+/, '')
+        .replace(/[. -]+$/g, '')
+        .slice(0, 120);
+}
+
+function stripKnownDownloadExtension(filename) {
+    const match = filename.match(/\.([A-Za-z0-9]+)$/);
+    if (match && known_download_extensions.has(match[1].toLowerCase())) {
+        return filename.slice(0, -match[0].length);
+    }
+    return filename;
+}
+
+function buildDownloadFilename(query, format, requested_name = '') {
+    const extension = getDownloadFormatExtension(format);
+    let basename = sanitizeDownloadFilenamePart(requested_name);
+    if (!basename) {
+        basename = sanitizeDownloadFilenamePart(getDownloadBasenameFromQuery(query));
+    }
+    if (!basename) {
+        basename = 'results';
+    }
+
+    return `${stripKnownDownloadExtension(basename)}.${extension}`;
+}
+
+function updateDownloadFormatOtherVisibility() {
+    const format_select = document.getElementById('download-format');
+    const format_other = document.getElementById('download-format-other');
+    if (format_select.value == 'other') {
+        format_other.classList.add('show');
+        format_other.focus();
+    } else {
+        format_other.classList.remove('show');
+    }
+}
+
+function updateDownloadFilenamePlaceholder() {
+    const filename_input = document.getElementById('download-filename');
+    if (!filename_input) {
+        return;
+    }
+
+    filename_input.placeholder = buildDownloadFilename(
+        last_query_for_download || query_area.value,
+        getSelectedDownloadFormat() || 'Custom',
+        ''
+    );
+}
+
+function openDownloadDropdown(button) {
     const dropdown = document.getElementById('download-dropdown');
-    const button = document.getElementById('download-div');
     const context = document.getElementById('main');
 
     if (dropdown.classList.contains('show')) {
@@ -7205,11 +7900,14 @@ document.getElementById('download-div').addEventListener('click', function(e) {
         const button_rect = button.getBoundingClientRect();
         const context_rect = context.getBoundingClientRect();
         const dropdown_rect = dropdown.getBoundingClientRect();
+        const preferred_left = button_rect.left - context_rect.left;
+        const max_left = Math.max(0, context_rect.width - dropdown_rect.width);
 
-        dropdown.style.top = (button_rect.top - context_rect.top) + 'px';
-        dropdown.style.left = (button_rect.left - context_rect.left + button_rect.width - dropdown_rect.width) + 'px';
+        dropdown.style.top = (button_rect.bottom - context_rect.top + 4) + 'px';
+        dropdown.style.left = Math.min(preferred_left, max_left) + 'px';
+        updateDownloadFilenamePlaceholder();
     }
-});
+}
 
 // Prevent dropdown from closing when clicking inside it
 document.getElementById('download-dropdown').addEventListener('click', function(e) {
@@ -7224,27 +7922,21 @@ document.addEventListener('click', function() {
 
 // Handle "Other" format selection
 document.getElementById('download-format').addEventListener('change', function() {
-    const otherInput = document.getElementById('download-format-other');
-    if (this.value === 'other') {
-        otherInput.classList.add('show');
-        otherInput.focus();
-    } else {
-        otherInput.classList.remove('show');
-    }
+    updateDownloadFormatOtherVisibility();
+    updateDownloadFilenamePlaceholder();
 });
+
+document.getElementById('download-format-other').addEventListener('input', updateDownloadFilenamePlaceholder);
 
 // Handle download button click
 document.getElementById('download-button').addEventListener('click', async function() {
-    const formatSelect = document.getElementById('download-format');
-    const formatOther = document.getElementById('download-format-other');
+    const format_select = document.getElementById('download-format');
+    const filename_input = document.getElementById('download-filename');
 
-    let format = formatSelect.value;
-    if (format === 'other') {
-        format = formatOther.value.trim();
-        if (!format) {
-            alert('Please enter a format name');
-            return;
-        }
+    let format = getSelectedDownloadFormat();
+    if (format_select.value == 'other' && !format) {
+        alert('Please enter a format name');
+        return;
     }
 
     // Get current values
@@ -7258,13 +7950,15 @@ document.getElementById('download-button').addEventListener('click', async funct
         return;
     }
 
+    const filename = buildDownloadFilename(query, format, filename_input.value);
+
     // Build download URL
     let url = server_address +
         (server_address.indexOf('?') >= 0 ? '&' : '?') +
         'add_http_cors_header=1' +
         '&enable_http_compression=1' +
         '&default_format=' + encodeURIComponent(format) +
-        '&http_response_headers=' + encodeURIComponent(`{'Content-Disposition':'attachment; filename="result.${encodeURIComponent(format.toLowerCase())}"'}`);
+        '&http_response_headers=' + encodeURIComponent(`{'Content-Disposition':'attachment; filename="${filename}"'}`);
     if (shouldUseQueryCacheForDownload()) {
         url += '&use_query_cache=1&enable_reads_from_query_cache=1&enable_writes_to_query_cache=0&query_cache_ttl=600&query_cache_nondeterministic_function_handling=save';
     }
