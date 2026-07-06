@@ -23,6 +23,7 @@ The rework focuses on making the browser UI useful for real query work rather th
 - Manages multiple saved connections in browser local storage.
 - Shows the active connection clearly above the editor.
 - Loads schemas through a navigator with databases, tables, dictionaries, views, materialized views, and columns.
+- Inserts database, table, dictionary, view, and column names from the navigator into the query editor.
 - Provides table actions to generate common SQL:
   - `SELECT *`
   - `SELECT` with all column names
@@ -83,6 +84,7 @@ The left navigator stores connections locally and lazy-loads schema information 
 - Expand databases to load tables, dictionaries, and views.
 - Expand tables to load columns.
 - Use the filter box to search connections and loaded schema.
+- Use database/table context menus and column double-clicks to insert names into the editor.
 - Use table context menus to generate SQL into the editor.
 - Use the connection context menu to edit/delete a connection or open the ClickHouse dashboard for that server.
 
@@ -94,8 +96,9 @@ The snippets tab stores reusable queries in browser local storage.
 
 - Create folders.
 - Save the current editor contents.
-- Load snippets back into the editor.
-- Rename, update, or delete snippets through their context menus.
+- Load snippets back into the editor by appending, inserting at the cursor, or replacing the editor contents.
+- Choose the default snippet insertion mode from the snippets panel.
+- Append, insert, replace, rename, update, or delete snippets through their context menus.
 
 ## Downloads
 

@@ -388,6 +388,39 @@
             font-size: 10pt;
         }
 
+        .snippet-tools
+        {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .snippet-insertion-options
+        {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.4rem;
+        }
+
+        .snippet-insertion-label
+        {
+            color: var(--navigator-muted-color);
+            font-size: 0.72rem;
+            white-space: nowrap;
+        }
+
+        .snippet-insertion-select
+        {
+            max-width: 8rem;
+            border: 1px solid var(--navigator-card-border);
+            background: var(--element-background-color);
+            color: var(--navigator-text-color);
+            padding: 0.16rem 0.35rem;
+            font-size: 0.76rem;
+        }
+
         #snippets-browser-empty
         {
             color: var(--misc-text-color);
@@ -716,9 +749,10 @@
         .navigator-connection-button
         {
             flex: 1 1 auto;
-            display: flex;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
             align-items: center;
-            gap: 0.35rem;
+            column-gap: 0.18rem;
             text-align: left;
             border: none;
             background: transparent;
@@ -730,6 +764,18 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             font-weight: 600;
+        }
+
+        .navigator-connection-summary
+        {
+            min-width: 0;
+            color: var(--navigator-muted-color);
+            font-size: 0.76rem;
+            font-weight: 600;
+            max-width: 9rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .navigator-inline-label
@@ -844,16 +890,6 @@
             white-space: nowrap;
         }
 
-        .navigator-node-meta
-        {
-            color: var(--misc-text-color);
-            font-size: 0.74rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            padding: 0 0.45rem 0.45rem 1.9rem;
-        }
-
         .navigator-connection.current > .navigator-connection-header .navigator-connection-button
         {
             font-weight: bold;
@@ -892,7 +928,6 @@
         }
 
         #databases .menu-section-title,
-        #databases .navigator-node-meta,
         #databases .schema-group-title,
         #databases .no-tables,
         #databases .column
@@ -1373,7 +1408,7 @@
             min-width: 0;
             display: flex;
             flex-wrap: wrap;
-            gap: 0.25rem 0.75rem;
+            gap: 0.25rem 0.18rem;
             align-items: baseline;
         }
 
@@ -1387,9 +1422,10 @@
 
         .active-connection-meta
         {
-            flex: 1 1 18rem;
+            flex: 0 1 auto;
             min-width: 0;
             color: var(--misc-text-color);
+            font-family: inherit;
             font-size: 0.84rem;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -2572,7 +2608,17 @@
                         <button id="save-query-snippet" class="navigator-icon-button" type="button" title="Save current query">▣</button>
                     </div>
                 </div>
-                <input id="snippet-filter" class="snippets-filter" type="text" placeholder="filter snippets" spellcheck="false">
+                <div class="snippet-tools">
+                    <input id="snippet-filter" class="snippets-filter" type="text" placeholder="filter snippets" spellcheck="false">
+                    <div class="snippet-insertion-options">
+                        <label class="snippet-insertion-label" for="snippet-insertion-mode">Insert mode</label>
+                        <select id="snippet-insertion-mode" class="snippet-insertion-select">
+                            <option value="append">Append</option>
+                            <option value="insert">Insert</option>
+                            <option value="overwrite">Replace</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="snippets-browser-empty">No saved snippets.</div>
                 <div id="snippets-browser"></div>
             </div>
@@ -2610,7 +2656,7 @@
                 <div class="active-connection-label">Active connection</div>
                 <div class="active-connection-summary">
                     <div id="active-connection-name" class="active-connection-name">No active connection</div>
-                    <div id="active-connection-meta" class="active-connection-meta monospace">Select a connection in the navigator to run queries.</div>
+                    <div id="active-connection-meta" class="active-connection-meta">Select a connection in the navigator to run queries.</div>
                 </div>
                 <div id="theme"><span id="toggle-dark" title="Switch to dark theme">🌘</span><span id="toggle-light" title="Switch to light theme">☀️</span></div>
             </div>
@@ -2803,6 +2849,7 @@ let password_elem = document.getElementById('password');
 let query_area = document.getElementById('query');
 let schema_filter_elem = document.getElementById('schema-filter');
 let snippet_filter_elem = document.getElementById('snippet-filter');
+let snippet_insertion_mode_elem = document.getElementById('snippet-insertion-mode');
 let navigator_show_types_elem = document.getElementById('navigator-show-types');
 let schema_browser_elem = document.getElementById('schema-browser');
 let schema_browser_empty_elem = document.getElementById('schema-browser-empty');
@@ -2850,6 +2897,7 @@ const sidebar_width_key = 'play-reborn.sidebar-width.v1';
 const query_editor_compact_key = 'play-reborn.query-editor-compact.v1';
 const sidebar_active_tab_key = 'play-reborn.sidebar-active-tab.v1';
 const query_snippets_key = 'play-reborn.query-snippets.v1';
+const snippet_insertion_mode_key = 'play-reborn.snippet-insertion-mode.v1';
 
 let action_history = [];
 let result_history = [];
@@ -2862,6 +2910,11 @@ let connection_editor_state = null;
 let stop_after_current = false;
 let query_editor_expanded_height = '';
 let query_snippets_state = loadQuerySnippets();
+const insertion_manager = {
+    last_selection_start: 0,
+    last_selection_end: 0,
+    snippet_mode: 'append'
+};
 const query_log_poll_timeout_ms = 120000;
 const query_log_poll_fast_window_ms = 10000;
 let schema_state = {
@@ -3662,6 +3715,64 @@ function formatConnectionSummary(connection) {
         : compact_url;
 }
 
+function getConnectionHostParts(raw_url) {
+    const raw = (raw_url || '').trim();
+    if (!raw) {
+        return { host: '', port: '' };
+    }
+
+    try {
+        const parsed = new URL(raw);
+        return { host: parsed.hostname.replace(/^\[|\]$/g, ''), port: parsed.port };
+    } catch (e) {
+        const authority = raw
+            .replace(/^[a-z]+:\/\//i, '')
+            .split('/')[0]
+            .split('@')
+            .pop();
+        const ipv6_match = authority.match(/^\[([^\]]+)\](?::(\d+))?$/);
+        if (ipv6_match) {
+            return { host: ipv6_match[1], port: ipv6_match[2] || '' };
+        }
+
+        const host_port_match = authority.match(/^([^:]+)(?::(\d+))?$/);
+        return {
+            host: host_port_match ? host_port_match[1] : authority,
+            port: host_port_match ? host_port_match[2] || '' : ''
+        };
+    }
+}
+
+function normaliseConnectionHostName(value) {
+    const parts = getConnectionHostParts(value);
+    return (parts.host || String(value || '').trim()).toLowerCase().replace(/\.$/, '');
+}
+
+function formatConnectionHeaderSummary(connection) {
+    if (connection.user && connection.user != 'default') {
+        return formatConnectionSummary(connection);
+    }
+
+    const url_parts = getConnectionHostParts(connection.url);
+    const connection_name = normaliseConnectionHostName(connection.name);
+    const connection_host = normaliseConnectionHostName(connection.url);
+    if (connection_name && connection_host && connection_name == connection_host) {
+        return url_parts.port ? `:${url_parts.port}` : '';
+    }
+
+    return formatConnectionSummary(connection);
+}
+
+function formatConnectionDisplayLabel(connection) {
+    const summary = formatConnectionHeaderSummary(connection);
+    if (!summary) {
+        return connection.name || 'Connection';
+    }
+
+    const separator = summary.startsWith(':') ? ' ' : ' · ';
+    return `${connection.name || 'Connection'}${separator}${summary}`;
+}
+
 function isMaterializedViewEngine(engine) {
     return /materialized\s+view/i.test(engine || '');
 }
@@ -3840,6 +3951,26 @@ function createNavigatorLabel(icon, text, icon_class = '') {
     return label;
 }
 
+function normaliseInsertionMode(mode, fallback = 'append') {
+    return ['append', 'insert', 'overwrite'].includes(mode) ? mode : fallback;
+}
+
+function rememberQueryEditorSelection() {
+    const value_length = query_area.value.length;
+    const start = Math.max(0, Math.min(query_area.selectionStart ?? value_length, value_length));
+    const end = Math.max(0, Math.min(query_area.selectionEnd ?? start, value_length));
+    insertion_manager.last_selection_start = start;
+    insertion_manager.last_selection_end = end;
+}
+
+function getRememberedQueryEditorSelection() {
+    const value_length = query_area.value.length;
+    return {
+        start: Math.max(0, Math.min(insertion_manager.last_selection_start, value_length)),
+        end: Math.max(0, Math.min(insertion_manager.last_selection_end, value_length))
+    };
+}
+
 function replaceQueryEditorRange(text, start = query_area.selectionStart ?? query_area.value.length, end = query_area.selectionEnd ?? query_area.value.length, selection_start = null, selection_end = null) {
     query_area.focus();
     query_area.setSelectionRange(start, end);
@@ -3866,16 +3997,61 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
         query_area.setSelectionRange(selection_start, selection_end);
     }
 
+    rememberQueryEditorSelection();
     updateRunButtonText();
 }
 
-function insertTextIntoEditor(text) {
-    const has_focus = document.activeElement == query_area;
-    const start = has_focus ? query_area.selectionStart ?? query_area.value.length : query_area.value.length;
-    const end = has_focus ? query_area.selectionEnd ?? query_area.value.length : query_area.value.length;
-    const text_to_insert = has_focus ? text : `${query_area.value.trim() ? '\n\n' : ''}${text}`;
+function insertIntoQueryEditor(text, options = {}) {
+    const mode = normaliseInsertionMode(options.mode);
+    const value_length = query_area.value.length;
+    let start = value_length;
+    let end = value_length;
+    let text_to_insert = text;
+
+    if (mode == 'append') {
+        text_to_insert = `${query_area.value.trim() ? '\n\n' : ''}${text}`;
+    } else if (mode == 'overwrite') {
+        start = 0;
+        end = value_length;
+    } else {
+        const selection = document.activeElement == query_area
+            ? {
+                start: query_area.selectionStart ?? value_length,
+                end: query_area.selectionEnd ?? query_area.selectionStart ?? value_length
+            }
+            : getRememberedQueryEditorSelection();
+        start = selection.start;
+        end = selection.end;
+    }
 
     replaceQueryEditorRange(text_to_insert, start, end);
+}
+
+function insertTextIntoEditor(text) {
+    insertIntoQueryEditor(text, { mode: 'append' });
+}
+
+function setSnippetInsertionMode(mode, save = true) {
+    insertion_manager.snippet_mode = normaliseInsertionMode(mode);
+    snippet_insertion_mode_elem.value = insertion_manager.snippet_mode;
+    if (save) {
+        window.localStorage.setItem(snippet_insertion_mode_key, insertion_manager.snippet_mode);
+    }
+}
+
+function getSnippetInsertionMode() {
+    return insertion_manager.snippet_mode;
+}
+
+function formatClickHouseIdentifier(name) {
+    const identifier = String(name || '');
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)
+        ? identifier
+        : `\`${identifier.replace(/`/g, '``')}\``;
+}
+
+function formatQualifiedIdentifier(database, name) {
+    return `${formatClickHouseIdentifier(database)}.${formatClickHouseIdentifier(name)}`;
 }
 
 function getTableQueryLogQuery(database, table) {
@@ -4021,7 +4197,7 @@ function updateNavigatorFooter(connection = null) {
         return;
     }
 
-    navigator_footer_primary_elem.innerText = `${connection.name} · ${formatConnectionSummary(connection)}`;
+    navigator_footer_primary_elem.innerText = formatConnectionDisplayLabel(connection);
     navigator_footer_primary_elem.title = `${connection.name}\n${connection.user || 'default'} @ ${connection.url || ''}`;
 }
 
@@ -4034,7 +4210,7 @@ function updateActiveConnectionBanner(connection = null) {
     }
 
     active_connection_name_elem.innerText = connection.name || 'Connection';
-    active_connection_meta_elem.innerText = formatConnectionSummary(connection);
+    active_connection_meta_elem.innerText = formatConnectionHeaderSummary(connection);
     active_connection_banner_elem.title = `${connection.name || 'Connection'}\n${connection.user || 'default'} @ ${connection.url || ''}`;
 }
 
@@ -4113,11 +4289,28 @@ function openConnectionMenu(connection, anchor_rect) {
     showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
 }
 
+function openDatabaseMenu(anchor_rect, database) {
+    const items = [
+        {
+            icon: '↪',
+            label: 'Insert database name',
+            onClick: () => insertIntoQueryEditor(formatClickHouseIdentifier(database), { mode: 'insert' })
+        }
+    ];
+
+    showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
+}
+
 function openTableMenu(anchor_rect, server_address, user, password, database, table, engine) {
     const is_view = isViewEngine(engine);
     const is_materialized_view = isMaterializedViewEngine(engine);
     const is_dictionary = isDictionaryEngine(engine);
     const items = [
+        {
+            icon: '↪',
+            label: 'Insert name',
+            onClick: () => insertIntoQueryEditor(formatQualifiedIdentifier(database, table), { mode: 'insert' })
+        },
         {
             icon: '≡',
             label: is_dictionary ? 'Generate SELECT from dictionary' : is_materialized_view ? 'Generate SELECT from materialized view' : is_view ? 'Generate SELECT from view' : 'Generate SELECT',
@@ -4228,7 +4421,17 @@ function openSnippetMenu(snippet, anchor_rect) {
         {
             icon: '+',
             label: 'Append to editor',
-            onClick: () => insertTextIntoEditor(snippet.query)
+            onClick: () => insertIntoQueryEditor(snippet.query, { mode: 'append' })
+        },
+        {
+            icon: '↪',
+            label: 'Insert at cursor',
+            onClick: () => insertIntoQueryEditor(snippet.query, { mode: 'insert' })
+        },
+        {
+            icon: '▣',
+            label: 'Replace editor',
+            onClick: () => insertIntoQueryEditor(snippet.query, { mode: 'overwrite' })
         },
         {
             icon: '▣',
@@ -4368,7 +4571,7 @@ function renderSnippets() {
                 button.type = 'button';
                 button.className = 'snippet-button';
                 button.title = snippet.query;
-                button.addEventListener('click', () => insertTextIntoEditor(snippet.query));
+                button.addEventListener('click', () => insertIntoQueryEditor(snippet.query, { mode: getSnippetInsertionMode() }));
 
                 const name = document.createElement('span');
                 name.className = 'snippet-name';
@@ -4521,6 +4724,14 @@ function createConnectionNavigatorNode(connection, filter) {
     button.type = 'button';
     button.className = 'navigator-connection-button';
     button.appendChild(createNavigatorLabel('◎', connection.name, 'connection'));
+    const header_summary = formatConnectionHeaderSummary(connection);
+    if (header_summary) {
+        const summary = document.createElement('span');
+        summary.className = 'navigator-connection-summary monospace';
+        summary.innerText = header_summary;
+        summary.title = `${connection.user || 'default'} @ ${connection.url || ''}`;
+        button.appendChild(summary);
+    }
     button.addEventListener('click', () => {
         setConnectionExpanded(connection.id, true);
         applyConnection(connection);
@@ -4532,11 +4743,6 @@ function createConnectionNavigatorNode(connection, filter) {
         current_badge.className = 'navigator-connection-status';
         current_badge.innerText = 'Active';
     }
-
-    const meta = document.createElement('div');
-    meta.className = 'navigator-node-meta monospace';
-    meta.innerText = formatConnectionSummary(connection);
-    meta.title = `${connection.user || 'default'} @ ${connection.url || ''}`;
 
     const actions = document.createElement('div');
     actions.className = 'navigator-connection-actions';
@@ -4588,7 +4794,6 @@ function createConnectionNavigatorNode(connection, filter) {
     header.appendChild(actions);
     header.appendChild(menu_button);
     connection_node.appendChild(header);
-    connection_node.appendChild(meta);
 
     const children = document.createElement('div');
     children.className = 'navigator-connection-children';
@@ -4612,6 +4817,11 @@ function createConnectionNavigatorNode(connection, filter) {
 
                 let database_header = document.createElement('div');
                 database_header.className = 'database-header';
+                database_header.addEventListener('contextmenu', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDatabaseMenu({ left: e.clientX, bottom: e.clientY }, database_info.database);
+                });
 
                 let database_toggle = document.createElement('button');
                 database_toggle.type = 'button';
@@ -4621,6 +4831,7 @@ function createConnectionNavigatorNode(connection, filter) {
                 let database_link = document.createElement('button');
                 database_link.type = 'button';
                 database_link.className = 'database-button';
+                database_link.title = 'Click to expand. Right-click for actions';
                 if (database_info.current) database_link.classList.add('current');
                 database_link.appendChild(createNavigatorLabel('🛢️', database_info.database, 'database'));
 
@@ -5576,11 +5787,11 @@ function renderColumns(container, columns, database, table) {
         name.className = 'column-name monospace';
         name.innerText = column.name;
         name.title = is_numeric_column
-            ? 'Double-click to insert column name. Right-click to generate stats'
-            : 'Double-click to insert column name';
+            ? 'Double-click to insert column name at cursor. Right-click to generate stats'
+            : 'Double-click to insert column name at cursor';
         name.addEventListener('dblclick', e => {
             e.stopPropagation();
-            insertTextIntoEditor(`${column.name}`);
+            insertIntoQueryEditor(formatClickHouseIdentifier(column.name), { mode: 'insert' });
         });
 
         let type = document.createElement('span');
@@ -6601,6 +6812,10 @@ document.addEventListener('keydown', event => {
 
 ['click', 'select', 'keyup', 'change', 'mouseup'].forEach(event_name =>
     query_area.addEventListener(event_name, updateRunButtonText)
+);
+
+['focus', 'click', 'keyup', 'mouseup', 'select', 'input'].forEach(event_name =>
+    query_area.addEventListener(event_name, rememberQueryEditorSelection)
 );
 
 toggle_editor_elem.addEventListener('click', () => {
@@ -7691,6 +7906,11 @@ download_use_cache_elem.addEventListener('change', () => {
 
 setEditorCompact(window.localStorage.getItem(query_editor_compact_key) === '1', false);
 setNavigatorTypesVisible(window.localStorage.getItem(navigator_show_types_key) === '1', false);
+setSnippetInsertionMode(window.localStorage.getItem(snippet_insertion_mode_key) || 'append', false);
+rememberQueryEditorSelection();
+snippet_insertion_mode_elem.addEventListener('change', () => {
+    setSnippetInsertionMode(snippet_insertion_mode_elem.value);
+});
 setAbortPreviewLimit(window.localStorage.getItem(abort_preview_limit_key) === '1', false);
 setSidebarTab(window.localStorage.getItem(sidebar_active_tab_key) || 'navigator', false);
 renderSnippets();
