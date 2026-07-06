@@ -2605,7 +2605,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
-                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.1</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.2</span>
                     </div>
                 </div>
             </div>
@@ -5321,6 +5321,11 @@ function createResultPanel(requestNum, query) {
         timing_stats: '',
         query_log_stats: '',
         progress_stats: '',
+        progress_stats_updated_at: 0,
+        client_stream_stats: '',
+        client_stream_bytes: 0,
+        client_stream_started_at: 0,
+        client_stream_last_update_at: 0,
         summary_stats: '',
         query_id: '',
         stats_loading: false,
@@ -6055,6 +6060,46 @@ function formatResultRows(rows, incomplete = false) {
     return `${formatReadableRows(rowCount)}${incomplete ? '+' : ''} ${unit} in result`;
 }
 
+function startClientStreamProgress(result = current_result_meta) {
+    if (!result) {
+        return;
+    }
+
+    result.client_stream_stats = '';
+    result.client_stream_bytes = 0;
+    result.client_stream_started_at = performance.now();
+    result.client_stream_last_update_at = 0;
+}
+
+function updateClientStreamProgress(result = current_result_meta, chunk_bytes = 0, force = false) {
+    if (!result?.client_stream_started_at) {
+        return;
+    }
+
+    result.client_stream_bytes += Number(chunk_bytes || 0);
+    const now = performance.now();
+    if (!force && now - result.client_stream_last_update_at < 100) {
+        return;
+    }
+
+    result.client_stream_last_update_at = now;
+    const parts = [];
+    if (row_idx || incomplete_result) {
+        parts.push(formatResultRows(row_idx, incomplete_result));
+    }
+    if (result.client_stream_bytes) {
+        parts.push(`Receiving ${formatReadableBytes(result.client_stream_bytes)}`);
+    }
+
+    const elapsed_text = formatElapsedMs(1e6 * (now - result.client_stream_started_at));
+    if (elapsed_text) {
+        parts.push(elapsed_text);
+    }
+
+    result.client_stream_stats = parts.join(', ');
+    updateProgressText();
+}
+
 function markResultIncomplete() {
     if (incomplete_result) {
         return;
@@ -6404,6 +6449,7 @@ async function postImpl(posted_request_num, query)
             is_table = true;
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            startClientStreamProgress(current_result_meta);
 
             let buffer = '';
             let stream_aborted = false;
@@ -6454,6 +6500,7 @@ async function postImpl(posted_request_num, query)
                 }
 
                 let new_content = decoder.decode(value, { stream: true });
+                updateClientStreamProgress(current_result_meta, value.byteLength);
                 buffer += new_content;
                 if (!draining_after_preview_limit) {
                     reply += new_content;
@@ -6508,6 +6555,7 @@ async function postImpl(posted_request_num, query)
             is_raw = true;
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            startClientStreamProgress(current_result_meta);
 
             let buffer = '';
             while (true) {
@@ -6515,6 +6563,7 @@ async function postImpl(posted_request_num, query)
                 if (done) break;
 
                 let new_content = decoder.decode(value, { stream: true });
+                updateClientStreamProgress(current_result_meta, value.byteLength);
                 reply += new_content;
 
                 if (posted_request_num != request_num) { return; }
@@ -6967,6 +7016,11 @@ function clear()
     if (current_result_meta) {
         current_result_meta.stats_loading = false;
         current_result_meta.progress_stats = '';
+        current_result_meta.progress_stats_updated_at = 0;
+        current_result_meta.client_stream_stats = '';
+        current_result_meta.client_stream_bytes = 0;
+        current_result_meta.client_stream_started_at = 0;
+        current_result_meta.client_stream_last_update_at = 0;
     }
 
     extremes = {};
@@ -7166,7 +7220,13 @@ function updateRaw(data) {
 
 function updateProgressText(show_progress_status = true, show_elapsed = true, elapsed_label = 'Elapsed') {
     let progress_elem = document.getElementById('progress');
-    const server_progress_text = current_result_meta?.progress_stats || '';
+    const server_progress_age_ms = current_result_meta?.progress_stats_updated_at
+        ? performance.now() - current_result_meta.progress_stats_updated_at
+        : Infinity;
+    const server_progress_text = server_progress_age_ms < 1000
+        ? current_result_meta?.progress_stats || ''
+        : '';
+    const client_stream_text = current_result_meta?.client_stream_stats || '';
     const parts = [];
     if (row_idx) {
         parts.push(formatResultRows(row_idx, incomplete_result));
@@ -7176,15 +7236,19 @@ function updateProgressText(show_progress_status = true, show_elapsed = true, el
     }
 
     const rendered_progress_text = parts.filter(Boolean).join(', ');
-    const progress_text = server_progress_text || rendered_progress_text;
+    const progress_text = server_progress_text || client_stream_text || rendered_progress_text;
     if (server_progress_text) {
         progress_elem.innerHTML = server_progress_text;
     } else {
-        progress_elem.innerText = rendered_progress_text;
+        progress_elem.innerText = progress_text;
     }
     progress_elem.style.display = show_progress_status && progress_text ? 'block' : 'none';
-    if (current_result_elements?.result_stats && !current_result_meta?.stats && !current_result_meta?.progress_stats) {
-        current_result_elements.result_stats.innerText = progress_text;
+    if (current_result_elements?.result_stats && !current_result_meta?.stats) {
+        if (server_progress_text) {
+            current_result_elements.result_stats.innerHTML = server_progress_text;
+        } else {
+            current_result_elements.result_stats.innerText = progress_text;
+        }
     }
     return progress_text;
 }
@@ -7226,6 +7290,7 @@ function updateProgress(progress) {
     }
     if (current_result_meta) {
         current_result_meta.progress_stats = text;
+        current_result_meta.progress_stats_updated_at = performance.now();
     }
 
     updateProgressText();
