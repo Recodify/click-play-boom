@@ -6942,6 +6942,7 @@ function updateRaw(data) {
 
 function updateProgressText(show_progress_status = true, show_elapsed = true, elapsed_label = 'Elapsed') {
     let progress_elem = document.getElementById('progress');
+    const server_progress_text = current_result_meta?.progress_stats || '';
     const parts = [];
     if (row_idx) {
         parts.push(formatResultRows(row_idx, incomplete_result));
@@ -6950,8 +6951,13 @@ function updateProgressText(show_progress_status = true, show_elapsed = true, el
         parts.push(formatElapsedMs(elapsed_ns, elapsed_label));
     }
 
-    const progress_text = parts.filter(Boolean).join(', ');
-    progress_elem.innerText = progress_text;
+    const rendered_progress_text = parts.filter(Boolean).join(', ');
+    const progress_text = server_progress_text || rendered_progress_text;
+    if (server_progress_text) {
+        progress_elem.innerHTML = server_progress_text;
+    } else {
+        progress_elem.innerText = rendered_progress_text;
+    }
     progress_elem.style.display = show_progress_status && progress_text ? 'block' : 'none';
     if (current_result_elements?.result_stats && !current_result_meta?.stats && !current_result_meta?.progress_stats) {
         current_result_elements.result_stats.innerText = progress_text;
