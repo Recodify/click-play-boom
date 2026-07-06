@@ -1335,6 +1335,14 @@
             min-width: 0;
         }
 
+        .client-version
+        {
+            flex: 0 0 auto;
+            color: var(--navigator-muted-color);
+            opacity: 0.82;
+            white-space: nowrap;
+        }
+
         .navigator-footer-status-text
         {
             min-width: 0;
@@ -2597,6 +2605,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.1</span>
                     </div>
                 </div>
             </div>
