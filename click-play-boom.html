@@ -5311,6 +5311,7 @@ function createResultPanel(requestNum, query) {
         base_stats: '',
         timing_stats: '',
         query_log_stats: '',
+        progress_stats: '',
         summary_stats: '',
         query_id: '',
         stats_loading: false,
@@ -6045,6 +6046,15 @@ function formatResultRows(rows, incomplete = false) {
     return `${formatReadableRows(rowCount)}${incomplete ? '+' : ''} ${unit} in result`;
 }
 
+function markResultIncomplete() {
+    if (incomplete_result) {
+        return;
+    }
+
+    incomplete_result = true;
+    updateProgressText();
+}
+
 function formatElapsedMs(elapsedNs, label = '') {
     const elapsedMs = Number(elapsedNs || 0) / 1e6;
     if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
@@ -6389,8 +6399,13 @@ async function postImpl(posted_request_num, query)
             let buffer = '';
             let stream_aborted = false;
             let draining_after_preview_limit = false;
-            const updateDefaultFormatLine = (line, fragment, append_raw_newline) => {
+            const updateDefaultFormatLine = (line, fragment, append_raw_newline, render_rows = true) => {
                 if (!line.trim()) {
+                    return true;
+                }
+
+                if (!render_rows && line.startsWith('{"row":')) {
+                    markResultIncomplete();
                     return true;
                 }
 
@@ -6398,9 +6413,17 @@ async function postImpl(posted_request_num, query)
                 try {
                     data = JSON.parse(line);
                 } catch (e) {
+                    if (!render_rows) {
+                        return true;
+                    }
                     is_table = false;
                     is_raw = true;
                     updateRaw(append_raw_newline ? `${line}\n` : line);
+                    return true;
+                }
+
+                if (!render_rows && data.row) {
+                    markResultIncomplete();
                     return true;
                 }
 
@@ -6412,27 +6435,27 @@ async function postImpl(posted_request_num, query)
                 if (posted_request_num != request_num) { return; }
                 if (done) {
                     const trailing_content = decoder.decode();
-                    if (trailing_content && !draining_after_preview_limit) {
+                    if (trailing_content) {
                         buffer += trailing_content;
-                        reply += trailing_content;
+                        if (!draining_after_preview_limit) {
+                            reply += trailing_content;
+                        }
                     }
                     break;
                 }
 
-                if (draining_after_preview_limit) {
-                    continue;
-                }
-
                 let new_content = decoder.decode(value, { stream: true });
                 buffer += new_content;
-                reply += new_content;
+                if (!draining_after_preview_limit) {
+                    reply += new_content;
+                }
 
                 let lines = buffer.split('\n');
                 let fragment = document.createDocumentFragment();
 
                 let cont = true;
                 for (const line of lines.slice(0, -1)) {
-                    cont = updateDefaultFormatLine(line, fragment, true);
+                    cont = updateDefaultFormatLine(line, fragment, true, !draining_after_preview_limit);
                     if (!cont) { break; }
                 }
 
@@ -6455,9 +6478,9 @@ async function postImpl(posted_request_num, query)
                 buffer = lines[lines.length - 1];
             }
 
-            if (!stream_aborted && !draining_after_preview_limit && buffer.trim()) {
+            if (!stream_aborted && buffer.trim()) {
                 let fragment = document.createDocumentFragment();
-                const cont = updateDefaultFormatLine(buffer, fragment, false);
+                const cont = updateDefaultFormatLine(buffer, fragment, false, !draining_after_preview_limit);
                 if (fragment.hasChildNodes()) {
                     getCurrentTbody()?.appendChild(fragment);
                 }
@@ -6934,6 +6957,7 @@ function clear()
     }
     if (current_result_meta) {
         current_result_meta.stats_loading = false;
+        current_result_meta.progress_stats = '';
     }
 
     extremes = {};
@@ -7144,7 +7168,7 @@ function updateProgressText(show_progress_status = true, show_elapsed = true, el
     const progress_text = parts.filter(Boolean).join(', ');
     progress_elem.innerText = progress_text;
     progress_elem.style.display = show_progress_status && progress_text ? 'block' : 'none';
-    if (current_result_elements?.result_stats && !current_result_meta?.stats) {
+    if (current_result_elements?.result_stats && !current_result_meta?.stats && !current_result_meta?.progress_stats) {
         current_result_elements.result_stats.innerText = progress_text;
     }
     return progress_text;
@@ -7184,6 +7208,9 @@ function updateProgress(progress) {
     stats.innerHTML = text;
     if (current_result_elements?.result_stats) {
         current_result_elements.result_stats.innerHTML = text;
+    }
+    if (current_result_meta) {
+        current_result_meta.progress_stats = text;
     }
 
     updateProgressText();
@@ -7369,7 +7396,7 @@ const max_cells = 100_000;
 let current_selected_cell = null;
 function appendRow(row, fragment) {
     if (row_idx >= max_rows || (1 + row_idx) * Object.keys(header).length > max_cells) {
-        incomplete_result = true;
+        markResultIncomplete();
         return false;
     }
 
