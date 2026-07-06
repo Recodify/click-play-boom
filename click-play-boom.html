@@ -331,7 +331,9 @@
         {
             display: flex;
             justify-content: flex-end;
+            gap: 0.75rem;
             margin-top: -0.2rem;
+            flex-wrap: wrap;
         }
 
         .navigator-setting
@@ -1926,6 +1928,24 @@
             user-select: text;
         }
 
+        .result-stats.loading::after
+        {
+            content: " | fetching stats";
+            display: inline-block;
+            width: 9.8em;
+            margin-left: 0.35rem;
+            text-align: left;
+            animation: result-stats-loading 1.2s steps(4, end) infinite;
+        }
+
+        @keyframes result-stats-loading
+        {
+            0% { content: " | fetching stats"; }
+            25% { content: " | fetching stats."; }
+            50% { content: " | fetching stats.."; }
+            75%, 100% { content: " | fetching stats..."; }
+        }
+
         .result-query
         {
             display: block;
@@ -2530,6 +2550,10 @@
                         <input id="navigator-show-types" type="checkbox">
                         <span>Show types</span>
                     </label>
+                    <label class="navigator-setting" title="Preserve upstream play behavior: abort the ClickHouse query once the preview row/cell limit is reached">
+                        <input id="abort-preview-limit" type="checkbox">
+                        <span>Abort at preview limit</span>
+                    </label>
                 </div>
                 <div id="schema-browser-empty">Loading navigator...</div>
                 <div id="schema-browser"></div>
@@ -2810,6 +2834,7 @@ let new_connection_folder_elem = document.getElementById('new-connection-folder'
 let new_snippet_folder_elem = document.getElementById('new-snippet-folder');
 let save_query_snippet_elem = document.getElementById('save-query-snippet');
 let toggle_editor_elem = document.getElementById('toggle-editor');
+let abort_preview_limit_elem = document.getElementById('abort-preview-limit');
 let databases_elem = document.getElementById('databases');
 let menu_elem = document.getElementById('menu');
 let sidebar_resizer_elem = document.getElementById('sidebar-resizer');
@@ -2820,6 +2845,7 @@ const download_query_cache_key = 'play-reborn.download-query-cache.v1';
 const navigator_state_key = 'play-reborn.navigator-state.v1';
 const sidebar_collapsed_key = 'play-reborn.sidebar-collapsed.v1';
 const navigator_show_types_key = 'play-reborn.navigator-show-types.v1';
+const abort_preview_limit_key = 'play-reborn.abort-preview-limit.v1';
 const sidebar_width_key = 'play-reborn.sidebar-width.v1';
 const query_editor_compact_key = 'play-reborn.query-editor-compact.v1';
 const sidebar_active_tab_key = 'play-reborn.sidebar-active-tab.v1';
@@ -2836,6 +2862,8 @@ let connection_editor_state = null;
 let stop_after_current = false;
 let query_editor_expanded_height = '';
 let query_snippets_state = loadQuerySnippets();
+const query_log_poll_timeout_ms = 120000;
+const query_log_poll_fast_window_ms = 10000;
 let schema_state = {
     loading: false,
     connection_id: null,
@@ -2857,6 +2885,29 @@ function getCurrentError() { return current_result_elements?.error || null; }
 function getCurrentTbody() { return getCurrentDataTable()?.querySelector('tbody') || null; }
 function shouldUseQueryCacheForDownload() { return !!download_use_cache_elem?.checked; }
 function shouldShowNavigatorTypes() { return !!navigator_show_types_elem?.checked; }
+function shouldAbortAtPreviewLimit() { return !!abort_preview_limit_elem?.checked; }
+
+function buildClickHouseUrl(server_address, user, password, default_format = 'JSON', extra_params = {}) {
+    let url = server_address +
+        (server_address.indexOf('?') >= 0 ? '&' : '?');
+    const params = {
+        add_http_cors_header: '1',
+        default_format: default_format,
+        ...extra_params
+    };
+
+    if (user) {
+        params.user = user;
+    }
+    if (password) {
+        params.password = password;
+    }
+
+    return url + Object.entries(params)
+        .filter(([, value]) => value !== undefined && value !== null)
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        .join('&');
+}
 
 function setDownloadQueryCachePreference(enabled, persist = true) {
     download_use_cache_elem.checked = enabled;
@@ -2870,6 +2921,13 @@ function setNavigatorTypesVisible(enabled, persist = true) {
     databases_elem.classList.toggle('show-types', enabled);
     if (persist) {
         window.localStorage.setItem(navigator_show_types_key, enabled ? '1' : '0');
+    }
+}
+
+function setAbortPreviewLimit(enabled, persist = true) {
+    abort_preview_limit_elem.checked = enabled;
+    if (persist) {
+        window.localStorage.setItem(abort_preview_limit_key, enabled ? '1' : '0');
     }
 }
 
@@ -5039,7 +5097,12 @@ function createResultPanel(requestNum, query) {
         tab_status: tabStatus,
         elements: elements,
         stats: '',
+        base_stats: '',
+        timing_stats: '',
+        query_log_stats: '',
         summary_stats: '',
+        query_id: '',
+        stats_loading: false,
         ok: false
     };
 
@@ -5783,6 +5846,107 @@ function formatElapsedMs(elapsedNs, label = '') {
     return `${label ? `${label} ` : ''}${roundedMs} ms`;
 }
 
+function formatMsMetric(value, label) {
+    if (!hasMsMetricValue(value)) {
+        return '';
+    }
+
+    const ms = Number(value);
+    const roundedMs = ms < 10
+        ? ms.toFixed(1)
+        : Math.round(ms).toLocaleString('en-US');
+    return `${label} ${roundedMs}ms`;
+}
+
+function formatNsAsMsMetric(value, label) {
+    return formatMsMetric(Number(value || 0) / 1e6, label);
+}
+
+function hasMsMetricValue(value) {
+    if (value === null || value === undefined || value === '') {
+        return false;
+    }
+
+    const ms = Number(value);
+    return Number.isFinite(ms) && ms >= 0;
+}
+
+function sumMsMetrics(...values) {
+    const metric_values = values.filter(hasMsMetricValue);
+    if (!metric_values.length) {
+        return null;
+    }
+
+    return metric_values.reduce((sum, value) => sum + Number(value), 0);
+}
+
+function setResultStats(result = current_result_meta, base_stats = result?.base_stats || '', timing_stats = result?.timing_stats || '') {
+    if (!result) {
+        return '';
+    }
+
+    result.base_stats = base_stats;
+    result.timing_stats = timing_stats;
+    result.stats = [base_stats, timing_stats].filter(Boolean).join(', ');
+
+    if (result.elements?.result_stats) {
+        result.elements.result_stats.textContent = result.stats;
+        result.elements.result_stats.classList.toggle('loading', !!result.stats_loading);
+        result.elements.result_stats.title = result.timing_stats
+            ? 'query is total server wall time; parenthesized timings are ClickHouse profile counters and may not add up to query time.'
+            : '';
+    }
+    if (result.id == active_result_id) {
+        const stats = document.getElementById('stats');
+        stats.innerText = result.stats;
+        stats.title = result.elements?.result_stats?.title || '';
+    }
+
+    const history_entry = action_history.find(entry => entry.result_id == result.id);
+    if (history_entry) {
+        history_entry.stats = result.stats;
+        renderActionHistory();
+    }
+
+    return result.stats;
+}
+
+function setResultStatsLoading(result = current_result_meta, loading = false) {
+    if (!result) {
+        return;
+    }
+
+    result.stats_loading = loading;
+    result.elements?.result_stats?.classList.toggle('loading', loading);
+}
+
+function formatQueryLogStats(row) {
+    if (!row) {
+        return '';
+    }
+
+    const network_ms = sumMsMetrics(row.network_send_ms, row.network_receive_ms);
+    const query = formatMsMetric(row.query_ms, 'query');
+    const detail_parts = [
+        formatMsMetric(row.cpu_ms, 'cpu'),
+        formatMsMetric(network_ms, 'network'),
+        formatMsMetric(row.io_wait_ms, 'io wait')
+    ].filter(Boolean);
+    const parts = [];
+
+    if (query) {
+        parts.push(detail_parts.length ? `${query} (${detail_parts.join(', ')})` : query);
+    } else {
+        parts.push(...detail_parts);
+    }
+
+    if (Number(row.memory_usage || 0) > 0) {
+        parts.push(`memory ${formatReadableBytes(row.memory_usage)}`);
+    }
+
+    return parts.join(', ');
+}
+
 function applyClickHouseSummary(response) {
     const summary = getClickHouseSummary(response);
     if (!summary) {
@@ -5798,14 +5962,126 @@ function applyClickHouseSummary(response) {
         return false;
     }
 
-    document.getElementById('stats').innerText = text;
     if (current_result_meta) {
         current_result_meta.summary_stats = text;
     }
-    if (current_result_elements?.result_stats) {
-        current_result_elements.result_stats.innerText = text;
-    }
     return text;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getQueryLogPollDelay(elapsed_ms) {
+    if (!elapsed_ms) {
+        return 500;
+    }
+
+    return elapsed_ms < query_log_poll_fast_window_ms ? 1000 : 5000;
+}
+
+async function fetchQueryLogStats(server_address, user, password, query_id) {
+    const url = buildClickHouseUrl(server_address, user, password, 'JSONEachRow', {
+        param_query_id: query_id
+    });
+
+    const response = await fetch(url, {
+        method: 'POST',
+        body: `SELECT
+    query_duration_ms AS query_ms,
+    if(
+        mapContains(ProfileEvents, 'UserTimeMicroseconds')
+            OR mapContains(ProfileEvents, 'OSUserTimeMicroseconds')
+            OR mapContains(ProfileEvents, 'OSCPUVirtualTimeMicroseconds'),
+        round(greatest(
+            ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds'],
+            ProfileEvents['OSUserTimeMicroseconds'] + ProfileEvents['OSSystemTimeMicroseconds'],
+            ProfileEvents['OSCPUVirtualTimeMicroseconds']
+        ) / 1000, 1),
+        NULL
+    ) AS cpu_ms,
+    if(
+        mapContains(ProfileEvents, 'NetworkSendElapsedMicroseconds'),
+        round(ProfileEvents['NetworkSendElapsedMicroseconds'] / 1000, 1),
+        NULL
+    ) AS network_send_ms,
+    if(
+        mapContains(ProfileEvents, 'NetworkReceiveElapsedMicroseconds'),
+        round(ProfileEvents['NetworkReceiveElapsedMicroseconds'] / 1000, 1),
+        NULL
+    ) AS network_receive_ms,
+    if(
+        mapContains(ProfileEvents, 'OSIOWaitMicroseconds'),
+        round(ProfileEvents['OSIOWaitMicroseconds'] / 1000, 1),
+        NULL
+    ) AS io_wait_ms,
+    memory_usage
+FROM system.query_log
+WHERE (
+    type = 'QueryFinish'
+    OR (
+        type = 'ExceptionWhileProcessing'
+        AND (
+            exception ILIKE '%Broken pipe%'
+            OR exception ILIKE '%socket%'
+            OR exception ILIKE '%NETWORK_ERROR%'
+        )
+    )
+)
+  AND (query_id = {query_id:String} OR initial_query_id = {query_id:String})
+ORDER BY event_time_microseconds DESC
+LIMIT 1`,
+    });
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const text = (await response.text()).trim();
+    if (!text) {
+        return null;
+    }
+
+    return JSON.parse(text.split('\n')[0]);
+}
+
+async function enrichResultStatsFromQueryLog(result, server_address, user, password, query_id) {
+    if (!query_id) {
+        return;
+    }
+
+    setResultStatsLoading(result, true);
+    const started_at = performance.now();
+    let elapsed_ms = 0;
+
+    while (elapsed_ms < query_log_poll_timeout_ms) {
+        const delay = Math.min(
+            getQueryLogPollDelay(elapsed_ms),
+            query_log_poll_timeout_ms - elapsed_ms
+        );
+        await sleep(delay);
+        if (!result_history.includes(result) || result.query_id != query_id) {
+            return;
+        }
+        elapsed_ms = performance.now() - started_at;
+
+        try {
+            const row = await fetchQueryLogStats(server_address, user, password, query_id);
+            const query_log_stats = formatQueryLogStats(row);
+            if (query_log_stats) {
+                result.query_log_stats = query_log_stats;
+                setResultStatsLoading(result, false);
+                setResultStats(result, result.base_stats, query_log_stats);
+                return;
+            }
+        } catch (e) {
+            console.log(e);
+            setResultStatsLoading(result, false);
+            return;
+        }
+    }
+
+    setResultStatsLoading(result, false);
 }
 
 let controller = null;
@@ -5843,7 +6119,7 @@ async function postImpl(posted_request_num, query)
     let is_chart = false;
     let is_error = false;
 
-    let response, reply, format;
+    let response, reply, format, query_id;
     reply = '';
     try {
         controller = new AbortController();
@@ -5851,6 +6127,10 @@ async function postImpl(posted_request_num, query)
             headers: { 'Authorization': 'never' } });
 
         format = response.headers.get('X-ClickHouse-Format') ?? default_format;
+        query_id = response.headers.get('X-ClickHouse-Query-Id') || '';
+        if (current_result_meta) {
+            current_result_meta.query_id = query_id;
+        }
 
         if (!response.ok) {
             is_error = true;
@@ -5897,6 +6177,7 @@ async function postImpl(posted_request_num, query)
 
             let buffer = '';
             let stream_aborted = false;
+            let draining_after_preview_limit = false;
             const updateDefaultFormatLine = (line, fragment, append_raw_newline) => {
                 if (!line.trim()) {
                     return true;
@@ -5920,11 +6201,15 @@ async function postImpl(posted_request_num, query)
                 if (posted_request_num != request_num) { return; }
                 if (done) {
                     const trailing_content = decoder.decode();
-                    if (trailing_content) {
+                    if (trailing_content && !draining_after_preview_limit) {
                         buffer += trailing_content;
                         reply += trailing_content;
                     }
                     break;
+                }
+
+                if (draining_after_preview_limit) {
+                    continue;
                 }
 
                 let new_content = decoder.decode(value, { stream: true });
@@ -5946,21 +6231,29 @@ async function postImpl(posted_request_num, query)
 
                 if (!cont)
                 {
-                    stream_aborted = true;
-                    controller.abort();
-                    break;
+                    if (shouldAbortAtPreviewLimit()) {
+                        stream_aborted = true;
+                        controller.abort();
+                        break;
+                    }
+
+                    draining_after_preview_limit = true;
+                    buffer = '';
+                    continue;
                 }
                 buffer = lines[lines.length - 1];
             }
 
-            if (!stream_aborted && buffer.trim()) {
+            if (!stream_aborted && !draining_after_preview_limit && buffer.trim()) {
                 let fragment = document.createDocumentFragment();
                 const cont = updateDefaultFormatLine(buffer, fragment, false);
                 if (fragment.hasChildNodes()) {
                     getCurrentTbody()?.appendChild(fragment);
                 }
                 if (!cont) {
-                    controller.abort();
+                    if (shouldAbortAtPreviewLimit()) {
+                        controller.abort();
+                    }
                 }
             }
         } else if (format == 'JSONCompactColumns') {
@@ -6045,24 +6338,18 @@ async function postImpl(posted_request_num, query)
 
     const summary_text = applyClickHouseSummary(response) || '';
     const progress_text = row_idx || is_table ? formatResultRows(row_idx, incomplete_result) : '';
-    const elapsed_text = formatElapsedMs(elapsed_ns, 'Query');
-    const result_stats_text = [progress_text, summary_text, elapsed_text].filter(Boolean).join(', ');
-    if (result_stats_text) {
-        if (current_result_meta) {
-            current_result_meta.stats = result_stats_text;
-            current_result_meta.elements.result_stats.innerText = result_stats_text;
-        }
-        if (current_result_elements?.result_stats) {
-            current_result_elements.result_stats.innerText = result_stats_text;
-        }
-    }
+    const base_stats_text = [progress_text, summary_text].filter(Boolean).join(', ');
+    const timing_stats_text = query_id ? '' : formatNsAsMsMetric(elapsed_ns, 'query');
+    const result_stats_text = setResultStats(current_result_meta, base_stats_text, timing_stats_text);
     document.documentElement.style.setProperty('--progress', '0');
 
     if (current_result_meta) {
         current_result_meta.ok = true;
         setResultTabSucceeded(current_result_meta, true);
-        current_result_meta.stats = result_stats_text || document.getElementById('stats').innerText || document.getElementById('progress').innerText || '';
-        current_result_meta.elements.result_stats.innerText = current_result_meta.stats;
+        if (!current_result_meta.stats) {
+            current_result_meta.stats = result_stats_text || document.getElementById('stats').innerText || document.getElementById('progress').innerText || '';
+            current_result_meta.elements.result_stats.innerText = current_result_meta.stats;
+        }
         clearElement(document.getElementById('progress'));
         action_history.push({
             result_id: current_result_meta.id,
@@ -6074,6 +6361,7 @@ async function postImpl(posted_request_num, query)
             ok: true
         });
         renderActionHistory();
+        void enrichResultStatsFromQueryLog(current_result_meta, server_address, user, password, query_id);
     }
 
     if (posted_request_num != request_num) { return; }
@@ -6195,10 +6483,10 @@ async function restoreFromHistory(state) {
 
     if (is_raw) elapsed_ns = state.elapsed_ns;
 
-    const restored_stats_text = updateProgressText(false, true, 'Query');
+    const restored_base_stats_text = row_idx ? formatResultRows(row_idx, incomplete_result) : '';
+    const restored_timing_stats_text = formatNsAsMsMetric(elapsed_ns, 'query');
     if (current_result_meta) {
-        current_result_meta.stats = restored_stats_text;
-        current_result_meta.elements.result_stats.innerText = restored_stats_text;
+        setResultStats(current_result_meta, restored_base_stats_text, restored_timing_stats_text);
     }
     document.documentElement.style.setProperty('--progress', '0');
 }
@@ -6427,6 +6715,10 @@ function clear()
     document.getElementById('stats').innerText = '';
     if (current_result_elements?.result_stats) {
         current_result_elements.result_stats.innerText = '';
+        current_result_elements.result_stats.classList.remove('loading');
+    }
+    if (current_result_meta) {
+        current_result_meta.stats_loading = false;
     }
 
     extremes = {};
@@ -7357,6 +7649,10 @@ navigator_show_types_elem.addEventListener('change', () => {
     setNavigatorTypesVisible(navigator_show_types_elem.checked);
 });
 
+abort_preview_limit_elem.addEventListener('change', () => {
+    setAbortPreviewLimit(abort_preview_limit_elem.checked);
+});
+
 refresh_schema_elem.addEventListener('click', () => {
     if (!current_connection_id) {
         return;
@@ -7395,6 +7691,7 @@ download_use_cache_elem.addEventListener('change', () => {
 
 setEditorCompact(window.localStorage.getItem(query_editor_compact_key) === '1', false);
 setNavigatorTypesVisible(window.localStorage.getItem(navigator_show_types_key) === '1', false);
+setAbortPreviewLimit(window.localStorage.getItem(abort_preview_limit_key) === '1', false);
 setSidebarTab(window.localStorage.getItem(sidebar_active_tab_key) || 'navigator', false);
 renderSnippets();
 
