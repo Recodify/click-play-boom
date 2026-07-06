@@ -102,18 +102,17 @@ The snippets tab stores reusable queries in browser local storage.
 
 ## Downloads
 
-After a successful query, use the download control to rerun the active result query with a download-oriented output format.
+After a successful query, use the download control to rerun the active result query with a download-oriented output format. The download filename can be provided manually, or left blank to derive a name from the first `FROM` table in the query.
 
 Supported presets are:
 
-- `CSV`
-- `TSV`
+- `CSVWithNames` shown as `CSV (with headers)`
+- `TSVWithNames` shown as `TSV (with headers)`
 - `JSON`
-- `JSONLines`
 - `Parquet`
 - `Markdown`
 
-You can also enter any ClickHouse format name manually.
+Additional ClickHouse formats are available in the dropdown, and you can still enter any ClickHouse format name manually. Downloaded files use normalized file extensions such as `.csv`, `.tsv`, `.jsonl`, `.parquet`, and `.md`.
 
 When "Reuse cached result for download" is enabled, preview queries are written to ClickHouse query cache and downloads are requested with query-cache reads enabled. This is useful for large or expensive results, but it depends on server support and query-cache settings.
 
