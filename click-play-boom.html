@@ -2605,7 +2605,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
-                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.4</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.5</span>
                     </div>
                 </div>
             </div>
@@ -8098,8 +8098,8 @@ function stripClickHouseIdentifierQuotes(identifier_part) {
 }
 
 function getDownloadBasenameFromQuery(query) {
-    const identifier = '`(?:``|[^`])+`|"(?:""|[^"])+"|[A-Za-z_][A-Za-z0-9_$]*';
-    const match = query.match(new RegExp(`\\bFROM\\s+(${identifier}(?:\\s*\\.\\s*${identifier})?)`, 'i'));
+    const identifier = '(?:`(?:``|[^`])+`|"(?:""|[^"])+"|[A-Za-z_][A-Za-z0-9_$]*)';
+    const match = query.match(new RegExp(`\\bFROM\\s+(${identifier}(?:\\s*\\.\\s*${identifier})*)`, 'i'));
     if (!match) {
         return 'results';
     }
