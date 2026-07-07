@@ -48,6 +48,9 @@
             --element-background-color: #FFF;
             --query-editor-background-color: var(--element-background-color);
             --query-editor-text-color: var(--text-color);
+            --query-editor-font-size: 11pt;
+            --query-editor-line-height: 1.35;
+            --query-editor-padding: 0.25rem;
             --element-color-ok: #080;
             --element-color-fail: #C00;
             --element-background-color-fail: #FEE;
@@ -87,6 +90,17 @@
             --navigator-text-color: #182225;
             --navigator-muted-color: #5F6B76;
             --navigator-link-hover-color: #0B57D0;
+
+            --syntax-default: var(--query-editor-text-color);
+            --syntax-keyword: var(--text-color-active);
+            --syntax-identifier: #00838F;
+            --syntax-function: #875F00;
+            --syntax-number: #008700;
+            --syntax-string: #006400;
+            --syntax-qident: #008B8B;
+            --syntax-comment: #757575;
+            --syntax-operator: var(--text-color-active);
+            --syntax-error: #B71C1C;
 
             --result-color-rotate: var(--background-color-rotate);
             --result-header-color: oklch(92% 0.0296 var(--result-color-rotate));
@@ -139,6 +153,16 @@
             --navigator-text-color: #E2EBEF;
             --navigator-muted-color: #9AACB5;
             --navigator-link-hover-color: #84C7FF;
+
+            --syntax-keyword: var(--text-color-active);
+            --syntax-identifier: #00CDCD;
+            --syntax-function: #CDCD00;
+            --syntax-number: #00D700;
+            --syntax-string: #00CD00;
+            --syntax-qident: #00D7D7;
+            --syntax-comment: #9E9E9E;
+            --syntax-operator: var(--text-color-active);
+            --syntax-error: #FF6E40;
 
             --result-header-color: oklch(15% 0.0296 var(--result-color-rotate));
             --result-tab-accent-color: oklch(70% 0.12 var(--result-color-rotate));
@@ -1464,8 +1488,8 @@
         {
             border: 1px solid var(--border-color);
             /* The font must be not too small (to be inclusive) and not too large (it's less practical and make general feel of insecurity) */
-            font-size: 11pt;
-            padding: 0.25rem;
+            font-size: var(--query-editor-font-size);
+            padding: var(--query-editor-padding);
             background-color: var(--element-background-color);
         }
 
@@ -1477,6 +1501,12 @@
         #query
         {
             display: block;
+            position: relative;
+            z-index: 1;
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+            font-size: var(--query-editor-font-size);
+            line-height: var(--query-editor-line-height);
+            padding: var(--query-editor-padding);
             background-color: var(--query-editor-background-color);
             color: var(--query-editor-text-color);
             /* Make enough space for even big queries. */
@@ -1490,12 +1520,134 @@
             margin-top: -1px; /* To compensate the border. */
             contain: strict; /* Less input lag even if the table is large. */
             resize: none; /* Disable default browser resizer */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        #query.has-backdrop
+        {
+            background: transparent;
+            color: transparent;
+            caret-color: var(--query-editor-text-color);
         }
 
         #query_div.compact #query
         {
             height: 3.5rem !important;
             min-height: 3.5rem;
+        }
+
+        #query-backdrop
+        {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+            font-size: var(--query-editor-font-size);
+            line-height: var(--query-editor-line-height);
+            padding: var(--query-editor-padding);
+            border: 1px solid transparent;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            background-color: var(--query-editor-background-color);
+            color: var(--syntax-default);
+        }
+
+        #query-backdrop .q-kw  { color: var(--syntax-keyword); }
+        #query-backdrop .q-id  { color: var(--syntax-identifier); }
+        #query-backdrop .q-fn  { color: var(--syntax-function); }
+        #query-backdrop .q-num { color: var(--syntax-number); }
+        #query-backdrop .q-str { color: var(--syntax-string); }
+        #query-backdrop .q-qid { color: var(--syntax-qident); }
+        #query-backdrop .q-com { color: var(--syntax-comment); }
+        #query-backdrop .q-op  { color: var(--syntax-operator); }
+        #query-backdrop .q-err { color: var(--syntax-error); text-decoration: underline wavy; }
+
+        #autocomplete-menu
+        {
+            display: none;
+            position: absolute;
+            z-index: 30;
+            min-width: 18rem;
+            max-width: min(34rem, calc(100% - 1rem));
+            max-height: min(18rem, 60vh);
+            overflow: auto;
+            padding: 0.25rem;
+            border: 1px solid var(--navigator-card-border);
+            background: var(--navigator-card-background);
+            box-shadow: 0 0.35rem 1rem var(--shadow-color);
+            color: var(--navigator-text-color);
+            font-size: 10pt;
+        }
+
+        #autocomplete-menu.open
+        {
+            display: block;
+        }
+
+        .autocomplete-item
+        {
+            display: grid;
+            grid-template-columns: 5.5rem minmax(0, 1fr);
+            gap: 0.4rem;
+            align-items: baseline;
+            width: 100%;
+            padding: 0.25rem 0.35rem;
+            cursor: default;
+        }
+
+        .autocomplete-item.is-active
+        {
+            background: var(--navigator-card-header-active);
+            color: var(--text-color-active);
+        }
+
+        .autocomplete-kind
+        {
+            color: var(--navigator-muted-color);
+            font-size: 85%;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .autocomplete-main
+        {
+            min-width: 0;
+        }
+
+        .autocomplete-label,
+        .autocomplete-detail,
+        .autocomplete-empty
+        {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .autocomplete-label
+        {
+            color: inherit;
+        }
+
+        .autocomplete-detail
+        {
+            color: var(--navigator-muted-color);
+            font-size: 85%;
+            margin-top: 0.1rem;
+        }
+
+        .autocomplete-empty
+        {
+            padding: 0.35rem 0.5rem;
+            color: var(--navigator-muted-color);
         }
 
         #inputs
@@ -2627,7 +2779,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
-                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.1</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.08.2</span>
                     </div>
                 </div>
             </div>
@@ -2691,7 +2843,7 @@
                 </div>
                 <div id="theme"><span id="toggle-dark" title="Switch to dark theme">🌘</span><span id="toggle-light" title="Switch to light theme">☀️</span></div>
             </div>
-            <div id="query_div"><textarea autofocus="" spellcheck="false" autocorrect="false" autocomplete="false" data-gramm="false" class="monospace shadow" id="query"></textarea><button type="button" id="toggle-editor" title="Compact query editor" aria-label="Compact query editor" aria-pressed="false">▴</button><div class="textarea-resizer"></div></div>
+            <div id="query_div"><div id="query-backdrop"></div><textarea autofocus="" spellcheck="false" autocorrect="false" autocomplete="false" data-gramm="false" class="monospace shadow" id="query" aria-autocomplete="list" aria-controls="autocomplete-menu"></textarea><div id="autocomplete-menu" role="listbox" aria-label="Schema autocomplete"></div><button type="button" id="toggle-editor" title="Compact query editor" aria-label="Compact query editor" aria-pressed="false">▴</button><div class="textarea-resizer"></div></div>
             <div id="run_div">
                 <button type="submit" class="shadow" id="run" title="Run all (Ctrl/Cmd+Enter)" aria-label="Run all (Ctrl/Cmd+Enter)">Run</button>
                 <div id="hourglass">⧗</div>
@@ -2881,6 +3033,9 @@ let url_elem = document.getElementById('url');
 let user_elem = document.getElementById('user');
 let password_elem = document.getElementById('password');
 let query_area = document.getElementById('query');
+let run_button = document.getElementById('run');
+let query_backdrop_elem = document.getElementById('query-backdrop');
+let autocomplete_menu_elem = document.getElementById('autocomplete-menu');
 let schema_filter_elem = document.getElementById('schema-filter');
 let snippet_filter_elem = document.getElementById('snippet-filter');
 let snippet_insertion_mode_elem = document.getElementById('snippet-insertion-mode');
@@ -2938,6 +3093,8 @@ let result_history = [];
 let active_result_id = null;
 let current_result_elements = null;
 let current_result_meta = null;
+let render_result_elements = null;
+let render_result_meta = null;
 let current_connection_id = null;
 let current_connection_name = 'default';
 let connection_editor_state = null;
@@ -2948,6 +3105,22 @@ const insertion_manager = {
     last_selection_start: 0,
     last_selection_end: 0,
     snippet_mode: 'append'
+};
+const autocomplete_suggestion_limit = 80;
+let autocomplete_caret_mirror_elem = null;
+let autocomplete_table_loads = {};
+let autocomplete_column_loads = {};
+let autocomplete_schema_revision = 0;
+let autocomplete_state = {
+    open: false,
+    replace_start: 0,
+    items: [],
+    all_items: [],
+    active_index: 0,
+    prefix: '',
+    loading: false,
+    statement_key: '',
+    schema_revision: 0
 };
 const query_log_poll_timeout_ms = 120000;
 const query_log_poll_fast_window_ms = 10000;
@@ -2963,12 +3136,15 @@ let schema_state = {
 };
 let navigator_state = loadNavigatorState();
 
-function getCurrentDataTable() { return current_result_elements?.data_table || null; }
-function getCurrentDataDiv() { return current_result_elements?.data_div || null; }
-function getCurrentDataUnparsed() { return current_result_elements?.data_unparsed || null; }
-function getCurrentChart() { return current_result_elements?.chart || null; }
-function getCurrentGraph() { return current_result_elements?.graph || null; }
-function getCurrentError() { return current_result_elements?.error || null; }
+function getRenderResultElements() { return render_result_elements || current_result_elements; }
+function getRenderResultMeta() { return render_result_meta || current_result_meta; }
+function isRenderResultActive() { return getRenderResultMeta()?.id == active_result_id; }
+function getCurrentDataTable() { return getRenderResultElements()?.data_table || null; }
+function getCurrentDataDiv() { return getRenderResultElements()?.data_div || null; }
+function getCurrentDataUnparsed() { return getRenderResultElements()?.data_unparsed || null; }
+function getCurrentChart() { return getRenderResultElements()?.chart || null; }
+function getCurrentGraph() { return getRenderResultElements()?.graph || null; }
+function getCurrentError() { return getRenderResultElements()?.error || null; }
 function getCurrentTbody() { return getCurrentDataTable()?.querySelector('tbody') || null; }
 function shouldUseQueryCacheForDownload() { return !!download_use_cache_elem?.checked; }
 function shouldShowNavigatorTypes() { return !!navigator_show_types_elem?.checked; }
@@ -4042,6 +4218,7 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
 
     rememberQueryEditorSelection();
     updateRunButtonText();
+    void updateQueryHighlighting();
 }
 
 function insertIntoQueryEditor(text, options = {}) {
@@ -4118,6 +4295,1043 @@ function formatClickHouseIdentifier(name) {
 
 function formatQualifiedIdentifier(database, name) {
     return `${formatClickHouseIdentifier(database)}.${formatClickHouseIdentifier(name)}`;
+}
+
+function normaliseAutocompleteIdentifier(identifier_part) {
+    return stripClickHouseIdentifierQuotes(identifier_part || '').trim();
+}
+
+function splitAutocompleteIdentifierPath(path) {
+    const parts = [];
+    let quote = '';
+    let part_start = 0;
+
+    for (let i = 0; i < path.length; ++i) {
+        const ch = path[i];
+        if (quote) {
+            if (ch == quote) {
+                if (path[i + 1] == quote) {
+                    ++i;
+                } else {
+                    quote = '';
+                }
+            }
+            continue;
+        }
+
+        if (ch == '`' || ch == '"') {
+            quote = ch;
+            continue;
+        }
+
+        if (ch == '.') {
+            parts.push(path.substring(part_start, i));
+            part_start = i + 1;
+        }
+    }
+
+    parts.push(path.substring(part_start));
+    return parts;
+}
+
+function getAutocompleteContext() {
+    const cursor = query_area.selectionStart ?? query_area.value.length;
+    const before_cursor = query_area.value.substring(0, cursor);
+    const identifier_source = '(?:`(?:``|[^`])*`|"(?:""|[^"])*"|[A-Za-z_][A-Za-z0-9_$]*)';
+    const prefix_source = '(?:`(?:``|[^`])*`?|"(?:""|[^"])*"?|[A-Za-z_][A-Za-z0-9_$]*|[A-Za-z0-9_$]+)';
+    const match = before_cursor.match(new RegExp(`((?:${identifier_source}\\.)*)(${prefix_source})?$`));
+    const matched_text = match ? match[0] : '';
+    const scope_text = match ? match[1] || '' : '';
+    const prefix_text = match ? match[2] || '' : '';
+    const scope_parts = splitAutocompleteIdentifierPath(scope_text)
+        .map(normaliseAutocompleteIdentifier)
+        .filter(Boolean);
+    const statement = getAutocompleteStatement(cursor);
+    const statement_refs = getAutocompleteStatementRefs(statement.text);
+
+    return {
+        cursor,
+        prefix: normaliseAutocompleteIdentifier(prefix_text),
+        replace_start: cursor - prefix_text.length,
+        scope_parts,
+        scope_key: scope_parts.join('\n'),
+        context_start: cursor - matched_text.length,
+        statement,
+        statement_refs,
+        statement_key: `${statement.start}:${statement.end}:${statement_refs.map(ref => `${ref.database}.${ref.table}:${ref.alias || ''}`).join('|')}`
+    };
+}
+
+function getLoadedDatabaseNames() {
+    return schema_state.databases
+        .map(database_info => database_info.database)
+        .filter(Boolean);
+}
+
+function findLoadedDatabaseName(database_name) {
+    const databases = getLoadedDatabaseNames();
+    const exact_match = databases.find(database => database == database_name);
+    if (exact_match) {
+        return exact_match;
+    }
+
+    const lower_database_name = database_name.toLowerCase();
+    return databases.find(database => database.toLowerCase() == lower_database_name) || '';
+}
+
+function getLoadedTables(database_name) {
+    return schema_state.tables[database_name] || [];
+}
+
+function findLoadedTable(database_name, table_name) {
+    const tables = getLoadedTables(database_name);
+    const exact_match = tables.find(table => table.table == table_name);
+    if (exact_match) {
+        return exact_match;
+    }
+
+    const lower_table_name = table_name.toLowerCase();
+    return tables.find(table => table.table.toLowerCase() == lower_table_name) || null;
+}
+
+function findLoadedTablesByName(table_name) {
+    const matches = [];
+    const lower_table_name = table_name.toLowerCase();
+
+    for (const database of getLoadedDatabaseNames()) {
+        const table = getLoadedTables(database).find(candidate => candidate.table.toLowerCase() == lower_table_name);
+        if (table) {
+            matches.push({ database, table });
+        }
+    }
+
+    return matches;
+}
+
+function getLoadedColumns(database_name, table_name) {
+    return schema_state.columns[getSchemaTableKey(database_name, table_name)] || [];
+}
+
+const AUTOCOMPLETE_TABLE_REF_START_KEYWORDS = new Set(['FROM', 'JOIN']);
+const AUTOCOMPLETE_ALIAS_STOP_WORDS = new Set([
+    'ALL', 'ANY', 'ARRAY', 'ASOF', 'CROSS', 'FINAL', 'FULL', 'GLOBAL', 'INNER', 'LEFT',
+    'LIMIT', 'ON', 'ORDER', 'OUTER', 'PREWHERE', 'RIGHT', 'SAMPLE', 'SEMI', 'SETTINGS',
+    'UNION', 'USING', 'WHERE', 'WINDOW', 'GROUP', 'HAVING', 'FORMAT', 'JOIN'
+]);
+
+function getAutocompleteStatement(cursor) {
+    const text = query_area.value;
+    let start = 0;
+    let end = text.length;
+    let quote = '';
+    let line_comment = false;
+    let block_comment = false;
+
+    for (let i = 0; i < text.length; ++i) {
+        const ch = text[i];
+        const next = text[i + 1];
+
+        if (line_comment) {
+            if (ch == '\n') {
+                line_comment = false;
+            }
+            continue;
+        }
+
+        if (block_comment) {
+            if (ch == '*' && next == '/') {
+                block_comment = false;
+                ++i;
+            }
+            continue;
+        }
+
+        if (quote) {
+            if (ch == '\\' && quote == '\'' && next) {
+                ++i;
+            } else if (ch == quote) {
+                if (next == quote) {
+                    ++i;
+                } else {
+                    quote = '';
+                }
+            }
+            continue;
+        }
+
+        if (ch == '-' && next == '-') {
+            line_comment = true;
+            ++i;
+            continue;
+        }
+
+        if (ch == '/' && next == '*') {
+            block_comment = true;
+            ++i;
+            continue;
+        }
+
+        if (ch == '\'' || ch == '"' || ch == '`') {
+            quote = ch;
+            continue;
+        }
+
+        if (ch == ';') {
+            if (i < cursor) {
+                start = i + 1;
+            } else {
+                end = i;
+                break;
+            }
+        }
+    }
+
+    return {
+        start,
+        end,
+        text: text.substring(start, end)
+    };
+}
+
+function readAutocompleteQuotedIdentifier(statement, start, quote) {
+    let result = '';
+    let i = start + 1;
+
+    while (i < statement.length) {
+        const ch = statement[i];
+        if (ch == quote) {
+            if (statement[i + 1] == quote) {
+                result += quote;
+                i += 2;
+                continue;
+            }
+
+            return { value: result, end: i + 1 };
+        }
+
+        result += ch;
+        ++i;
+    }
+
+    return { value: result, end: i };
+}
+
+function tokenizeAutocompleteStatement(statement) {
+    const tokens = [];
+
+    for (let i = 0; i < statement.length;) {
+        const ch = statement[i];
+        const next = statement[i + 1];
+
+        if (/\s/.test(ch)) {
+            ++i;
+            continue;
+        }
+
+        if (ch == '-' && next == '-') {
+            i += 2;
+            while (i < statement.length && statement[i] != '\n') {
+                ++i;
+            }
+            continue;
+        }
+
+        if (ch == '/' && next == '*') {
+            i += 2;
+            while (i < statement.length && !(statement[i] == '*' && statement[i + 1] == '/')) {
+                ++i;
+            }
+            i = Math.min(statement.length, i + 2);
+            continue;
+        }
+
+        if (ch == '\'') {
+            ++i;
+            while (i < statement.length) {
+                if (statement[i] == '\\' && statement[i + 1]) {
+                    i += 2;
+                } else if (statement[i] == '\'') {
+                    if (statement[i + 1] == '\'') {
+                        i += 2;
+                    } else {
+                        ++i;
+                        break;
+                    }
+                } else {
+                    ++i;
+                }
+            }
+            continue;
+        }
+
+        if (ch == '`' || ch == '"') {
+            const quoted = readAutocompleteQuotedIdentifier(statement, i, ch);
+            tokens.push({
+                type: 'identifier',
+                value: quoted.value,
+                upper: quoted.value.toUpperCase()
+            });
+            i = quoted.end;
+            continue;
+        }
+
+        if (/[A-Za-z_]/.test(ch)) {
+            const start = i;
+            ++i;
+            while (i < statement.length && /[A-Za-z0-9_$]/.test(statement[i])) {
+                ++i;
+            }
+
+            const value = statement.substring(start, i);
+            tokens.push({
+                type: 'identifier',
+                value,
+                upper: value.toUpperCase()
+            });
+            continue;
+        }
+
+        if (ch == '.' || ch == ',' || ch == '(' || ch == ')') {
+            tokens.push({ type: ch, value: ch, upper: ch });
+        }
+        ++i;
+    }
+
+    return tokens;
+}
+
+function readAutocompleteIdentifierPath(tokens, start_index) {
+    if (tokens[start_index]?.type != 'identifier') {
+        return null;
+    }
+
+    const parts = [tokens[start_index].value];
+    let index = start_index + 1;
+
+    while (tokens[index]?.type == '.' && tokens[index + 1]?.type == 'identifier') {
+        parts.push(tokens[index + 1].value);
+        index += 2;
+    }
+
+    return { parts, end_index: index };
+}
+
+function getCurrentLoadedDatabaseName() {
+    const current_database = schema_state.databases.find(database_info =>
+        database_info.current === true || database_info.current === 1 || database_info.current === '1');
+    return current_database?.database || '';
+}
+
+function resolveAutocompleteTablePath(parts) {
+    if (!parts.length) {
+        return null;
+    }
+
+    if (parts.length >= 2) {
+        const database = findLoadedDatabaseName(parts[parts.length - 2]);
+        if (!database) {
+            return null;
+        }
+
+        const table = findLoadedTable(database, parts[parts.length - 1]);
+        return table ? { database, table: table.table } : null;
+    }
+
+    const table_name = parts[0];
+    const current_database = getCurrentLoadedDatabaseName();
+    if (current_database) {
+        const current_database_table = findLoadedTable(current_database, table_name);
+        if (current_database_table) {
+            return { database: current_database, table: current_database_table.table };
+        }
+    }
+
+    const table_matches = findLoadedTablesByName(table_name);
+    if (table_matches.length == 1) {
+        return {
+            database: table_matches[0].database,
+            table: table_matches[0].table.table
+        };
+    }
+
+    return null;
+}
+
+function readAutocompleteTableAlias(tokens, start_index) {
+    let index = start_index;
+    if (tokens[index]?.upper == 'FINAL') {
+        ++index;
+    }
+
+    if (tokens[index]?.upper == 'AS' && tokens[index + 1]?.type == 'identifier') {
+        return tokens[index + 1].value;
+    }
+
+    if (tokens[index]?.type == 'identifier' && !AUTOCOMPLETE_ALIAS_STOP_WORDS.has(tokens[index].upper)) {
+        return tokens[index].value;
+    }
+
+    return '';
+}
+
+function getAutocompleteStatementRefs(statement_text) {
+    const tokens = tokenizeAutocompleteStatement(statement_text);
+    const refs = [];
+
+    for (let i = 0; i < tokens.length; ++i) {
+        if (tokens[i].type != 'identifier' || !AUTOCOMPLETE_TABLE_REF_START_KEYWORDS.has(tokens[i].upper)) {
+            continue;
+        }
+
+        const path = readAutocompleteIdentifierPath(tokens, i + 1);
+        if (!path) {
+            continue;
+        }
+
+        const scope = resolveAutocompleteTablePath(path.parts);
+        if (!scope) {
+            continue;
+        }
+
+        refs.push({
+            database: scope.database,
+            table: scope.table,
+            alias: readAutocompleteTableAlias(tokens, path.end_index)
+        });
+    }
+
+    return refs;
+}
+
+function dedupeAutocompleteTableScopes(scopes) {
+    const seen = new Set();
+    const result = [];
+
+    for (const scope of scopes) {
+        if (!scope) {
+            continue;
+        }
+
+        const key = getSchemaTableKey(scope.database, scope.table);
+        if (seen.has(key)) {
+            continue;
+        }
+
+        seen.add(key);
+        result.push(scope);
+    }
+
+    return result;
+}
+
+function findAutocompleteStatementScope(context, identifier) {
+    const lower_identifier = identifier.toLowerCase();
+    const alias_matches = context.statement_refs.filter(ref => (ref.alias || '').toLowerCase() == lower_identifier);
+    if (alias_matches.length == 1) {
+        return {
+            database: alias_matches[0].database,
+            table: alias_matches[0].table,
+            alias: alias_matches[0].alias
+        };
+    }
+
+    const table_matches = context.statement_refs.filter(ref => ref.table.toLowerCase() == lower_identifier);
+    const unique_table_matches = dedupeAutocompleteTableScopes(table_matches);
+    if (unique_table_matches.length == 1) {
+        return unique_table_matches[0];
+    }
+
+    return null;
+}
+
+function getAutocompleteColumnScopes(context) {
+    if (context.scope_parts.length) {
+        return dedupeAutocompleteTableScopes([resolveAutocompleteTableScope(context)]);
+    }
+
+    return dedupeAutocompleteTableScopes(context.statement_refs);
+}
+
+function resolveAutocompleteTableScope(context) {
+    if (context.scope_parts.length == 1) {
+        if (findLoadedDatabaseName(context.scope_parts[0])) {
+            return null;
+        }
+
+        const statement_scope = findAutocompleteStatementScope(context, context.scope_parts[0]);
+        if (statement_scope) {
+            return statement_scope;
+        }
+
+        const scope = resolveAutocompleteTablePath([context.scope_parts[0]]);
+        if (scope) {
+            return scope;
+        }
+
+        return null;
+    }
+
+    if (context.scope_parts.length < 2) {
+        return null;
+    }
+
+    const database = findLoadedDatabaseName(context.scope_parts[0]);
+    if (!database) {
+        return null;
+    }
+
+    const table = findLoadedTable(database, context.scope_parts[1]);
+    if (!table) {
+        return null;
+    }
+
+    return {
+        database,
+        table: table.table
+    };
+}
+
+function getAutocompleteTableLoadDatabase(context) {
+    if (!context.scope_parts.length) {
+        return '';
+    }
+
+    return findLoadedDatabaseName(context.scope_parts[0]);
+}
+
+function getAutocompleteTableLoadKey(database) {
+    return `${current_connection_id || ''}:${database}`;
+}
+
+function isAutocompleteTableLoadPending(database) {
+    return !!schema_state.loading_tables[database]
+        || !!autocomplete_table_loads[getAutocompleteTableLoadKey(database)];
+}
+
+function ensureAutocompleteTablesLoaded(context) {
+    const database = getAutocompleteTableLoadDatabase(context);
+    if (!database || schema_state.tables[database]) {
+        return false;
+    }
+
+    if (isAutocompleteTableLoadPending(database)) {
+        return true;
+    }
+
+    const request_connection_id = current_connection_id;
+    const load_key = getAutocompleteTableLoadKey(database);
+    autocomplete_table_loads[load_key] = true;
+
+    loadTables(url_elem.value, user_elem.value, password_elem.value, database)
+        .then(() => {
+            delete autocomplete_table_loads[load_key];
+            if (request_connection_id == current_connection_id
+                && schema_state.connection_id == request_connection_id) {
+                refreshAutocompleteFromEditor();
+            }
+        })
+        .catch(() => {
+            delete autocomplete_table_loads[load_key];
+            if (request_connection_id == current_connection_id
+                && schema_state.connection_id == request_connection_id) {
+                delete schema_state.loading_tables[database];
+                schema_state.table_messages[database] = 'Failed to load tables.';
+                ++autocomplete_schema_revision;
+                renderNavigatorTree();
+                refreshAutocompleteFromEditor();
+            }
+        });
+
+    return true;
+}
+
+function isAutocompleteLoadingTables(context) {
+    const database = getAutocompleteTableLoadDatabase(context);
+    return !!database
+        && !schema_state.tables[database]
+        && isAutocompleteTableLoadPending(database);
+}
+
+function getAutocompleteColumnLoadKey(database, table) {
+    return `${current_connection_id || ''}:${getSchemaTableKey(database, table)}`;
+}
+
+function isAutocompleteColumnLoadPending(database, table) {
+    return !!autocomplete_column_loads[getAutocompleteColumnLoadKey(database, table)];
+}
+
+function ensureAutocompleteColumnsLoaded(context) {
+    let loading = false;
+
+    for (const scope of getAutocompleteColumnScopes(context)) {
+        const cache_key = getSchemaTableKey(scope.database, scope.table);
+        if (schema_state.columns[cache_key]) {
+            continue;
+        }
+
+        const load_key = getAutocompleteColumnLoadKey(scope.database, scope.table);
+        if (autocomplete_column_loads[load_key]) {
+            loading = true;
+            continue;
+        }
+
+        const request_connection_id = current_connection_id;
+        autocomplete_column_loads[load_key] = true;
+        loading = true;
+
+        fetchTableColumns(url_elem.value, user_elem.value, password_elem.value, scope.database, scope.table)
+            .then(columns => {
+                delete autocomplete_column_loads[load_key];
+                if (columns === false
+                    || request_connection_id != current_connection_id
+                    || schema_state.connection_id != request_connection_id) {
+                    refreshAutocompleteFromEditor();
+                    return;
+                }
+
+                schema_state.columns[cache_key] = columns;
+                ++autocomplete_schema_revision;
+                refreshAutocompleteFromEditor();
+            })
+            .catch(() => {
+                delete autocomplete_column_loads[load_key];
+                refreshAutocompleteFromEditor();
+            });
+    }
+
+    return loading;
+}
+
+function isAutocompleteLoadingColumns(context) {
+    return getAutocompleteColumnScopes(context).some(scope =>
+        isAutocompleteColumnLoadPending(scope.database, scope.table));
+}
+
+function createAutocompleteSuggestion(kind, label, insert_text, detail, rank) {
+    return {
+        kind,
+        label,
+        insert_text,
+        detail,
+        rank,
+        search_text: `${label} ${detail || ''}`.toLowerCase()
+    };
+}
+
+function addDatabaseAutocompleteSuggestions(suggestions) {
+    for (const database of getLoadedDatabaseNames()) {
+        suggestions.push(createAutocompleteSuggestion(
+            'database',
+            database,
+            formatClickHouseIdentifier(database),
+            'database',
+            10));
+    }
+}
+
+function addTableAutocompleteSuggestions(suggestions, database, qualified_insert) {
+    for (const table of getLoadedTables(database)) {
+        const kind = getSchemaItemKind(table.engine);
+        suggestions.push(createAutocompleteSuggestion(
+            kind,
+            table.table,
+            qualified_insert ? formatQualifiedIdentifier(database, table.table) : formatClickHouseIdentifier(table.table),
+            qualified_insert ? `${database} ${table.engine || ''}`.trim() : table.engine || database,
+            kind == 'table' ? 20 : 25));
+    }
+}
+
+function addColumnAutocompleteSuggestions(suggestions, database, table, detail_prefix = '', rank = 30) {
+    for (const column of getLoadedColumns(database, table)) {
+        suggestions.push(createAutocompleteSuggestion(
+            'column',
+            column.name,
+            formatClickHouseIdentifier(column.name),
+            `${detail_prefix || `${database}.${table}`} ${column.type || ''}`.trim(),
+            rank));
+    }
+}
+
+function addStatementColumnAutocompleteSuggestions(suggestions, context) {
+    for (const ref of context.statement_refs) {
+        const detail_prefix = ref.alias
+            ? `${ref.alias} ${ref.database}.${ref.table}`
+            : `${ref.database}.${ref.table}`;
+        addColumnAutocompleteSuggestions(suggestions, ref.database, ref.table, detail_prefix, 5);
+    }
+}
+
+function collectSchemaAutocompleteSuggestions(context) {
+    const suggestions = [];
+
+    if (!context.scope_parts.length) {
+        const has_statement_refs = !!context.statement_refs.length;
+        addStatementColumnAutocompleteSuggestions(suggestions, context);
+        addDatabaseAutocompleteSuggestions(suggestions);
+        for (const database of getLoadedDatabaseNames()) {
+            addTableAutocompleteSuggestions(suggestions, database, true);
+            if (!has_statement_refs) {
+                for (const table of getLoadedTables(database)) {
+                    addColumnAutocompleteSuggestions(suggestions, database, table.table);
+                }
+            }
+        }
+        return suggestions;
+    }
+
+    if (context.scope_parts.length == 1) {
+        const database = findLoadedDatabaseName(context.scope_parts[0]);
+        if (database) {
+            addTableAutocompleteSuggestions(suggestions, database, false);
+            return suggestions;
+        }
+
+        const scope = resolveAutocompleteTableScope(context);
+        if (scope) {
+            addColumnAutocompleteSuggestions(suggestions, scope.database, scope.table);
+        }
+        return suggestions;
+    }
+
+    const scope = resolveAutocompleteTableScope(context);
+    if (scope) {
+        addColumnAutocompleteSuggestions(suggestions, scope.database, scope.table);
+    }
+
+    return suggestions;
+}
+
+function filterAutocompleteSuggestions(suggestions, prefix) {
+    const needle = prefix.toLowerCase();
+    const ranked = [];
+
+    for (const suggestion of suggestions) {
+        const label = suggestion.label.toLowerCase();
+        let match_rank = 0;
+
+        if (needle) {
+            if (label.startsWith(needle)) {
+                match_rank = 0;
+            } else if (suggestion.search_text.startsWith(needle)) {
+                match_rank = 1;
+            } else if (suggestion.search_text.includes(needle)) {
+                match_rank = 2;
+            } else {
+                continue;
+            }
+        }
+
+        ranked.push({ suggestion, match_rank });
+    }
+
+    ranked.sort((a, b) =>
+        a.match_rank - b.match_rank
+        || a.suggestion.rank - b.suggestion.rank
+        || a.suggestion.label.localeCompare(b.suggestion.label, undefined, { numeric: true })
+        || a.suggestion.detail.localeCompare(b.suggestion.detail, undefined, { numeric: true }));
+
+    return ranked.slice(0, autocomplete_suggestion_limit).map(entry => entry.suggestion);
+}
+
+function ensureAutocompleteCaretMirror() {
+    if (autocomplete_caret_mirror_elem) {
+        return autocomplete_caret_mirror_elem;
+    }
+
+    autocomplete_caret_mirror_elem = document.createElement('div');
+    autocomplete_caret_mirror_elem.style.position = 'absolute';
+    autocomplete_caret_mirror_elem.style.visibility = 'hidden';
+    autocomplete_caret_mirror_elem.style.left = '-10000px';
+    autocomplete_caret_mirror_elem.style.top = '0';
+    autocomplete_caret_mirror_elem.style.whiteSpace = 'pre-wrap';
+    autocomplete_caret_mirror_elem.style.wordWrap = 'break-word';
+    autocomplete_caret_mirror_elem.style.overflowWrap = 'break-word';
+    document.body.appendChild(autocomplete_caret_mirror_elem);
+    return autocomplete_caret_mirror_elem;
+}
+
+function getAutocompleteCaretCoordinates(position) {
+    const mirror = ensureAutocompleteCaretMirror();
+    const style = getComputedStyle(query_area);
+    const mirrored_properties = [
+        'boxSizing', 'fontFamily', 'fontSize', 'fontStyle', 'fontWeight', 'letterSpacing',
+        'lineHeight', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+        'textTransform', 'tabSize'
+    ];
+
+    for (const property of mirrored_properties) {
+        mirror.style[property] = style[property];
+    }
+
+    mirror.style.width = `${query_area.offsetWidth}px`;
+    mirror.textContent = query_area.value.substring(0, position);
+    if (mirror.textContent.endsWith('\n')) {
+        mirror.appendChild(document.createTextNode(' '));
+    }
+
+    const marker = document.createElement('span');
+    marker.style.display = 'inline-block';
+    marker.style.width = '0';
+    marker.style.height = style.lineHeight;
+    mirror.appendChild(marker);
+
+    const mirror_rect = mirror.getBoundingClientRect();
+    const marker_rect = marker.getBoundingClientRect();
+    return {
+        left: marker_rect.left - mirror_rect.left - query_area.scrollLeft,
+        top: marker_rect.bottom - mirror_rect.top - query_area.scrollTop
+    };
+}
+
+function positionAutocompleteMenu() {
+    if (!autocomplete_state.open) {
+        return;
+    }
+
+    const query_div_rect = query_area.parentElement.getBoundingClientRect();
+    const query_rect = query_area.getBoundingClientRect();
+    const caret = getAutocompleteCaretCoordinates(query_area.selectionStart ?? query_area.value.length);
+    const menu_width = autocomplete_menu_elem.offsetWidth || 288;
+    const menu_height = autocomplete_menu_elem.offsetHeight || 180;
+    const query_div_width = query_area.parentElement.clientWidth || query_area.offsetWidth;
+
+    let left = query_rect.left - query_div_rect.left + caret.left;
+    let top = query_rect.top - query_div_rect.top + caret.top + 2;
+
+    left = Math.max(4, Math.min(left, Math.max(4, query_div_width - menu_width - 4)));
+    if (top + menu_height > query_area.offsetHeight && top > menu_height) {
+        top = Math.max(4, top - menu_height - 20);
+    }
+
+    autocomplete_menu_elem.style.left = `${left}px`;
+    autocomplete_menu_elem.style.top = `${top}px`;
+}
+
+function renderAutocompleteMenu() {
+    autocomplete_menu_elem.innerHTML = '';
+    autocomplete_menu_elem.classList.toggle('open', autocomplete_state.open);
+    query_area.setAttribute('aria-expanded', autocomplete_state.open ? 'true' : 'false');
+
+    if (!autocomplete_state.open) {
+        query_area.removeAttribute('aria-activedescendant');
+        return;
+    }
+
+    if (!autocomplete_state.items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'autocomplete-empty';
+        empty.innerText = autocomplete_state.loading ? 'Loading schema...' : 'No schema suggestions';
+        autocomplete_menu_elem.appendChild(empty);
+        query_area.removeAttribute('aria-activedescendant');
+        positionAutocompleteMenu();
+        return;
+    }
+
+    autocomplete_state.items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.id = `autocomplete-option-${index}`;
+        row.className = 'autocomplete-item';
+        row.setAttribute('role', 'option');
+        row.setAttribute('aria-selected', index == autocomplete_state.active_index ? 'true' : 'false');
+        if (index == autocomplete_state.active_index) {
+            row.classList.add('is-active');
+            query_area.setAttribute('aria-activedescendant', row.id);
+        }
+
+        const kind = document.createElement('div');
+        kind.className = 'autocomplete-kind';
+        kind.innerText = item.kind.replace('-', ' ');
+
+        const main = document.createElement('div');
+        main.className = 'autocomplete-main';
+
+        const label = document.createElement('div');
+        label.className = 'autocomplete-label monospace';
+        label.innerText = item.label;
+
+        const detail = document.createElement('div');
+        detail.className = 'autocomplete-detail monospace';
+        detail.innerText = item.detail;
+
+        main.appendChild(label);
+        if (item.detail) {
+            main.appendChild(detail);
+        }
+
+        row.appendChild(kind);
+        row.appendChild(main);
+        row.addEventListener('mousemove', () => setAutocompleteActiveIndex(index));
+        row.addEventListener('mousedown', e => {
+            e.preventDefault();
+            acceptAutocomplete(index);
+        });
+        autocomplete_menu_elem.appendChild(row);
+    });
+
+    positionAutocompleteMenu();
+    const active = autocomplete_menu_elem.querySelector('.autocomplete-item.is-active');
+    if (active) {
+        active.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+function setAutocompleteActiveIndex(index) {
+    if (!autocomplete_state.open || !autocomplete_state.items.length) {
+        return;
+    }
+
+    const item_count = autocomplete_state.items.length;
+    autocomplete_state.active_index = (index + item_count) % item_count;
+    renderAutocompleteMenu();
+}
+
+function refreshAutocompleteFromEditor() {
+    if (!autocomplete_state.open) {
+        return;
+    }
+
+    if (query_area.selectionStart !== query_area.selectionEnd) {
+        closeAutocomplete();
+        return;
+    }
+
+    const context = getAutocompleteContext();
+    if (context.cursor < autocomplete_state.replace_start) {
+        closeAutocomplete();
+        return;
+    }
+
+    const loading_tables = ensureAutocompleteTablesLoaded(context) || isAutocompleteLoadingTables(context);
+    const loading_columns = ensureAutocompleteColumnsLoaded(context) || isAutocompleteLoadingColumns(context);
+    const loading = loading_tables || loading_columns;
+    if (context.scope_key != autocomplete_state.scope_key
+        || context.statement_key != autocomplete_state.statement_key
+        || context.replace_start != autocomplete_state.replace_start
+        || autocomplete_state.schema_revision != autocomplete_schema_revision
+        || autocomplete_state.loading != loading) {
+        autocomplete_state.scope_key = context.scope_key;
+        autocomplete_state.statement_key = context.statement_key;
+        autocomplete_state.replace_start = context.replace_start;
+        autocomplete_state.all_items = collectSchemaAutocompleteSuggestions(context);
+        autocomplete_state.active_index = 0;
+        autocomplete_state.schema_revision = autocomplete_schema_revision;
+    }
+
+    autocomplete_state.prefix = context.prefix;
+    autocomplete_state.loading = loading;
+    autocomplete_state.items = filterAutocompleteSuggestions(autocomplete_state.all_items, context.prefix);
+    if (autocomplete_state.active_index >= autocomplete_state.items.length) {
+        autocomplete_state.active_index = 0;
+    }
+
+    renderAutocompleteMenu();
+}
+
+function openSchemaAutocomplete(trigger) {
+    if (query_area.selectionStart !== query_area.selectionEnd) {
+        return;
+    }
+
+    const context = getAutocompleteContext();
+    if (trigger == 'dot' && !context.scope_parts.length) {
+        return;
+    }
+
+    const all_items = collectSchemaAutocompleteSuggestions(context);
+    const loading_tables = ensureAutocompleteTablesLoaded(context) || isAutocompleteLoadingTables(context);
+    const loading_columns = ensureAutocompleteColumnsLoaded(context) || isAutocompleteLoadingColumns(context);
+    const loading = loading_tables || loading_columns;
+    if (trigger == 'dot' && !all_items.length) {
+        if (!loading) {
+            closeAutocomplete();
+            return;
+        }
+    }
+
+    autocomplete_state = {
+        open: true,
+        replace_start: context.replace_start,
+        scope_key: context.scope_key,
+        statement_key: context.statement_key,
+        items: filterAutocompleteSuggestions(all_items, context.prefix),
+        all_items,
+        active_index: 0,
+        prefix: context.prefix,
+        loading,
+        schema_revision: autocomplete_schema_revision
+    };
+    renderAutocompleteMenu();
+}
+
+function closeAutocomplete() {
+    if (!autocomplete_state.open) {
+        return;
+    }
+
+    autocomplete_state.open = false;
+    autocomplete_state.items = [];
+    autocomplete_state.all_items = [];
+    autocomplete_state.loading = false;
+    renderAutocompleteMenu();
+}
+
+function acceptAutocomplete(index = autocomplete_state.active_index) {
+    if (!autocomplete_state.open || !autocomplete_state.items.length) {
+        return false;
+    }
+
+    const item = autocomplete_state.items[index] || autocomplete_state.items[0];
+    const start = autocomplete_state.replace_start;
+    const end = query_area.selectionStart ?? start;
+    const next_cursor = start + item.insert_text.length;
+    closeAutocomplete();
+    replaceQueryEditorRange(item.insert_text, start, end, next_cursor, next_cursor);
+    return true;
+}
+
+function handleQueryAutocompleteKeyDown(e) {
+    if (autocomplete_state.open) {
+        if (e.key == 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            setAutocompleteActiveIndex(autocomplete_state.active_index + 1);
+            return;
+        }
+
+        if (e.key == 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            setAutocompleteActiveIndex(autocomplete_state.active_index - 1);
+            return;
+        }
+
+        if (e.key == 'Enter' || (e.key == 'Tab' && !e.shiftKey)) {
+            if (autocomplete_state.items.length && acceptAutocomplete()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            return;
+        }
+
+        if (e.key == 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeAutocomplete();
+            return;
+        }
+    }
+
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key == ' ' || e.code == 'Space')) {
+        e.preventDefault();
+        e.stopPropagation();
+        openSchemaAutocomplete('manual');
+        return;
+    }
+
+    if (e.key == '.' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setTimeout(() => openSchemaAutocomplete('dot'), 0);
+    }
 }
 
 function getTableQueryLogQuery(database, table) {
@@ -4714,6 +5928,9 @@ function setSidebarCollapsed(collapsed, persist = true) {
 }
 
 function resetSchemaBrowser(message) {
+    ++autocomplete_schema_revision;
+    autocomplete_table_loads = {};
+    autocomplete_column_loads = {};
     schema_state = {
         loading: false,
         connection_id: null,
@@ -5428,6 +6645,8 @@ function resetResultPanels() {
     active_result_id = null;
     current_result_elements = null;
     current_result_meta = null;
+    render_result_elements = null;
+    render_result_meta = null;
     results_tabs_elem.innerHTML = '';
     results_panels_elem.innerHTML = '';
     results_header_elem.hidden = true;
@@ -5915,6 +7134,10 @@ async function loadDatabases(server_address, user, password) {
     ++load_databases_request_num;
     const current_load_databases_request_num = load_databases_request_num;
     const target_connection_id = current_connection_id;
+    closeAutocomplete();
+    ++autocomplete_schema_revision;
+    autocomplete_table_loads = {};
+    autocomplete_column_loads = {};
     schema_state = {
         loading: true,
         connection_id: target_connection_id,
@@ -5954,6 +7177,7 @@ async function loadDatabases(server_address, user, password) {
             table_messages: {},
             message: 'Failed to load schema.'
         };
+        ++autocomplete_schema_revision;
         renderNavigatorTree();
         return false;
     }
@@ -5988,6 +7212,7 @@ async function loadDatabases(server_address, user, password) {
         table_messages: {},
         message: json.data.length ? '' : 'No databases found.'
     };
+    ++autocomplete_schema_revision;
     renderNavigatorTree();
 }
 
@@ -6021,7 +7246,9 @@ async function loadTables(server_address, user, password, database) {
     delete schema_state.loading_tables[database];
     delete schema_state.table_messages[database];
     schema_state.tables[database] = json.data;
+    ++autocomplete_schema_revision;
     renderNavigatorTree();
+    refreshAutocompleteFromEditor();
     return json.data;
 }
 
@@ -6084,7 +7311,9 @@ async function loadColumns(server_address, user, password, database, table, cont
     if (current_load_columns_request_num != load_columns_request_num) return false;
 
     schema_state.columns[cache_key] = columns;
+    ++autocomplete_schema_revision;
     renderColumns(container, columns, database, table);
+    refreshAutocompleteFromEditor();
     return columns;
 }
 
@@ -6442,8 +7671,9 @@ function applyClickHouseSummary(response) {
         return false;
     }
 
-    if (current_result_meta) {
-        current_result_meta.summary_stats = text;
+    const result = getRenderResultMeta();
+    if (result) {
+        result.summary_stats = text;
     }
     return text;
 }
@@ -6565,8 +7795,26 @@ async function enrichResultStatsFromQueryLog(result, server_address, user, passw
 }
 
 let controller = null;
-async function postImpl(posted_request_num, query)
+async function postImpl(posted_request_num, query, result = current_result_meta)
 {
+    const previous_render_result_elements = render_result_elements;
+    const previous_render_result_meta = render_result_meta;
+
+    render_result_elements = result?.elements || null;
+    render_result_meta = result || null;
+
+    try {
+        return await postImplForRenderTarget(posted_request_num, query);
+    } finally {
+        render_result_elements = previous_render_result_elements;
+        render_result_meta = previous_render_result_meta;
+    }
+}
+
+async function postImplForRenderTarget(posted_request_num, query)
+{
+    const result = getRenderResultMeta();
+    const elements = getRenderResultElements();
     const user = user_elem.value;
     const password = password_elem.value;
     const server_address = url_elem.value;
@@ -6588,8 +7836,8 @@ async function postImpl(posted_request_num, query)
 
     last_query_start = performance.now();
 
-    setResultTabSucceeded(current_result_meta, false);
-    setResultDownloadButtonVisible(current_result_elements, false);
+    setResultTabSucceeded(result, false);
+    setResultDownloadButtonVisible(elements, false);
     document.getElementById('hourglass').style.display = 'inline-block';
 
     clear();
@@ -6608,8 +7856,8 @@ async function postImpl(posted_request_num, query)
 
         format = response.headers.get('X-ClickHouse-Format') ?? default_format;
         query_id = response.headers.get('X-ClickHouse-Query-Id') || '';
-        if (current_result_meta) {
-            current_result_meta.query_id = query_id;
+        if (result) {
+            result.query_id = query_id;
         }
 
         if (!response.ok) {
@@ -6629,25 +7877,25 @@ async function postImpl(posted_request_num, query)
                 renderError(reply);
             }
 
-            if (current_result_meta) {
-                current_result_meta.ok = false;
-                setResultTabFailed(current_result_meta);
-                current_result_meta.stats = document.getElementById('stats').innerText || '';
-                current_result_meta.elements.result_stats.innerText = current_result_meta.stats;
+            if (result) {
+                result.ok = false;
+                setResultTabFailed(result);
+                result.stats = result.elements.result_stats.innerText || (isRenderResultActive() ? document.getElementById('stats').innerText : '') || '';
+                result.elements.result_stats.innerText = result.stats;
                 action_history.push({
-                    result_id: current_result_meta.id,
-                    request_num: current_result_meta.request_num,
-                    connection_name: current_result_meta.connection_name,
+                    result_id: result.id,
+                    request_num: result.request_num,
+                    connection_name: result.connection_name,
                     query: query,
                     message: reply || 'Query failed',
-                    stats: current_result_meta.stats,
+                    stats: result.stats,
                     ok: false
                 });
                 renderActionHistory();
             }
 
             document.getElementById('hourglass').style.display = 'none';
-            setResultDownloadButtonVisible(current_result_elements, false);
+            setResultDownloadButtonVisible(elements, false);
             document.documentElement.style.setProperty('--progress', '0');
             return;
         } else if (format == default_format) {
@@ -6783,15 +8031,15 @@ async function postImpl(posted_request_num, query)
             reply = e.toString();
         }
         renderError(reply);
-        if (current_result_meta) {
-            current_result_meta.ok = false;
-            setResultTabFailed(current_result_meta);
-            current_result_meta.stats = '';
-            current_result_meta.elements.result_stats.innerText = '';
+        if (result) {
+            result.ok = false;
+            setResultTabFailed(result);
+            result.stats = '';
+            result.elements.result_stats.innerText = '';
             action_history.push({
-                result_id: current_result_meta.id,
-                request_num: current_result_meta.request_num,
-                connection_name: current_result_meta.connection_name,
+                result_id: result.id,
+                request_num: result.request_num,
+                connection_name: result.connection_name,
                 query: query,
                 message: reply || 'Query failed',
                 stats: '',
@@ -6800,8 +8048,8 @@ async function postImpl(posted_request_num, query)
             renderActionHistory();
         }
         document.getElementById('hourglass').style.display = 'none';
-        setResultDownloadButtonVisible(current_result_elements, false);
-        setResultTabFailed(current_result_meta);
+        setResultDownloadButtonVisible(elements, false);
+        setResultTabFailed(result);
         document.documentElement.style.setProperty('--progress', '0');
         return;
     }
@@ -6816,24 +8064,26 @@ async function postImpl(posted_request_num, query)
     document.getElementById('hourglass').style.display = 'none';
     const has_table_result = is_table && Object.keys(header).length > 0;
     const has_result_payload = has_table_result || is_raw || is_chart || is_explain_graph;
-    setResultDownloadButtonVisible(current_result_elements, has_result_payload);
-    last_query_for_download = query;
-    if (current_result_meta) {
-        current_result_meta.format = format;
-        current_result_meta.is_table = has_table_result;
-        current_result_meta.is_raw = is_raw;
-        current_result_meta.is_chart = is_chart;
-        current_result_meta.is_error = is_error;
+    setResultDownloadButtonVisible(elements, has_result_payload);
+    if (isRenderResultActive()) {
+        last_query_for_download = query;
+    }
+    if (result) {
+        result.format = format;
+        result.is_table = has_table_result;
+        result.is_raw = is_raw;
+        result.is_chart = is_chart;
+        result.is_error = is_error;
     }
 
     const copy_format = explicit_format || format;
     if (has_table_result) {
-        showResultCopyButton(current_result_elements, 'result');
+        showResultCopyButton(elements, 'result');
     } else if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
-        current_result_elements.copy_text = reply;
-        showResultCopyButton(current_result_elements, copy_format);
+        elements.copy_text = reply;
+        showResultCopyButton(elements, copy_format);
     } else {
-        resetResultCopyButton();
+        resetResultCopyButton(elements);
     }
 
     if (is_raw || !elapsed_ns) {
@@ -6844,29 +8094,29 @@ async function postImpl(posted_request_num, query)
     const progress_text = row_idx || has_table_result ? formatResultRows(row_idx, incomplete_result) : '';
     const base_stats_text = [progress_text, summary_text].filter(Boolean).join(', ');
     const timing_stats_text = formatNsAsMsMetric(elapsed_ns, 'query');
-    const result_stats_text = setResultStats(current_result_meta, base_stats_text, timing_stats_text);
+    const result_stats_text = setResultStats(result, base_stats_text, timing_stats_text);
     document.documentElement.style.setProperty('--progress', '0');
 
-    if (current_result_meta) {
-        current_result_meta.ok = true;
-        setResultTabSucceeded(current_result_meta, true);
-        if (!current_result_meta.stats) {
-            current_result_meta.stats = result_stats_text || document.getElementById('stats').innerText || document.getElementById('progress').innerText || '';
-            current_result_meta.elements.result_stats.innerText = current_result_meta.stats;
+    if (result) {
+        result.ok = true;
+        setResultTabSucceeded(result, true);
+        if (!result.stats) {
+            result.stats = result_stats_text || result.elements.result_stats.innerText || (isRenderResultActive() ? document.getElementById('stats').innerText || document.getElementById('progress').innerText : '') || '';
+            result.elements.result_stats.innerText = result.stats;
         }
         clearElement(document.getElementById('progress'));
         action_history.push({
-            result_id: current_result_meta.id,
-            request_num: current_result_meta.request_num,
-            connection_name: current_result_meta.connection_name,
+            result_id: result.id,
+            request_num: result.request_num,
+            connection_name: result.connection_name,
             query: query,
             message: row_idx ? `${row_idx}${incomplete_result ? '+' : ''} row(s) rendered` : (is_raw ? 'Raw result' : 'Completed'),
-            stats: current_result_meta.stats,
+            stats: result.stats,
             ok: true
         });
         renderActionHistory();
         if (query_id && (has_result_payload || summary_text)) {
-            void enrichResultStatsFromQueryLog(current_result_meta, server_address, user, password, query_id);
+            void enrichResultStatsFromQueryLog(result, server_address, user, password, query_id);
         }
     }
 
@@ -6909,6 +8159,7 @@ async function restoreFromHistory(state) {
     createResultPanel(++request_num, state.query);
     clear();
     query_area.value = state.query;
+    void updateQueryHighlighting();
 
     if (!state.data) return;
 
@@ -7017,14 +8268,72 @@ if (window.location.hash) {
     query_area.value = fromBase64(window.location.hash.substr(1));
 }
 
+let visible_query_selection = null;
+let armed_run_selection = null;
+
+function getQuerySelectionSnapshot() {
+    const value_length = query_area.value.length;
+    const raw_start = query_area.selectionStart ?? value_length;
+    const raw_end = query_area.selectionEnd ?? raw_start;
+    const start = Math.max(0, Math.min(raw_start, raw_end, value_length));
+    const end = Math.max(0, Math.min(Math.max(raw_start, raw_end), value_length));
+
+    if (start == end) {
+        return null;
+    }
+
+    return {
+        start,
+        end,
+        text: query_area.value.substring(start, end),
+    };
+}
+
+function selectionSnapshotStillMatches(selection) {
+    return !!selection
+        && selection.start >= 0
+        && selection.end <= query_area.value.length
+        && selection.start < selection.end
+        && query_area.value.substring(selection.start, selection.end) == selection.text;
+}
+
+function hasVisibleQuerySelection() {
+    if (document.activeElement != query_area || !selectionSnapshotStillMatches(visible_query_selection)) {
+        visible_query_selection = null;
+        return false;
+    }
+
+    return true;
+}
+
+function updateVisibleQuerySelection() {
+    armed_run_selection = null;
+    visible_query_selection = document.activeElement == query_area ? getQuerySelectionSnapshot() : null;
+    updateRunButtonText();
+}
+
+function clearRunSelectionState() {
+    visible_query_selection = null;
+    armed_run_selection = null;
+    updateRunButtonText();
+}
+
+function getRunScript() {
+    if (selectionSnapshotStillMatches(armed_run_selection)) {
+        return armed_run_selection.text;
+    }
+
+    armed_run_selection = null;
+    return hasVisibleQuerySelection() ? visible_query_selection.text : query_area.value;
+}
+
 function updateRunButtonText() {
-    const has_selection = query_area.selectionStart != query_area.selectionEnd;
-    const run = document.getElementById('run');
+    const has_selection = hasVisibleQuerySelection();
     const text = in_flight ? 'Stop' : (has_selection ? 'Run selected' : 'Run all');
     const label = in_flight ? 'Stop running query' : `${text} (Ctrl/Cmd+Enter)`;
-    run.innerText = text;
-    run.title = label;
-    run.setAttribute('aria-label', label);
+    run_button.innerText = text;
+    run_button.title = label;
+    run_button.setAttribute('aria-label', label);
 }
 
 function setEditorCompact(compact, save = true) {
@@ -7043,6 +8352,8 @@ function setEditorCompact(compact, save = true) {
     if (!compact && query_editor_expanded_height) {
         query_area.style.height = query_editor_expanded_height;
     }
+    syncQueryBackdropLayout();
+    positionAutocompleteMenu();
 
     if (save) {
         window.localStorage.setItem(query_editor_compact_key, compact ? '1' : '0');
@@ -7053,37 +8364,41 @@ let in_flight = false;
 async function post()
 {
     stop_after_current = false;
-    const selected_text = query_area.value.substring(query_area.selectionStart, query_area.selectionEnd);
-    const script = selected_text.length ? selected_text : query_area.value;
-    const queries = await getQueriesToRun(script);
-    if (!queries.length) {
-        return;
-    }
-
-    resetResultPanels();
-    scrollResultsToTop();
+    controller = null;
     in_flight = true;
     updateRunButtonText();
 
-    for (const query of queries) {
-        if (stop_after_current) {
-            break;
+    try {
+        const script = getRunScript();
+        const queries = await getQueriesToRun(script);
+        if (!queries.length) {
+            return;
         }
 
-        ++request_num;
-        createResultPanel(request_num, query);
-        await postImpl(request_num, query);
-    }
+        resetResultPanels();
+        scrollResultsToTop();
 
-    run.blur();
-    in_flight = false;
-    updateRunButtonText();
+        for (const query of queries) {
+            if (stop_after_current) {
+                break;
+            }
+
+            ++request_num;
+            const result = createResultPanel(request_num, query);
+            await postImpl(request_num, query, result);
+        }
+    } finally {
+        armed_run_selection = null;
+        run_button.blur();
+        in_flight = false;
+        updateRunButtonText();
+    }
 }
 
 async function cancel()
 {
     stop_after_current = true;
-    controller.abort();
+    if (controller) controller.abort();
     in_flight = false;
     updateRunButtonText();
 }
@@ -7114,8 +8429,21 @@ document.addEventListener('keydown', event => {
     }
 });
 
+run_button.addEventListener('pointerdown', event => {
+    if (in_flight || (event.button !== undefined && event.button != 0) || !hasVisibleQuerySelection()) {
+        return;
+    }
+
+    armed_run_selection = visible_query_selection;
+    event.preventDefault();
+});
+
 ['click', 'select', 'keyup', 'change', 'mouseup'].forEach(event_name =>
-    query_area.addEventListener(event_name, updateRunButtonText)
+    query_area.addEventListener(event_name, updateVisibleQuerySelection)
+);
+
+['focus', 'blur', 'input'].forEach(event_name =>
+    query_area.addEventListener(event_name, clearRunSelectionState)
 );
 
 ['focus', 'click', 'keyup', 'mouseup', 'select', 'input'].forEach(event_name =>
@@ -7136,6 +8464,8 @@ let user_prefers_tab_navigation = false;
         if (e.key == 'Tab') { user_prefers_tab_navigation = true; }
     };
 });
+
+query_area.addEventListener('keydown', handleQueryAutocompleteKeyDown, true);
 
 query_area.onkeydown = (e) => {
     if (e.key == 'Tab' && !e.shiftKey && !user_prefers_tab_navigation) {
@@ -7215,30 +8545,36 @@ function clearElement(elem)
 
 function clear()
 {
-    clearElement(current_result_elements?.data_table);
-    clearElement(current_result_elements?.graph);
-    clearElement(current_result_elements?.chart);
-    clearElement(current_result_elements?.data_unparsed);
-    clearElement(current_result_elements?.error);
-    clearElement(document.getElementById('progress'));
-    setResultDownloadButtonVisible(current_result_elements, false);
-    resetResultCopyButton();
+    const result = getRenderResultMeta();
+    const elements = getRenderResultElements();
 
-    current_result_elements?.data_table?.classList.remove('fixed');
-    current_result_elements?.data_div?.classList.remove('fixed');
-    if (current_result_elements?.data_div) {
-        current_result_elements.data_div.style.display = 'none';
+    clearElement(elements?.data_table);
+    clearElement(elements?.graph);
+    clearElement(elements?.chart);
+    clearElement(elements?.data_unparsed);
+    clearElement(elements?.error);
+    if (isRenderResultActive()) {
+        clearElement(document.getElementById('progress'));
+        document.getElementById('stats').innerText = '';
     }
-    setResultTabSucceeded(current_result_meta, false);
+    setResultDownloadButtonVisible(elements, false);
+    resetResultCopyButton(elements);
+
+    elements?.data_table?.classList.remove('fixed');
+    elements?.data_div?.classList.remove('fixed');
+    if (elements?.data_div) {
+        elements.data_div.style.display = 'none';
+    }
+    setResultTabSucceeded(result, false);
     document.getElementById('hourglass').style.display = 'none';
-    document.getElementById('stats').innerText = '';
-    if (current_result_elements?.result_stats) {
-        current_result_elements.result_stats.innerText = '';
-        current_result_elements.result_stats.classList.remove('loading');
+    if (elements?.result_stats) {
+        elements.result_stats.innerText = '';
+        elements.result_stats.classList.remove('loading');
     }
-    if (current_result_meta) {
-        current_result_meta.stats_loading = false;
-        current_result_meta.progress_stats = '';
+    if (result) {
+        result.stats_loading = false;
+        result.progress_stats = '';
+        result.progress_stats_updated_at = 0;
     }
 
     extremes = {};
@@ -7493,8 +8829,15 @@ function updateRaw(data) {
 }
 
 function updateProgressText(show_progress_status = true, show_elapsed = true, elapsed_label = 'Elapsed') {
+    const result = getRenderResultMeta();
+    const elements = getRenderResultElements();
     let progress_elem = document.getElementById('progress');
-    const server_progress_text = current_result_meta?.progress_stats || '';
+    const server_progress_age_ms = result?.progress_stats_updated_at
+        ? performance.now() - result.progress_stats_updated_at
+        : Infinity;
+    const server_progress_text = server_progress_age_ms < 1000
+        ? result?.progress_stats || ''
+        : '';
     const parts = [];
     if (row_idx) {
         parts.push(formatResultRows(row_idx, incomplete_result));
@@ -7504,22 +8847,29 @@ function updateProgressText(show_progress_status = true, show_elapsed = true, el
     }
 
     const rendered_progress_text = parts.filter(Boolean).join(', ');
-    const progress_text = server_progress_text || rendered_progress_text;
-    if (server_progress_text) {
-        progress_elem.innerHTML = server_progress_text;
-    } else {
-        progress_elem.innerText = rendered_progress_text;
+    const progress_text = server_progress_text || (!show_progress_status ? rendered_progress_text : '');
+    if (isRenderResultActive()) {
+        if (server_progress_text) {
+            progress_elem.innerHTML = server_progress_text;
+        } else {
+            progress_elem.innerText = progress_text;
+        }
+        progress_elem.style.display = show_progress_status && progress_text ? 'block' : 'none';
     }
-    progress_elem.style.display = show_progress_status && progress_text ? 'block' : 'none';
-    if (current_result_elements?.result_stats && !current_result_meta?.stats && !current_result_meta?.progress_stats) {
-        current_result_elements.result_stats.innerText = progress_text;
+    if (elements?.result_stats && !result?.stats) {
+        if (server_progress_text) {
+            elements.result_stats.innerHTML = server_progress_text;
+        } else {
+            elements.result_stats.innerText = progress_text;
+        }
     }
     return progress_text;
 }
 
 function updateProgress(progress) {
+    const result = getRenderResultMeta();
+    const elements = getRenderResultElements();
     let stats = document.getElementById('stats');
-    let progress_elem = document.getElementById('progress');
 
     const rows = +progress.read_rows;
     const bytes = +progress.read_bytes;
@@ -7548,12 +8898,15 @@ function updateProgress(progress) {
 
     if (rps > 1e6) { text += ` (${formatted_rps}, ${formatted_bps})`; }
 
-    stats.innerHTML = text;
-    if (current_result_elements?.result_stats) {
-        current_result_elements.result_stats.innerHTML = text;
+    if (isRenderResultActive()) {
+        stats.innerHTML = text;
     }
-    if (current_result_meta) {
-        current_result_meta.progress_stats = text;
+    if (elements?.result_stats) {
+        elements.result_stats.innerHTML = text;
+    }
+    if (result) {
+        result.progress_stats = text;
+        result.progress_stats_updated_at = performance.now();
     }
 
     updateProgressText();
@@ -7667,6 +9020,8 @@ function appendTextareaResizer() {
         const newHeight = drag_state.offset_height + dy;
 
         textarea.style.height = `${newHeight}px`;
+        syncQueryBackdropLayout();
+        positionAutocompleteMenu();
     }
 
     const stop = (e) => {
@@ -8174,6 +9529,209 @@ async function getQueriesToRun(script) {
     return queries;
 }
 
+let query_highlight_generation = 0;
+
+function disableQueryBackdrop() {
+    query_backdrop_elem.style.display = 'none';
+    query_backdrop_elem.innerHTML = '';
+    query_area.classList.remove('has-backdrop');
+}
+
+function escapeHTML(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const TT = {
+    Whitespace: 0, Comment: 1, BareWord: 2, Number: 3, StringLiteral: 4, QuotedIdentifier: 5,
+    OpeningRoundBracket: 6,
+    Asterisk: 16, HereDoc: 17, DollarSign: 18,
+    Plus: 19, Minus: 20, Slash: 21, Percent: 22, Arrow: 23,
+    QuestionMark: 24, Colon: 25, Caret: 26, DoubleColon: 27,
+    Equals: 28, NotEquals: 29, Less: 30, Greater: 31,
+    LessOrEquals: 32, GreaterOrEquals: 33, Spaceship: 34,
+    PipeMark: 35, Concatenation: 36, At: 37, DoubleAt: 38,
+};
+
+const SQL_KEYWORDS = new Set([
+    'ADD', 'AFTER', 'ALL', 'ALTER', 'AND', 'ANTI', 'ANY', 'ARRAY', 'AS', 'ASC', 'ASCENDING',
+    'ASOF', 'AST', 'ASYNC', 'ATTACH', 'BACKUP', 'BEGIN', 'BETWEEN', 'BOTH', 'BY',
+    'CACHE', 'CASCADE', 'CASE', 'CAST', 'CHANGE', 'CHANGED', 'CHECK', 'CLEAR', 'CLUSTER',
+    'CODEC', 'COLLATE', 'COLUMN', 'COLUMNS', 'COMMENT', 'COMMIT', 'CONSTRAINT', 'CREATE',
+    'CROSS', 'CUBE', 'CURRENT',
+    'DATABASE', 'DATABASES', 'DAY', 'DEDUPLICATE', 'DEFAULT', 'DELETE', 'DESC', 'DESCENDING',
+    'DESCRIBE', 'DETACH', 'DICTIONARIES', 'DICTIONARY', 'DISK', 'DISTINCT', 'DISTRIBUTED',
+    'DROP', 'ELSE', 'END', 'ENGINE', 'ESTIMATE', 'EVENTS', 'EXCEPT', 'EXCHANGE', 'EXISTS',
+    'EXPLAIN', 'EXPRESSION', 'EXTENDED', 'EXTRACT',
+    'FALSE', 'FETCH', 'FETCHES', 'FILE', 'FILESYSTEM', 'FINAL', 'FIRST', 'FLUSH', 'FOLLOWING',
+    'FOR', 'FOREIGN', 'FORMAT', 'FREEZE', 'FROM', 'FULL', 'FUNCTION',
+    'GLOBAL', 'GRANT', 'GROUP', 'GROUPS', 'HAVING', 'HIERARCHICAL', 'HOUR',
+    'ID', 'IDENTIFIED', 'IF', 'ILIKE', 'IN', 'INDEX', 'INF', 'INHERIT', 'INJECTIVE',
+    'INNER', 'INSERT', 'INTERSECT', 'INTERVAL', 'INTO', 'INVISIBLE', 'IS', 'IS_OBJECT_ID',
+    'JOIN', 'KEY', 'KEYED', 'KILL',
+    'LAST', 'LATERAL', 'LAYOUT', 'LEADING', 'LEFT', 'LIFETIME', 'LIKE', 'LIMIT', 'LIMITS',
+    'LIVE', 'LOCAL', 'LOGS',
+    'MATERIALIZE', 'MATERIALIZED', 'MAX', 'MERGES', 'MICROSECOND', 'MILLISECOND', 'MIN',
+    'MINUTE', 'MODIFY', 'MONTH', 'MOVE', 'MUTATION',
+    'NAN_SQL', 'NEXT', 'NO', 'NONE', 'NOT', 'NULL', 'NULLS',
+    'OFFSET', 'ON', 'ONLY', 'OPTIMIZE', 'OPTION', 'OR', 'ORDER', 'OUTER', 'OUTFILE', 'OVER',
+    'PARTITION', 'PASTE', 'PERMANENTLY', 'PLAN', 'POPULATE', 'PRECEDING', 'PRECISION',
+    'PREWHERE', 'PRIMARY', 'PROFILE', 'PROJECTION', 'QUARTER', 'QUERY', 'QUOTA',
+    'RANDOMIZED', 'RANGE', 'RECURSIVE', 'REFRESH', 'REGEXP', 'RELOAD', 'REMOTE', 'RENAME',
+    'REPLACE', 'REPLICA', 'REPLICAS', 'RESET', 'RESTORE', 'RESTRICT', 'RESTRICTIVE',
+    'RETURNS', 'REVOKE', 'RIGHT', 'ROLE', 'ROLLBACK', 'ROLLUP', 'ROW', 'ROWS',
+    'SAMPLE', 'SECOND', 'SELECT', 'SEMI', 'SENDS', 'SET', 'SETS', 'SETTINGS', 'SHARD',
+    'SHOW', 'SIGNED', 'SOURCE', 'SQL_SECURITY', 'START', 'STEP', 'STORAGE', 'STRICT',
+    'STRICTLY_ASCENDING', 'SUBPARTITION', 'SUBSTRING', 'SUSPEND', 'SYNC', 'SYNTAX', 'SYSTEM',
+    'TABLE', 'TABLES', 'TEMPORARY', 'TEST', 'THEN', 'TIES', 'TIMESTAMP', 'TO', 'TOP',
+    'TOTALS', 'TRACKING', 'TRAILING', 'TRANSACTION', 'TRIGGER', 'TRIM', 'TRUE', 'TRUNCATE',
+    'TYPE',
+    'UNBOUNDED', 'UNFREEZE', 'UNION', 'UNIQUE', 'UNSIGNED', 'UPDATE', 'USE', 'USING',
+    'UUID', 'VALUES', 'VARYING', 'VIEW', 'VIRTUAL', 'VISIBLE',
+    'WATCH', 'WEEK', 'WHEN', 'WHERE', 'WINDOW', 'WITH', 'WORK', 'WRITABLE',
+    'XOR', 'YEAR', 'ZKPATH',
+]);
+
+function tokenClass(tokens, i) {
+    const elem = tokens[i];
+    switch (elem.type) {
+        case TT.Comment: return 'q-com';
+        case TT.Number: return 'q-num';
+        case TT.StringLiteral:
+        case TT.HereDoc: return 'q-str';
+        case TT.QuotedIdentifier: return 'q-qid';
+        case TT.BareWord: {
+            if (SQL_KEYWORDS.has(elem.token.toUpperCase())) return 'q-kw';
+            for (let j = i + 1; j < tokens.length; ++j) {
+                if (tokens[j].type === TT.Whitespace) continue;
+                return tokens[j].type === TT.OpeningRoundBracket ? 'q-fn' : 'q-id';
+            }
+            return 'q-id';
+        }
+        case TT.Asterisk: case TT.Plus: case TT.Minus: case TT.Slash: case TT.Percent:
+        case TT.Arrow: case TT.QuestionMark: case TT.Colon: case TT.DoubleColon: case TT.Caret:
+        case TT.Equals: case TT.NotEquals:
+        case TT.Less: case TT.Greater: case TT.LessOrEquals: case TT.GreaterOrEquals:
+        case TT.Spaceship: case TT.PipeMark: case TT.Concatenation:
+        case TT.At: case TT.DoubleAt: case TT.DollarSign:
+            return 'q-op';
+        default:
+            return '';
+    }
+}
+
+function syncQueryBackdropScroll() {
+    if (query_backdrop_elem.style.display == 'none') {
+        return;
+    }
+
+    query_backdrop_elem.scrollTop = query_area.scrollTop;
+    query_backdrop_elem.scrollLeft = query_area.scrollLeft;
+}
+
+function syncQueryBackdropLayout() {
+    if (query_backdrop_elem.style.display == 'none') {
+        return;
+    }
+
+    const style = getComputedStyle(query_area);
+    query_backdrop_elem.style.left = `${query_area.offsetLeft}px`;
+    query_backdrop_elem.style.top = `${query_area.offsetTop}px`;
+    query_backdrop_elem.style.width = `${query_area.offsetWidth}px`;
+    query_backdrop_elem.style.height = `${query_area.offsetHeight}px`;
+    query_backdrop_elem.style.fontFamily = style.fontFamily;
+    query_backdrop_elem.style.fontSize = style.fontSize;
+    query_backdrop_elem.style.fontWeight = style.fontWeight;
+    query_backdrop_elem.style.fontStyle = style.fontStyle;
+    query_backdrop_elem.style.lineHeight = style.lineHeight;
+    query_backdrop_elem.style.letterSpacing = style.letterSpacing;
+    query_backdrop_elem.style.textTransform = style.textTransform;
+    query_backdrop_elem.style.tabSize = style.tabSize;
+    query_backdrop_elem.style.whiteSpace = style.whiteSpace;
+    query_backdrop_elem.style.wordWrap = style.wordWrap;
+    query_backdrop_elem.style.overflowWrap = style.overflowWrap;
+    query_backdrop_elem.style.paddingTop = style.paddingTop;
+    query_backdrop_elem.style.paddingBottom = style.paddingBottom;
+    query_backdrop_elem.style.paddingLeft = style.paddingLeft;
+    query_backdrop_elem.style.borderTopWidth = style.borderTopWidth;
+    query_backdrop_elem.style.borderRightWidth = style.borderRightWidth;
+    query_backdrop_elem.style.borderBottomWidth = style.borderBottomWidth;
+    query_backdrop_elem.style.borderLeftWidth = style.borderLeftWidth;
+
+    const scrollbar_width = query_area.offsetWidth - query_area.clientWidth - 2;
+    query_backdrop_elem.style.paddingRight = scrollbar_width > 0
+        ? `calc(${style.paddingRight} + ${scrollbar_width}px)`
+        : style.paddingRight;
+    syncQueryBackdropScroll();
+}
+
+function renderQueryBackdrop(text, tokens) {
+    if (!text || !tokens.length) {
+        disableQueryBackdrop();
+        return;
+    }
+
+    let html = '';
+    let offset = 0;
+
+    for (let i = 0; i < tokens.length; ++i) {
+        const elem = tokens[i];
+        offset += elem.token.length;
+
+        const cls = tokenClass(tokens, i);
+        const escaped = escapeHTML(elem.token);
+        html += cls ? `<span class="${cls}">${escaped}</span>` : escaped;
+    }
+
+    if (offset < text.length) {
+        html += `<span class="q-err">${escapeHTML(text.substring(offset))}</span>`;
+    }
+
+    if (html.endsWith('\n')) {
+        html += ' ';
+    }
+
+    query_backdrop_elem.innerHTML = html;
+    query_backdrop_elem.style.display = 'block';
+    query_area.classList.add('has-backdrop');
+    syncQueryBackdropLayout();
+}
+
+async function updateQueryHighlighting() {
+    const generation = ++query_highlight_generation;
+    const text = query_area.value;
+
+    if (!text || typeof WebAssembly !== 'object' || typeof WebAssembly.instantiate !== 'function') {
+        disableQueryBackdrop();
+        return;
+    }
+
+    try {
+        const tokens = await tokenize(text);
+        if (generation !== query_highlight_generation) {
+            return;
+        }
+
+        renderQueryBackdrop(text, tokens);
+    } catch (e) {
+        if (generation !== query_highlight_generation) {
+            return;
+        }
+
+        console.error('Tokenization failed, disabling syntax highlighting:', e);
+        disableQueryBackdrop();
+    }
+}
+
+query_area.addEventListener('input', () => {
+    void updateQueryHighlighting();
+    refreshAutocompleteFromEditor();
+});
+
+query_area.addEventListener('scroll', () => {
+    syncQueryBackdropScroll();
+    positionAutocompleteMenu();
+});
+
 function setColorTheme(new_theme, update_preference) {
     theme = new_theme;
     if (update_preference) {
@@ -8292,6 +9850,11 @@ document.addEventListener('click', e => {
         hideNavigatorContextMenu();
     }
 });
+document.addEventListener('mousedown', e => {
+    if (autocomplete_state.open && e.target != query_area && !autocomplete_menu_elem.contains(e.target)) {
+        closeAutocomplete();
+    }
+});
 document.addEventListener('keydown', e => {
     if (e.key == 'Escape') {
         hideNavigatorContextMenu();
@@ -8302,6 +9865,7 @@ document.addEventListener('keydown', e => {
 setSidebarCollapsed(window.localStorage.getItem(sidebar_collapsed_key) === '1', false);
 loadConnections();
 updateRunButtonText();
+void updateQueryHighlighting();
 
 if (run_immediately) {
     post();
