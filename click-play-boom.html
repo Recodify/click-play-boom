@@ -2811,8 +2811,8 @@
                     <label for="download-use-cache">
                         <input type="checkbox" id="download-use-cache">
                         <span>
-                            Reuse cached result for download
-                            <span class="download-option-help">Uses query cache so download can reuse the preview result instead of rerunning the query.</span>
+                            Reuse cached result for download/copy
+                            <span class="download-option-help">Uses query cache so downloads and copy-as actions can reuse the preview result instead of rerunning the query.</span>
                         </span>
                     </label>
                 </div>
@@ -5359,7 +5359,7 @@ function createResultPanel(requestNum, query) {
     attachResultStatsSelection(elements.result_stats);
     attachResultQueryCopyButton(elements);
     attachResultDownloadButton(elements, resultId);
-    attachResultCopyButton(elements);
+    attachResultCopyButton(elements, resultId);
 
     elements.result_query.innerText = query;
     results_header_elem.hidden = false;
@@ -5382,6 +5382,11 @@ function createResultPanel(requestNum, query) {
         progress_stats: '',
         summary_stats: '',
         query_id: '',
+        format: '',
+        is_table: false,
+        is_raw: false,
+        is_chart: false,
+        is_error: false,
         stats_loading: false,
         ok: false
     };
@@ -5534,11 +5539,15 @@ function showResultCopyButton(elements = current_result_elements, format = '') {
 
     button.style.display = 'flex';
     button.disabled = false;
-    button.title = format ? `Copy ${format} result` : 'Copy formatted result';
+    button.title = format && format != 'result' ? `Copy ${format} result` : 'Copy result';
     button.setAttribute('aria-label', button.title);
 }
 
 function showResultCopyFeedback(button, copied) {
+    if (!button) {
+        return;
+    }
+
     if (button.copy_feedback_timeout) {
         clearTimeout(button.copy_feedback_timeout);
     }
@@ -5583,7 +5592,156 @@ function attachResultQueryCopyButton(elements) {
     });
 }
 
-function attachResultCopyButton(elements) {
+function getDownloadQueryText(query) {
+    return String(query || '').replaceAll(/\bFORMAT\s+\w+/ig, '');
+}
+
+function getResultReuseParams() {
+    if (!shouldUseQueryCacheForDownload()) {
+        return {};
+    }
+
+    return {
+        use_query_cache: '1',
+        enable_reads_from_query_cache: '1',
+        enable_writes_to_query_cache: '0',
+        query_cache_ttl: '600',
+        query_cache_nondeterministic_function_handling: 'save'
+    };
+}
+
+async function fetchResultTextAsFormat(result, format) {
+    if (!result?.query) {
+        throw new Error('No query is available for this result.');
+    }
+
+    const url = buildClickHouseUrl(url_elem.value, user_elem.value, password_elem.value, format, {
+        enable_http_compression: '1',
+        ...getResultReuseParams()
+    });
+
+    const response = await fetch(url, {
+        method: 'POST',
+        body: getDownloadQueryText(result.query),
+        headers: { 'Authorization': 'never' }
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(text || `Failed to fetch ${format} result.`);
+    }
+
+    return text;
+}
+
+function buildQueryResultMarkdownDocument(query, markdown_result) {
+    const sql = String(query || '').trim();
+    const result = String(markdown_result || '').trim();
+    return `\`\`\`sql\n${sql}\n\`\`\`\n\n${result}\n`;
+}
+
+async function copyResultAsFormat(result, format) {
+    const button = result?.elements?.result_copy;
+    try {
+        const text = await fetchResultTextAsFormat(result, format);
+        const copied = await copyTextToClipboard(text);
+        showResultCopyFeedback(button, copied);
+    } catch (e) {
+        console.log(e);
+        showResultCopyFeedback(button, false);
+        alert(e.message || 'Copy failed.');
+    }
+}
+
+async function copyQueryAndMarkdownResult(result) {
+    const button = result?.elements?.result_copy;
+    try {
+        const markdown = await fetchResultTextAsFormat(result, 'Markdown');
+        const copied = await copyTextToClipboard(buildQueryResultMarkdownDocument(result.query, markdown));
+        showResultCopyFeedback(button, copied);
+    } catch (e) {
+        console.log(e);
+        showResultCopyFeedback(button, false);
+        alert(e.message || 'Copy failed.');
+    }
+}
+
+function downloadTextFile(filename, text, type = 'text/plain;charset=utf-8') {
+    const blob = new Blob([text], { type: type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+async function downloadQueryAndMarkdownResult(result) {
+    const button = result?.elements?.result_copy;
+    try {
+        const markdown = await fetchResultTextAsFormat(result, 'Markdown');
+        const document_text = buildQueryResultMarkdownDocument(result.query, markdown);
+        const filename = buildDownloadFilename(result.query, 'Markdown', `${getDownloadBasenameFromQuery(result.query)}-query-result`);
+        downloadTextFile(filename, document_text, 'text/markdown;charset=utf-8');
+        showResultCopyFeedback(button, true);
+    } catch (e) {
+        console.log(e);
+        showResultCopyFeedback(button, false);
+        alert(e.message || 'Download failed.');
+    }
+}
+
+function openResultCopyMenu(anchor_rect, result) {
+    const items = result?.is_table ? [
+        {
+            icon: '⧉',
+            label: 'Copy result as Markdown',
+            onClick: () => copyResultAsFormat(result, 'Markdown')
+        },
+        {
+            icon: '⧉',
+            label: 'Copy result as CSV',
+            onClick: () => copyResultAsFormat(result, 'CSVWithNames')
+        },
+        {
+            icon: '⧉',
+            label: 'Copy result as TSV',
+            onClick: () => copyResultAsFormat(result, 'TSVWithNames')
+        },
+        {
+            icon: '▣',
+            label: 'Copy query + result Markdown',
+            onClick: () => copyQueryAndMarkdownResult(result)
+        },
+        {
+            icon: '⇩',
+            label: 'Download query + result Markdown',
+            onClick: () => downloadQueryAndMarkdownResult(result)
+        }
+    ] : [];
+
+    if (!items.length && (result?.elements?.copy_text || result?.elements?.data_unparsed?.textContent)) {
+        items.push({
+            icon: '⧉',
+            label: 'Copy rendered result',
+            onClick: async () => {
+                const copied = await copyTextToClipboard(result.elements.copy_text || result.elements.data_unparsed.textContent || '');
+                showResultCopyFeedback(result.elements.result_copy, copied);
+            }
+        });
+    }
+
+    if (!items.length) {
+        return;
+    }
+
+    showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
+}
+
+function attachResultCopyButton(elements, resultId) {
     const button = elements?.result_copy;
     if (!button) {
         return;
@@ -5598,8 +5756,13 @@ function attachResultCopyButton(elements) {
             return;
         }
 
-        const copied = await copyTextToClipboard(elements.copy_text || elements.data_unparsed.textContent || '');
-        showResultCopyFeedback(button, copied);
+        const result = result_history.find(candidate => candidate.id == resultId);
+        if (!result?.ok) {
+            resetResultCopyButton(elements);
+            return;
+        }
+
+        openResultCopyMenu(button.getBoundingClientRect(), result);
     });
 }
 
@@ -6651,11 +6814,22 @@ async function postImpl(posted_request_num, query)
     }
 
     document.getElementById('hourglass').style.display = 'none';
-    setResultDownloadButtonVisible(current_result_elements, true);
+    const has_table_result = is_table && Object.keys(header).length > 0;
+    const has_result_payload = has_table_result || is_raw || is_chart || is_explain_graph;
+    setResultDownloadButtonVisible(current_result_elements, has_result_payload);
     last_query_for_download = query;
+    if (current_result_meta) {
+        current_result_meta.format = format;
+        current_result_meta.is_table = has_table_result;
+        current_result_meta.is_raw = is_raw;
+        current_result_meta.is_chart = is_chart;
+        current_result_meta.is_error = is_error;
+    }
 
     const copy_format = explicit_format || format;
-    if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
+    if (has_table_result) {
+        showResultCopyButton(current_result_elements, 'result');
+    } else if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
         current_result_elements.copy_text = reply;
         showResultCopyButton(current_result_elements, copy_format);
     } else {
@@ -6667,9 +6841,9 @@ async function postImpl(posted_request_num, query)
     }
 
     const summary_text = applyClickHouseSummary(response) || '';
-    const progress_text = row_idx || is_table ? formatResultRows(row_idx, incomplete_result) : '';
+    const progress_text = row_idx || has_table_result ? formatResultRows(row_idx, incomplete_result) : '';
     const base_stats_text = [progress_text, summary_text].filter(Boolean).join(', ');
-    const timing_stats_text = query_id ? '' : formatNsAsMsMetric(elapsed_ns, 'query');
+    const timing_stats_text = formatNsAsMsMetric(elapsed_ns, 'query');
     const result_stats_text = setResultStats(current_result_meta, base_stats_text, timing_stats_text);
     document.documentElement.style.setProperty('--progress', '0');
 
@@ -6691,7 +6865,9 @@ async function postImpl(posted_request_num, query)
             ok: true
         });
         renderActionHistory();
-        void enrichResultStatsFromQueryLog(current_result_meta, server_address, user, password, query_id);
+        if (query_id && (has_result_payload || summary_text)) {
+            void enrichResultStatsFromQueryLog(current_result_meta, server_address, user, password, query_id);
+        }
     }
 
     if (posted_request_num != request_num) { return; }
@@ -6796,24 +6972,33 @@ async function restoreFromHistory(state) {
     }
 
     document.getElementById('hourglass').style.display = 'none';
-    setResultDownloadButtonVisible(current_result_elements, true);
+    const has_table_result = is_table && Object.keys(header).length > 0;
+    const has_result_payload = has_table_result || is_raw || is_chart || is_explain_graph;
+    setResultDownloadButtonVisible(current_result_elements, has_result_payload);
     last_query_for_download = state.query;
     if (current_result_meta) {
+        current_result_meta.format = format;
+        current_result_meta.is_table = has_table_result;
+        current_result_meta.is_raw = is_raw;
+        current_result_meta.is_chart = is_chart;
+        current_result_meta.is_error = is_error;
         current_result_meta.ok = true;
         setResultTabSucceeded(current_result_meta, true);
     }
 
     const copy_format = explicit_format || format;
-    if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
+    if (has_table_result) {
+        showResultCopyButton(current_result_elements, 'result');
+    } else if (explicit_format && isClipboardTextFormat(copy_format) && canCopyRenderedResult(is_raw, is_table, copy_format)) {
         current_result_elements.copy_text = state.data;
         showResultCopyButton(current_result_elements, copy_format);
     } else {
         resetResultCopyButton();
     }
 
-    if (is_raw) elapsed_ns = state.elapsed_ns;
+    elapsed_ns = state.elapsed_ns || elapsed_ns;
 
-    const restored_base_stats_text = row_idx ? formatResultRows(row_idx, incomplete_result) : '';
+    const restored_base_stats_text = row_idx || has_table_result ? formatResultRows(row_idx, incomplete_result) : '';
     const restored_timing_stats_text = formatNsAsMsMetric(elapsed_ns, 'query');
     if (current_result_meta) {
         setResultStats(current_result_meta, restored_base_stats_text, restored_timing_stats_text);
@@ -7085,6 +7270,46 @@ function formatReadableRows(rows) {
     return formatReadable(rows, 2, units);
 }
 
+function clearSelectedResultCell() {
+    current_selected_cell?.classList.remove('td-selected');
+    current_selected_cell?.parentElement?.classList.remove('tr-selected');
+    current_selected_cell = null;
+}
+
+function selectResultCell(cell) {
+    if (!cell) {
+        return;
+    }
+
+    clearSelectedResultCell();
+    current_selected_cell = cell;
+    current_selected_cell.classList.add('td-selected');
+    current_selected_cell.parentElement?.classList.add('tr-selected');
+    current_selected_cell.scrollIntoView({ block: 'nearest' });
+}
+
+function getResultCellCopyValue(cell) {
+    return cell?.dataset?.copyValue ?? cell?.innerText ?? '';
+}
+
+async function copyResultCellValue(cell = current_selected_cell) {
+    const value = getResultCellCopyValue(cell);
+    const copied = await copyTextToClipboard(value);
+    if (!copied) {
+        alert('Copy failed.');
+    }
+}
+
+function openResultCellMenu(cell, anchor_rect) {
+    showNavigatorContextMenu([
+        {
+            icon: '⧉',
+            label: 'Copy value',
+            onClick: () => copyResultCellValue(cell)
+        }
+    ], anchor_rect.left, anchor_rect.bottom + 4);
+}
+
 function renderCell(name, value)
 {
     let td = document.createElement('td');
@@ -7099,13 +7324,21 @@ function renderCell(name, value)
     } else if (typeof(value) === 'object') {
         text = JSON.stringify(value);
     } else {
-        text = value;
+        text = String(value);
 
         /// If it looks like URL, create a link. This is for convenience.
-        if (typeof(value) == 'string' && value.match(/^https?:\/\/\S+$/)) {
+        if (typeof(value) == 'string' && text.match(/^https?:\/\/\S+$/)) {
             is_link = true;
         }
     }
+
+    td.dataset.copyValue = is_null ? 'NULL' : text;
+    td.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectResultCell(td);
+        openResultCellMenu(td, { left: e.clientX, bottom: e.clientY });
+    });
 
     let node = document.createTextNode(text);
     if (is_link) {
@@ -7133,14 +7366,27 @@ function renderCell(name, value)
 }
 
 document.getElementById('query').addEventListener('focus', e => {
-    current_selected_cell?.classList.remove('td-selected');
-    current_selected_cell?.parentElement.classList.remove('tr-selected');
-    current_selected_cell = null;
+    clearSelectedResultCell();
 });
 
 document.addEventListener('keydown', e => {
     let cell = current_selected_cell;
     if (!cell) { return; }
+
+    const active_element = document.activeElement;
+    if (active_element && ['INPUT', 'TEXTAREA'].includes(active_element.tagName)) {
+        return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() == 'c' && !e.shiftKey && !e.altKey) {
+        if (window.getSelection()?.toString()) {
+            return;
+        }
+
+        e.preventDefault();
+        copyResultCellValue(cell);
+        return;
+    }
 
     const row = cell.parentElement;
     const table = row.parentElement;
@@ -7164,12 +7410,7 @@ document.addEventListener('keydown', e => {
 
     e.preventDefault();
 
-    cell.classList.remove('td-selected');
-    cell.parentElement.classList.remove('tr-selected');
-    new_cell.classList.add('td-selected');
-    new_cell.parentElement.classList.add('tr-selected');
-    new_cell.scrollIntoView({ block: 'nearest' });
-    current_selected_cell = new_cell;
+    selectResultCell(new_cell);
 });
 
 function transposeTableIfNeeded()
@@ -7516,12 +7757,7 @@ function appendRow(row, fragment) {
         ++col_idx;
 
         td.onclick = () => {
-            current_selected_cell?.classList.remove('td-selected');
-            current_selected_cell?.parentElement.classList.remove('tr-selected');
-            current_selected_cell = td;
-            current_selected_cell.classList.add('td-selected')
-            current_selected_cell.parentElement.classList.add('tr-selected')
-            current_selected_cell.scrollIntoView({ block: 'nearest' });
+            selectResultCell(td);
         };
 
         tr.appendChild(td);
@@ -8314,7 +8550,7 @@ document.getElementById('download-button').addEventListener('click', async funct
     if (user) url += '&user=' + encodeURIComponent(user);
     if (password) url += '&password=' + encodeURIComponent(password);
 
-    let downloadQuery = query.replaceAll(/\bFORMAT\s+\w+/ig, '');
+    let downloadQuery = getDownloadQueryText(query);
 
     // Create a form and submit it to trigger download
     const form = document.createElement('form');
