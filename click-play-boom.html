@@ -1993,7 +1993,7 @@
         .result-query
         {
             display: block;
-            margin-top: -1px;
+            margin-top: 0;
             padding: 0.45rem 0.5rem;
             border: 1px solid var(--border-color);
             background: var(--element-background-color);
@@ -2002,6 +2002,18 @@
             max-height: min(30vh, 18rem);
             overflow-y: auto;
             font-size: 0.85em;
+        }
+
+        .result-query-details-actions
+        {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.35rem;
+            margin-top: -1px;
+            padding: 0.3rem 0.5rem;
+            border: 1px solid var(--border-color);
+            border-bottom: 0;
+            background: var(--element-background-color);
         }
 
         #history-panel
@@ -2226,6 +2238,16 @@
         .result-action-button.copy-failed
         {
             background: var(--element-background-color-fail);
+        }
+
+        .result-query-copy
+        {
+            width: auto;
+            min-width: 1.65rem;
+            padding: 0 0.5rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
         #data_div.fixed, .data-div.fixed
@@ -2806,7 +2828,6 @@
                             <span class="result-summary-title">Query details</span>
                             <span class="result-stats"></span>
                             <span class="result-output-actions">
-                                <button type="button" class="result-query-copy result-action-button shadow" title="Copy query" aria-label="Copy query">⧉</button>
                                 <button type="button" class="result-download result-action-button shadow" title="Download result" aria-label="Download result">
                                     <svg class="download-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -2817,6 +2838,9 @@
                                 <button type="button" class="result-copy result-action-button shadow" title="Copy formatted result" aria-label="Copy formatted result">⧉</button>
                             </span>
                         </summary>
+                        <div class="result-query-details-actions">
+                            <button type="button" class="result-query-copy result-action-button shadow" title="Copy query" aria-label="Copy query">Copy query</button>
+                        </div>
                         <pre class="result-query monospace"></pre>
                     </details>
                 </div>
@@ -5495,6 +5519,7 @@ function resetResultCopyButton(elements = current_result_elements) {
     button.disabled = true;
     button.classList.remove('copied', 'copy-failed');
     button.copy_original_label = null;
+    button.copy_original_text = null;
     button.textContent = '⧉';
     button.title = 'Copy formatted result';
     button.setAttribute('aria-label', 'Copy formatted result');
@@ -5518,21 +5543,25 @@ function showResultCopyFeedback(button, copied) {
         clearTimeout(button.copy_feedback_timeout);
     }
 
+    const original_title = button.copy_original_label || button.getAttribute('aria-label') || 'Copy formatted result';
+    const original_text = button.copy_original_text || button.textContent || '⧉';
+    button.copy_original_label = original_title;
+    button.copy_original_text = original_text;
+
     button.classList.toggle('copied', copied);
     button.classList.toggle('copy-failed', !copied);
     button.textContent = copied ? '✓' : '!';
 
-    const original_title = button.copy_original_label || button.getAttribute('aria-label') || 'Copy formatted result';
-    button.copy_original_label = original_title;
     button.title = copied ? 'Copied' : 'Copy failed';
     button.setAttribute('aria-label', button.title);
 
     button.copy_feedback_timeout = setTimeout(() => {
         button.classList.remove('copied', 'copy-failed');
-        button.textContent = '⧉';
+        button.textContent = original_text;
         button.title = original_title;
         button.setAttribute('aria-label', original_title);
         button.copy_original_label = null;
+        button.copy_original_text = null;
         button.copy_feedback_timeout = null;
     }, 1200);
 }
