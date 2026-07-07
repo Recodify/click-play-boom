@@ -2605,7 +2605,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
-                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.3</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.07.4</span>
                     </div>
                 </div>
             </div>
@@ -6329,6 +6329,7 @@ async function postImpl(posted_request_num, query)
     if (user) url += '&user=' + encodeURIComponent(user);
     if (password) url += '&password=' + encodeURIComponent(password);
     url += '&default_format=' + default_format + '&enable_http_compression=1';
+    url += '&max_result_rows=' + encodeURIComponent(max_rows + 1) + '&result_overflow_mode=break';
     /// Optional: write the interactive result into query cache so a later download can reuse it.
     if (shouldUseQueryCacheForDownload()) {
         url += '&use_query_cache=1&enable_reads_from_query_cache=0&enable_writes_to_query_cache=1&query_cache_ttl=600&query_cache_nondeterministic_function_handling=save';
