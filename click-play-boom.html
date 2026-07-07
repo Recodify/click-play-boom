@@ -2216,14 +2216,14 @@
             background: var(--button-active-color);
         }
 
-        .result-copy.copied
+        .result-action-button.copied
         {
             border-color: var(--copy-success-background-color);
             color: var(--copy-success-text-color);
             background: var(--copy-success-background-color);
         }
 
-        .result-copy.copy-failed
+        .result-action-button.copy-failed
         {
             background: var(--element-background-color-fail);
         }
@@ -2806,6 +2806,7 @@
                             <span class="result-summary-title">Query details</span>
                             <span class="result-stats"></span>
                             <span class="result-output-actions">
+                                <button type="button" class="result-query-copy result-action-button shadow" title="Copy query" aria-label="Copy query">⧉</button>
                                 <button type="button" class="result-download result-action-button shadow" title="Download result" aria-label="Download result">
                                     <svg class="download-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -3964,6 +3965,15 @@ function normaliseInsertionMode(mode, fallback = 'append') {
     return ['append', 'insert', 'overwrite'].includes(mode) ? mode : fallback;
 }
 
+function isRunnableSqlInsertion(text) {
+    const trimmed = String(text || '').trim();
+    if (!trimmed || trimmed.startsWith('--') || trimmed.startsWith('/*')) {
+        return false;
+    }
+
+    return /^(ALTER|ATTACH|BACKUP|CHECK|CREATE|DELETE|DESC|DESCRIBE|DETACH|DROP|EXISTS|EXPLAIN|INSERT|KILL|OPTIMIZE|RENAME|RESTORE|SELECT|SET|SHOW|SYSTEM|TRUNCATE|USE|WATCH|WITH)\b/i.test(trimmed);
+}
+
 function rememberQueryEditorSelection() {
     const value_length = query_area.value.length;
     const start = Math.max(0, Math.min(query_area.selectionStart ?? value_length, value_length));
@@ -4011,17 +4021,23 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
 }
 
 function insertIntoQueryEditor(text, options = {}) {
+    const text_value = String(text || '');
     const mode = normaliseInsertionMode(options.mode);
     const value_length = query_area.value.length;
     let start = value_length;
     let end = value_length;
-    let text_to_insert = text;
+    let text_to_insert = text_value;
+    let inserted_text_start = start;
+    const select_inserted = options.select_inserted ?? options.selectInserted ?? false;
 
     if (mode == 'append') {
-        text_to_insert = `${query_area.value.trim() ? '\n\n' : ''}${text}`;
+        const prefix = query_area.value.trim() ? '\n\n' : '';
+        text_to_insert = `${prefix}${text_value}`;
+        inserted_text_start = start + prefix.length;
     } else if (mode == 'overwrite') {
         start = 0;
         end = value_length;
+        inserted_text_start = 0;
     } else {
         const selection = document.activeElement == query_area
             ? {
@@ -4031,13 +4047,30 @@ function insertIntoQueryEditor(text, options = {}) {
             : getRememberedQueryEditorSelection();
         start = selection.start;
         end = selection.end;
+        inserted_text_start = start;
     }
 
-    replaceQueryEditorRange(text_to_insert, start, end);
+    const inserted_text_end = inserted_text_start + text_value.length;
+    replaceQueryEditorRange(
+        text_to_insert,
+        start,
+        end,
+        select_inserted ? inserted_text_start : null,
+        select_inserted ? inserted_text_end : null);
 }
 
-function insertTextIntoEditor(text) {
-    insertIntoQueryEditor(text, { mode: 'append' });
+function insertTextIntoEditor(text, options = {}) {
+    insertIntoQueryEditor(text, {
+        mode: 'append',
+        select_inserted: options.select_inserted ?? options.selectInserted ?? isRunnableSqlInsertion(text)
+    });
+}
+
+function insertSnippetIntoQueryEditor(text, mode) {
+    insertIntoQueryEditor(text, {
+        mode: mode,
+        select_inserted: isRunnableSqlInsertion(text)
+    });
 }
 
 function setSnippetInsertionMode(mode, save = true) {
@@ -4372,7 +4405,7 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
                     insertTextIntoEditor(`-- failed to load columns for ${database}.${table}\n`);
                     return;
                 }
-                insertTextIntoEditor(buildInsertStatement(database, table, columns));
+                insertTextIntoEditor(buildInsertStatement(database, table, columns), { select_inserted: false });
             }
         }]),
         {
@@ -4430,17 +4463,17 @@ function openSnippetMenu(snippet, anchor_rect) {
         {
             icon: '+',
             label: 'Append to editor',
-            onClick: () => insertIntoQueryEditor(snippet.query, { mode: 'append' })
+            onClick: () => insertSnippetIntoQueryEditor(snippet.query, 'append')
         },
         {
             icon: '↪',
             label: 'Insert at cursor',
-            onClick: () => insertIntoQueryEditor(snippet.query, { mode: 'insert' })
+            onClick: () => insertSnippetIntoQueryEditor(snippet.query, 'insert')
         },
         {
             icon: '▣',
             label: 'Replace editor',
-            onClick: () => insertIntoQueryEditor(snippet.query, { mode: 'overwrite' })
+            onClick: () => insertSnippetIntoQueryEditor(snippet.query, 'overwrite')
         },
         {
             icon: '▣',
@@ -4580,7 +4613,7 @@ function renderSnippets() {
                 button.type = 'button';
                 button.className = 'snippet-button';
                 button.title = snippet.query;
-                button.addEventListener('click', () => insertIntoQueryEditor(snippet.query, { mode: getSnippetInsertionMode() }));
+                button.addEventListener('click', () => insertSnippetIntoQueryEditor(snippet.query, getSnippetInsertionMode()));
 
                 const name = document.createElement('span');
                 name.className = 'snippet-name';
@@ -5288,6 +5321,7 @@ function createResultPanel(requestNum, query) {
         result_query: panel.querySelector('.result-query'),
         result_stats: panel.querySelector('.result-stats'),
         data_div: panel.querySelector('.data-div'),
+        result_query_copy: panel.querySelector('.result-query-copy'),
         result_download: panel.querySelector('.result-download'),
         result_copy: panel.querySelector('.result-copy'),
         copy_text: '',
@@ -5299,6 +5333,7 @@ function createResultPanel(requestNum, query) {
     };
 
     attachResultStatsSelection(elements.result_stats);
+    attachResultQueryCopyButton(elements);
     attachResultDownloadButton(elements, resultId);
     attachResultCopyButton(elements);
 
@@ -5459,6 +5494,7 @@ function resetResultCopyButton(elements = current_result_elements) {
     button.style.display = 'none';
     button.disabled = true;
     button.classList.remove('copied', 'copy-failed');
+    button.copy_original_label = null;
     button.textContent = '⧉';
     button.title = 'Copy formatted result';
     button.setAttribute('aria-label', 'Copy formatted result');
@@ -5486,15 +5522,36 @@ function showResultCopyFeedback(button, copied) {
     button.classList.toggle('copy-failed', !copied);
     button.textContent = copied ? '✓' : '!';
 
-    const original_title = button.getAttribute('aria-label') || 'Copy formatted result';
+    const original_title = button.copy_original_label || button.getAttribute('aria-label') || 'Copy formatted result';
+    button.copy_original_label = original_title;
     button.title = copied ? 'Copied' : 'Copy failed';
+    button.setAttribute('aria-label', button.title);
 
     button.copy_feedback_timeout = setTimeout(() => {
         button.classList.remove('copied', 'copy-failed');
         button.textContent = '⧉';
         button.title = original_title;
+        button.setAttribute('aria-label', original_title);
+        button.copy_original_label = null;
         button.copy_feedback_timeout = null;
     }, 1200);
+}
+
+function attachResultQueryCopyButton(elements) {
+    const button = elements?.result_query_copy;
+    if (!button) {
+        return;
+    }
+
+    button.style.display = 'inline-flex';
+    button.disabled = false;
+    button.addEventListener('click', async e => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const copied = await copyTextToClipboard(elements.result_query.textContent || '');
+        showResultCopyFeedback(button, copied);
+    });
 }
 
 function attachResultCopyButton(elements) {
@@ -5505,6 +5562,7 @@ function attachResultCopyButton(elements) {
 
     resetResultCopyButton(elements);
     button.addEventListener('click', async e => {
+        e.preventDefault();
         e.stopPropagation();
 
         if (button.disabled) {
