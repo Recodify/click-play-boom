@@ -1281,6 +1281,10 @@
             border: 1px solid var(--border-color);
             box-shadow: 0 0.6rem 1.25rem var(--shadow-color);
             display: none;
+            width: max-content;
+            max-width: calc(100vw - 1rem);
+            max-height: calc(100vh - 1rem);
+            overflow: auto;
             padding: 0.2rem 0;
         }
 
@@ -1327,8 +1331,7 @@
 
         .navigator-menu-label
         {
-            overflow: hidden;
-            text-overflow: ellipsis;
+            min-width: 0;
         }
 
         .navigator-footer
@@ -2779,7 +2782,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
-                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.08.2</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.08.4</span>
                     </div>
                 </div>
             </div>
@@ -3101,6 +3104,10 @@ let connection_editor_state = null;
 let stop_after_current = false;
 let query_editor_expanded_height = '';
 let query_snippets_state = loadQuerySnippets();
+const large_editor_insert_threshold = 12000;
+const large_editor_highlight_delay_ms = 120;
+let query_highlight_timeout = null;
+let suppress_programmatic_query_input = false;
 const insertion_manager = {
     last_selection_start: 0,
     last_selection_end: 0,
@@ -4190,7 +4197,7 @@ function getRememberedQueryEditorSelection() {
     };
 }
 
-function replaceQueryEditorRange(text, start = query_area.selectionStart ?? query_area.value.length, end = query_area.selectionEnd ?? query_area.value.length, selection_start = null, selection_end = null) {
+function replaceQueryEditorRange(text, start = query_area.selectionStart ?? query_area.value.length, end = query_area.selectionEnd ?? query_area.value.length, selection_start = null, selection_end = null, options = {}) {
     query_area.focus();
     query_area.setSelectionRange(start, end);
 
@@ -4198,9 +4205,12 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
     const value_before_insert = query_area.value;
     if (typeof document.execCommand == 'function') {
         try {
+            suppress_programmatic_query_input = true;
             inserted = document.execCommand('insertText', false, text);
         } catch (e) {
             inserted = false;
+        } finally {
+            suppress_programmatic_query_input = false;
         }
     }
 
@@ -4218,7 +4228,8 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
 
     rememberQueryEditorSelection();
     updateRunButtonText();
-    void updateQueryHighlighting();
+    scheduleQueryHighlighting(String(text || '').length > large_editor_insert_threshold || options.defer_highlighting);
+    refreshAutocompleteFromEditor();
 }
 
 function insertIntoQueryEditor(text, options = {}) {
@@ -5396,7 +5407,7 @@ function hideNavigatorContextMenu() {
     navigator_context_menu_elem.innerHTML = '';
 }
 
-function showNavigatorContextMenu(items, x, y) {
+function showNavigatorContextMenu(items, x, y, options = {}) {
     navigator_context_menu_elem.innerHTML = '';
 
     for (const item of items) {
@@ -5429,8 +5440,12 @@ function showNavigatorContextMenu(items, x, y) {
     navigator_context_menu_elem.style.top = `${y}px`;
 
     const rect = navigator_context_menu_elem.getBoundingClientRect();
-    const next_left = Math.min(x, Math.max(8, window.innerWidth - rect.width - 8));
-    const next_top = Math.min(y, Math.max(8, window.innerHeight - rect.height - 8));
+    const requested_left = options.align == 'right' ? x - rect.width : x;
+    const requested_top = options.vertical_align == 'top' ? y - rect.height : y;
+    const max_left = Math.max(8, window.innerWidth - rect.width - 8);
+    const max_top = Math.max(8, window.innerHeight - rect.height - 8);
+    const next_left = Math.max(8, Math.min(requested_left, max_left));
+    const next_top = Math.max(8, Math.min(requested_top, max_top));
     navigator_context_menu_elem.style.left = `${next_left}px`;
     navigator_context_menu_elem.style.top = `${next_top}px`;
 }
@@ -6957,7 +6972,7 @@ function openResultCopyMenu(anchor_rect, result) {
         return;
     }
 
-    showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
+    showNavigatorContextMenu(items, anchor_rect.right, anchor_rect.bottom + 4, { align: 'right' });
 }
 
 function attachResultCopyButton(elements, resultId) {
@@ -9722,8 +9737,30 @@ async function updateQueryHighlighting() {
     }
 }
 
-query_area.addEventListener('input', () => {
-    void updateQueryHighlighting();
+function scheduleQueryHighlighting(defer = false) {
+    if (query_highlight_timeout) {
+        clearTimeout(query_highlight_timeout);
+        query_highlight_timeout = null;
+    }
+
+    if (!defer) {
+        void updateQueryHighlighting();
+        return;
+    }
+
+    ++query_highlight_generation;
+    disableQueryBackdrop();
+    query_highlight_timeout = setTimeout(() => {
+        query_highlight_timeout = null;
+        void updateQueryHighlighting();
+    }, large_editor_highlight_delay_ms);
+}
+
+query_area.addEventListener('input', e => {
+    if (!suppress_programmatic_query_input) {
+        const inserted_text_length = typeof e.data == 'string' ? e.data.length : 0;
+        scheduleQueryHighlighting(inserted_text_length > large_editor_insert_threshold);
+    }
     refreshAutocompleteFromEditor();
 });
 
