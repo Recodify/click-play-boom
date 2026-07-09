@@ -1,5 +1,16 @@
 # Release Notes
 
+## client 2026.07.09.2
+
+- Added snippet collection export and import controls to the Snippets panel.
+- Imported snippet collections merge into the schema-versioned snippet store and generate fresh ids when imported records collide.
+
+## client 2026.07.09.1
+
+- Moved saved snippets and connections to schema-versioned v2 localStorage envelopes.
+- Added timestamp merge and tombstone handling so stale tabs do not overwrite newer snippet or connection-manager state.
+- Block saves when a newer localStorage schema is detected instead of overwriting future state.
+
 ## client 2026.07.08.4
 
 - Fixed result copy menu labels being ellipsized by forcing the shared context menu to size from its contents before viewport clamping.

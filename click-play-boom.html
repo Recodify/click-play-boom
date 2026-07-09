@@ -2782,7 +2782,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
-                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.08.4</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.09.2</span>
                     </div>
                 </div>
             </div>
@@ -2792,8 +2792,11 @@
                     <div class="navigator-heading-actions">
                         <button id="new-snippet-folder" class="navigator-icon-button" type="button" title="New folder">+</button>
                         <button id="save-query-snippet" class="navigator-icon-button" type="button" title="Save current query">▣</button>
+                        <button id="export-snippets" class="navigator-icon-button" type="button" title="Export snippets">⇩</button>
+                        <button id="import-snippets" class="navigator-icon-button" type="button" title="Import snippets">⇧</button>
                     </div>
                 </div>
+                <input id="import-snippets-file" type="file" accept="application/json,.json" hidden>
                 <div class="snippet-tools">
                     <input id="snippet-filter" class="snippets-filter" type="text" placeholder="filter snippets" spellcheck="false">
                     <div class="snippet-insertion-options">
@@ -3072,14 +3075,18 @@ let refresh_schema_elem = document.getElementById('refresh-schema');
 let new_connection_folder_elem = document.getElementById('new-connection-folder');
 let new_snippet_folder_elem = document.getElementById('new-snippet-folder');
 let save_query_snippet_elem = document.getElementById('save-query-snippet');
+let export_snippets_elem = document.getElementById('export-snippets');
+let import_snippets_elem = document.getElementById('import-snippets');
+let import_snippets_file_elem = document.getElementById('import-snippets-file');
 let toggle_editor_elem = document.getElementById('toggle-editor');
 let abort_preview_limit_elem = document.getElementById('abort-preview-limit');
 let databases_elem = document.getElementById('databases');
 let menu_elem = document.getElementById('menu');
 let sidebar_resizer_elem = document.getElementById('sidebar-resizer');
 
-const saved_connections_key = 'play-recodified.connections.v1';
-const active_connection_key = 'play-recodified.active-connection.v1';
+const storage_schema_version = 2;
+const saved_connections_key = 'play-recodified.connections.v2';
+const active_connection_key = 'play-recodified.active-connection.v2';
 const download_query_cache_key = 'play-reborn.download-query-cache.v1';
 const navigator_state_key = 'play-reborn.navigator-state.v1';
 const sidebar_collapsed_key = 'play-reborn.sidebar-collapsed.v1';
@@ -3088,7 +3095,7 @@ const abort_preview_limit_key = 'play-reborn.abort-preview-limit.v1';
 const sidebar_width_key = 'play-reborn.sidebar-width.v1';
 const query_editor_compact_key = 'play-reborn.query-editor-compact.v1';
 const sidebar_active_tab_key = 'play-reborn.sidebar-active-tab.v1';
-const query_snippets_key = 'play-reborn.query-snippets.v1';
+const query_snippets_key = 'play-reborn.query-snippets.v2';
 const snippet_insertion_mode_key = 'play-reborn.snippet-insertion-mode.v1';
 
 let action_history = [];
@@ -3249,83 +3256,216 @@ function createConnectionFolderId() {
 }
 
 function createConnection(name) {
+    const now = getStorageTimestamp();
     return {
         id: createConnectionId(),
         name: name || `Connection ${getSavedConnections().length + 1}`,
         url: url_elem.value || 'http://localhost:8123/',
         user: user_elem.value || 'default',
         password: password_elem.value || '',
-        folder_id: ''
+        folder_id: '',
+        updated_at: now,
+        deleted_at: ''
     };
 }
 
+function getStorageTimestamp() {
+    return new Date().toISOString();
+}
+
+function isDeletedStorageRecord(record) {
+    return !!record?.deleted_at;
+}
+
+function getStorageRecordRevision(record) {
+    return String(record?.deleted_at || record?.updated_at || '');
+}
+
+function mergeStorageRecords(persisted_records, local_records) {
+    const merged = new Map();
+
+    for (const record of persisted_records || []) {
+        if (record?.id) {
+            merged.set(record.id, { ...record });
+        }
+    }
+
+    for (const record of local_records || []) {
+        if (!record?.id) {
+            continue;
+        }
+
+        const existing = merged.get(record.id);
+        if (!existing) {
+            merged.set(record.id, { ...record });
+            continue;
+        }
+
+        if (existing.deleted_at && !record.deleted_at) {
+            continue;
+        }
+
+        if (record.deleted_at && !existing.deleted_at) {
+            merged.set(record.id, { ...record });
+            continue;
+        }
+
+        if (getStorageRecordRevision(record) >= getStorageRecordRevision(existing)) {
+            merged.set(record.id, { ...record });
+        }
+    }
+
+    return [...merged.values()];
+}
+
+function createVersionedStorageEnvelope(data) {
+    return {
+        schema_version: storage_schema_version,
+        updated_at: getStorageTimestamp(),
+        ...data
+    };
+}
+
+function readVersionedStorage(key, empty_store) {
+    try {
+        const raw_value = window.localStorage.getItem(key);
+        if (!raw_value) {
+            return { store: empty_store(), unsupported_schema: false };
+        }
+
+        const parsed = JSON.parse(raw_value);
+        const schema_version = Number(parsed?.schema_version || storage_schema_version);
+        if (schema_version > storage_schema_version) {
+            return {
+                store: empty_store(),
+                unsupported_schema: true,
+                schema_version
+            };
+        }
+
+        return { store: parsed, unsupported_schema: false };
+    } catch (e) {
+        return { store: empty_store(), unsupported_schema: false };
+    }
+}
+
+function alertUnsupportedStorageSchema(store_name, schema_version) {
+    alert(`${store_name} were saved by a newer Click Play Boom storage schema (${schema_version}). This version will not overwrite that data.`);
+}
+
 function normalizeConnectionStore(stored) {
+    const store_updated_at = String(stored?.updated_at || '');
     const raw_folders = stored && !Array.isArray(stored) && Array.isArray(stored.folders)
         ? stored.folders
         : [];
     const folders = [];
-    const folder_ids = new Set();
+    const active_folder_ids = new Set();
 
     for (const folder of raw_folders) {
-        if (!folder || !folder.id || !folder.name || folder_ids.has(String(folder.id))) {
+        if (!folder || !folder.id || !folder.name || folders.some(candidate => candidate.id == String(folder.id))) {
             continue;
         }
 
         const normalized_folder = {
             id: String(folder.id),
             name: String(folder.name),
-            expanded: folder.expanded !== false
+            expanded: folder.expanded !== false,
+            updated_at: String(folder.updated_at || folder.deleted_at || store_updated_at),
+            deleted_at: String(folder.deleted_at || '')
         };
         folders.push(normalized_folder);
-        folder_ids.add(normalized_folder.id);
+        if (!isDeletedStorageRecord(normalized_folder)) {
+            active_folder_ids.add(normalized_folder.id);
+        }
     }
 
     const raw_connections = Array.isArray(stored)
         ? stored
         : stored && Array.isArray(stored.connections) ? stored.connections : [];
-    const connections = raw_connections
-        .filter(connection => connection && connection.id)
-        .map(connection => {
-            const folder_id = String(connection.folder_id || '');
-            return {
-                ...connection,
-                id: String(connection.id),
-                name: String(connection.name || 'Connection'),
-                url: String(connection.url || 'http://localhost:8123/'),
-                user: String(connection.user || 'default'),
-                password: String(connection.password || ''),
-                folder_id: folder_ids.has(folder_id) ? folder_id : ''
-            };
-        });
+    const connections = [];
+    const connection_ids = new Set();
 
-    return { folders: folders, connections: connections };
+    for (const connection of raw_connections) {
+        if (!connection || !connection.id || connection_ids.has(String(connection.id))) {
+            continue;
+        }
+
+        const folder_id = String(connection.folder_id || '');
+        const normalized_connection = {
+            ...connection,
+            id: String(connection.id),
+            name: String(connection.name || 'Connection'),
+            url: String(connection.url || 'http://localhost:8123/'),
+            user: String(connection.user || 'default'),
+            password: String(connection.password || ''),
+            folder_id: active_folder_ids.has(folder_id) || isDeletedStorageRecord(connection) ? folder_id : '',
+            updated_at: String(connection.updated_at || connection.deleted_at || store_updated_at),
+            deleted_at: String(connection.deleted_at || '')
+        };
+        connections.push(normalized_connection);
+        connection_ids.add(normalized_connection.id);
+    }
+
+    return createVersionedStorageEnvelope({ folders: folders, connections: connections });
+}
+
+function emptyConnectionStore() {
+    return createVersionedStorageEnvelope({ folders: [], connections: [] });
 }
 
 function getSavedConnectionStore() {
-    try {
-        return normalizeConnectionStore(JSON.parse(window.localStorage.getItem(saved_connections_key) || '[]'));
-    } catch (e) {
-        return { folders: [], connections: [] };
+    const result = readVersionedStorage(saved_connections_key, emptyConnectionStore);
+    return normalizeConnectionStore(result.store);
+}
+
+function getPersistedConnectionStoreForSave() {
+    const result = readVersionedStorage(saved_connections_key, emptyConnectionStore);
+    if (result.unsupported_schema) {
+        alertUnsupportedStorageSchema('Saved connections', result.schema_version);
+        return null;
     }
+
+    return normalizeConnectionStore(result.store);
 }
 
 function saveConnectionStore(store) {
+    const latest_store = getPersistedConnectionStoreForSave();
+    if (!latest_store) {
+        return null;
+    }
+
     const normalized_store = normalizeConnectionStore(store);
-    window.localStorage.setItem(saved_connections_key, JSON.stringify(normalized_store));
+    const merged_store = createVersionedStorageEnvelope({
+        folders: mergeStorageRecords(latest_store.folders, normalized_store.folders),
+        connections: mergeStorageRecords(latest_store.connections, normalized_store.connections)
+    });
+
+    window.localStorage.setItem(saved_connections_key, JSON.stringify(merged_store));
+    return normalizeConnectionStore(merged_store);
 }
 
 function getSavedConnections() {
-    return getSavedConnectionStore().connections;
+    return getSavedConnectionStore().connections.filter(connection => !isDeletedStorageRecord(connection));
 }
 
 function getSavedConnectionFolders() {
-    return getSavedConnectionStore().folders;
+    return getSavedConnectionStore().folders.filter(folder => !isDeletedStorageRecord(folder));
 }
 
 function saveConnections(connections) {
     const store = getSavedConnectionStore();
-    store.connections = connections;
-    saveConnectionStore(store);
+    const now = getStorageTimestamp();
+    const connection_ids = new Set((connections || []).map(connection => String(connection?.id || '')));
+    store.connections = [
+        ...store.connections.filter(connection => isDeletedStorageRecord(connection) || !connection_ids.has(connection.id)),
+        ...(connections || []).filter(connection => connection?.id).map(connection => ({
+            ...connection,
+            updated_at: String(connection.updated_at || now),
+            deleted_at: String(connection.deleted_at || '')
+        }))
+    ];
+
+    return saveConnectionStore(store);
 }
 
 function findConnectionFolderByName(name) {
@@ -3342,22 +3482,29 @@ function getConnectionFolderConnections(folder_id) {
 }
 
 function createConnectionFolder(name, expanded = true) {
+    const now = getStorageTimestamp();
     const store = getSavedConnectionStore();
     const folder = {
         id: createConnectionFolderId(),
         name: name.trim(),
-        expanded: expanded
+        expanded: expanded,
+        updated_at: now,
+        deleted_at: ''
     };
     store.folders.push(folder);
-    saveConnectionStore(store);
+    if (!saveConnectionStore(store)) {
+        return null;
+    }
     return folder;
 }
 
 function setConnectionFolderExpanded(folder_id, expanded) {
     const store = getSavedConnectionStore();
+    const now = getStorageTimestamp();
     for (const folder of store.folders) {
-        if (folder.id == folder_id) {
+        if (!isDeletedStorageRecord(folder) && folder.id == folder_id) {
             folder.expanded = !!expanded;
+            folder.updated_at = now;
             break;
         }
     }
@@ -3381,14 +3528,16 @@ function createConnectionFolderFromPrompt() {
         return;
     }
 
-    createConnectionFolder(trimmed_name);
+    if (!createConnectionFolder(trimmed_name)) {
+        return;
+    }
     renderConnectionFolderOptions(connection_folder_select_elem.value);
     renderNavigatorTree();
 }
 
 function renameConnectionFolder(folder_id) {
     const store = getSavedConnectionStore();
-    const folder = store.folders.find(candidate => candidate.id == folder_id);
+    const folder = store.folders.find(candidate => !isDeletedStorageRecord(candidate) && candidate.id == folder_id);
     if (!folder) {
         return;
     }
@@ -3411,19 +3560,22 @@ function renameConnectionFolder(folder_id) {
     }
 
     folder.name = trimmed_name;
-    saveConnectionStore(store);
+    folder.updated_at = getStorageTimestamp();
+    if (!saveConnectionStore(store)) {
+        return;
+    }
     renderConnectionFolderOptions(connection_folder_select_elem.value);
     renderNavigatorTree();
 }
 
 function deleteConnectionFolder(folder_id) {
     const store = getSavedConnectionStore();
-    const folder = store.folders.find(candidate => candidate.id == folder_id);
+    const folder = store.folders.find(candidate => !isDeletedStorageRecord(candidate) && candidate.id == folder_id);
     if (!folder) {
         return;
     }
 
-    if (store.connections.some(connection => connection.folder_id == folder.id)) {
+    if (store.connections.some(connection => !isDeletedStorageRecord(connection) && connection.folder_id == folder.id)) {
         alert('Move or delete the connections in this folder first.');
         return;
     }
@@ -3432,20 +3584,26 @@ function deleteConnectionFolder(folder_id) {
         return;
     }
 
-    store.folders = store.folders.filter(candidate => candidate.id != folder.id);
-    saveConnectionStore(store);
+    const now = getStorageTimestamp();
+    folder.updated_at = now;
+    folder.deleted_at = now;
+    if (!saveConnectionStore(store)) {
+        return;
+    }
     renderConnectionFolderOptions(connection_folder_select_elem.value);
     renderNavigatorTree();
 }
 
 function moveConnectionToFolder(connection_id, folder_id) {
     const store = getSavedConnectionStore();
-    const target_folder_id = folder_id && store.folders.some(folder => folder.id == folder_id) ? folder_id : '';
+    const now = getStorageTimestamp();
+    const target_folder_id = folder_id && store.folders.some(folder => !isDeletedStorageRecord(folder) && folder.id == folder_id) ? folder_id : '';
     let moved_connection = null;
 
     for (const connection of store.connections) {
-        if (connection.id == connection_id) {
+        if (!isDeletedStorageRecord(connection) && connection.id == connection_id) {
             connection.folder_id = target_folder_id;
+            connection.updated_at = now;
             moved_connection = connection;
             break;
         }
@@ -3456,13 +3614,16 @@ function moveConnectionToFolder(connection_id, folder_id) {
     }
 
     if (target_folder_id) {
-        const folder = store.folders.find(candidate => candidate.id == target_folder_id);
+        const folder = store.folders.find(candidate => !isDeletedStorageRecord(candidate) && candidate.id == target_folder_id);
         if (folder) {
             folder.expanded = true;
+            folder.updated_at = now;
         }
     }
 
-    saveConnectionStore(store);
+    if (!saveConnectionStore(store)) {
+        return;
+    }
     if (current_connection_id == moved_connection.id) {
         updateNavigatorFooter(moved_connection);
         updateActiveConnectionBanner(moved_connection);
@@ -3517,71 +3678,340 @@ function createQuerySnippetId(prefix) {
 }
 
 function loadQuerySnippets() {
-    try {
-        const stored = JSON.parse(window.localStorage.getItem(query_snippets_key) || '{}');
-        const folders = Array.isArray(stored.folders) ? stored.folders : [];
-        const snippets = Array.isArray(stored.snippets) ? stored.snippets : [];
+    const result = readVersionedStorage(query_snippets_key, emptyQuerySnippetStore);
+    return normalizeQuerySnippetStore(result.store);
+}
 
-        return {
-            folders: folders
-                .filter(folder => folder && folder.id && folder.name)
-                .map(folder => ({
-                    id: String(folder.id),
-                    name: String(folder.name),
-                    expanded: folder.expanded !== false
-                })),
-            snippets: snippets
-                .filter(snippet => snippet && snippet.id && snippet.folder_id && snippet.name)
-                .map(snippet => ({
-                    id: String(snippet.id),
-                    folder_id: String(snippet.folder_id),
-                    name: String(snippet.name),
-                    query: String(snippet.query || ''),
-                    updated_at: String(snippet.updated_at || '')
-                }))
+function emptyQuerySnippetStore() {
+    return createVersionedStorageEnvelope({ folders: [], snippets: [] });
+}
+
+function normalizeQuerySnippetStore(stored) {
+    const store_updated_at = String(stored?.updated_at || '');
+    const raw_folders = stored && Array.isArray(stored.folders) ? stored.folders : [];
+    const folders = [];
+    const active_folder_ids = new Set();
+
+    for (const folder of raw_folders) {
+        if (!folder || !folder.id || !folder.name || folders.some(candidate => candidate.id == String(folder.id))) {
+            continue;
+        }
+
+        const normalized_folder = {
+            id: String(folder.id),
+            name: String(folder.name),
+            expanded: folder.expanded !== false,
+            updated_at: String(folder.updated_at || folder.deleted_at || store_updated_at),
+            deleted_at: String(folder.deleted_at || '')
         };
-    } catch (e) {
-        return { folders: [], snippets: [] };
+        folders.push(normalized_folder);
+        if (!isDeletedStorageRecord(normalized_folder)) {
+            active_folder_ids.add(normalized_folder.id);
+        }
     }
+
+    const raw_snippets = stored && Array.isArray(stored.snippets) ? stored.snippets : [];
+    const snippets = [];
+    const snippet_ids = new Set();
+
+    for (const snippet of raw_snippets) {
+        if (!snippet || !snippet.id || !snippet.folder_id || !snippet.name || snippet_ids.has(String(snippet.id))) {
+            continue;
+        }
+
+        const folder_id = String(snippet.folder_id);
+        if (!active_folder_ids.has(folder_id) && !isDeletedStorageRecord(snippet)) {
+            continue;
+        }
+
+        const normalized_snippet = {
+            id: String(snippet.id),
+            folder_id: folder_id,
+            name: String(snippet.name),
+            query: String(snippet.query || ''),
+            updated_at: String(snippet.updated_at || snippet.deleted_at || store_updated_at),
+            deleted_at: String(snippet.deleted_at || '')
+        };
+        snippets.push(normalized_snippet);
+        snippet_ids.add(normalized_snippet.id);
+    }
+
+    return createVersionedStorageEnvelope({ folders: folders, snippets: snippets });
 }
 
 function saveQuerySnippets() {
-    window.localStorage.setItem(query_snippets_key, JSON.stringify(query_snippets_state));
+    const latest_result = readVersionedStorage(query_snippets_key, emptyQuerySnippetStore);
+    if (latest_result.unsupported_schema) {
+        alertUnsupportedStorageSchema('Query snippets', latest_result.schema_version);
+        return false;
+    }
+
+    const latest_store = normalizeQuerySnippetStore(latest_result.store);
+    const local_store = normalizeQuerySnippetStore(query_snippets_state);
+    const merged_store = createVersionedStorageEnvelope({
+        folders: mergeStorageRecords(latest_store.folders, local_store.folders),
+        snippets: mergeStorageRecords(latest_store.snippets, local_store.snippets)
+    });
+
+    window.localStorage.setItem(query_snippets_key, JSON.stringify(merged_store));
+    query_snippets_state = normalizeQuerySnippetStore(merged_store);
+    return true;
+}
+
+function getVisibleSnippetFolders() {
+    return query_snippets_state.folders.filter(folder => !isDeletedStorageRecord(folder));
+}
+
+function getVisibleSnippets() {
+    return query_snippets_state.snippets.filter(snippet => !isDeletedStorageRecord(snippet));
 }
 
 function findSnippetFolderByName(name) {
     const normalized_name = name.trim().toLowerCase();
-    return query_snippets_state.folders.find(folder => folder.name.toLowerCase() == normalized_name) || null;
+    return getVisibleSnippetFolders().find(folder => folder.name.toLowerCase() == normalized_name) || null;
 }
 
 function createSnippetFolder(name, expanded = true) {
+    const now = getStorageTimestamp();
     const folder = {
         id: createQuerySnippetId('folder'),
         name: name.trim(),
-        expanded: expanded
+        expanded: expanded,
+        updated_at: now,
+        deleted_at: ''
     };
     query_snippets_state.folders.push(folder);
     return folder;
 }
 
 function ensureSnippetFolder(name = 'General') {
-    if (query_snippets_state.folders.length) {
-        return query_snippets_state.folders[0];
+    const visible_folders = getVisibleSnippetFolders();
+    if (visible_folders.length) {
+        return visible_folders[0];
     }
 
     return createSnippetFolder(name);
 }
 
 function getSnippetFolder(folder_id) {
-    return query_snippets_state.folders.find(folder => folder.id == folder_id) || null;
+    return getVisibleSnippetFolders().find(folder => folder.id == folder_id) || null;
 }
 
 function getSnippet(snippet_id) {
-    return query_snippets_state.snippets.find(snippet => snippet.id == snippet_id) || null;
+    return getVisibleSnippets().find(snippet => snippet.id == snippet_id) || null;
 }
 
 function getSnippetFolderSnippets(folder_id) {
-    return query_snippets_state.snippets.filter(snippet => snippet.folder_id == folder_id);
+    return getVisibleSnippets().filter(snippet => snippet.folder_id == folder_id);
+}
+
+function formatSnippetExportFilenameTimestamp(timestamp) {
+    return timestamp
+        .replace(/\.\d{3}Z$/, 'Z')
+        .replace(/:/g, '-');
+}
+
+function buildSnippetExportCollection() {
+    const folders = getVisibleSnippetFolders().map(folder => ({
+        id: folder.id,
+        name: folder.name,
+        expanded: folder.expanded !== false,
+        updated_at: folder.updated_at || ''
+    }));
+    const folder_ids = new Set(folders.map(folder => folder.id));
+    const snippets = getVisibleSnippets()
+        .filter(snippet => folder_ids.has(snippet.folder_id))
+        .map(snippet => ({
+            id: snippet.id,
+            folder_id: snippet.folder_id,
+            name: snippet.name,
+            query: snippet.query,
+            updated_at: snippet.updated_at || ''
+        }));
+
+    return {
+        collection_type: 'click-play-boom.query-snippets',
+        schema_version: storage_schema_version,
+        exported_at: getStorageTimestamp(),
+        folders: folders,
+        snippets: snippets
+    };
+}
+
+function exportSnippetCollection() {
+    const collection = buildSnippetExportCollection();
+    if (!collection.folders.length && !collection.snippets.length) {
+        alert('No snippets to export.');
+        return;
+    }
+
+    const filename = `click-play-boom-snippets-${formatSnippetExportFilenameTimestamp(collection.exported_at)}.json`;
+    downloadTextFile(filename, JSON.stringify(collection, null, 2), 'application/json;charset=utf-8');
+}
+
+function normalizeImportedStorageTimestamp(value, fallback) {
+    const parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString() : fallback;
+}
+
+function normalizeImportedSnippetCollection(raw_collection) {
+    if (!raw_collection || typeof raw_collection != 'object') {
+        return { folders: [], snippets: [] };
+    }
+
+    const raw_folders = Array.isArray(raw_collection.folders) ? raw_collection.folders : [];
+    const raw_snippets = Array.isArray(raw_collection.snippets) ? raw_collection.snippets : [];
+    const folders = [];
+    const source_folder_ids = new Set();
+
+    for (const folder of raw_folders) {
+        if (!folder || !folder.name) {
+            continue;
+        }
+
+        let source_id = String(folder.id || `folder-${folders.length + 1}`);
+        while (source_folder_ids.has(source_id)) {
+            source_id = `${source_id}-${folders.length + 1}`;
+        }
+
+        source_folder_ids.add(source_id);
+        folders.push({
+            source_id: source_id,
+            name: String(folder.name),
+            expanded: folder.expanded !== false,
+            updated_at: String(folder.updated_at || '')
+        });
+    }
+
+    const has_importable_snippets = raw_snippets.some(snippet => snippet && (snippet.name || snippet.query !== undefined));
+    if (!folders.length && has_importable_snippets) {
+        folders.push({
+            source_id: '__imported__',
+            name: 'Imported snippets',
+            expanded: true,
+            updated_at: ''
+        });
+    }
+
+    const fallback_folder_id = folders[0]?.source_id || '';
+    const snippets = [];
+    const source_snippet_ids = new Set();
+
+    for (const snippet of raw_snippets) {
+        if (!snippet || (!snippet.name && snippet.query === undefined)) {
+            continue;
+        }
+
+        let source_id = String(snippet.id || `snippet-${snippets.length + 1}`);
+        while (source_snippet_ids.has(source_id)) {
+            source_id = `${source_id}-${snippets.length + 1}`;
+        }
+
+        source_snippet_ids.add(source_id);
+        snippets.push({
+            source_id: source_id,
+            source_folder_id: String(snippet.folder_id || fallback_folder_id),
+            name: String(snippet.name || 'Imported snippet'),
+            query: String(snippet.query || ''),
+            updated_at: String(snippet.updated_at || '')
+        });
+    }
+
+    return { folders: folders, snippets: snippets };
+}
+
+function getAvailableSnippetRecordId(preferred_id, prefix, used_ids) {
+    let id = String(preferred_id || '');
+    if (!id || used_ids.has(id)) {
+        id = createQuerySnippetId(prefix);
+    }
+
+    while (used_ids.has(id)) {
+        id = createQuerySnippetId(prefix);
+    }
+
+    used_ids.add(id);
+    return id;
+}
+
+function importSnippetCollection(raw_collection) {
+    query_snippets_state = loadQuerySnippets();
+    const collection = normalizeImportedSnippetCollection(raw_collection);
+    if (!collection.folders.length && !collection.snippets.length) {
+        alert('No snippets found in that import file.');
+        return false;
+    }
+
+    const now = getStorageTimestamp();
+    const folder_ids = new Set(query_snippets_state.folders.map(folder => folder.id));
+    const snippet_ids = new Set(query_snippets_state.snippets.map(snippet => snippet.id));
+    const folder_id_map = new Map();
+    let imported_folder_count = 0;
+    let imported_snippet_count = 0;
+
+    for (const folder of collection.folders) {
+        const folder_id = getAvailableSnippetRecordId(folder.source_id, 'folder', folder_ids);
+        folder_id_map.set(folder.source_id, folder_id);
+        query_snippets_state.folders.push({
+            id: folder_id,
+            name: folder.name,
+            expanded: folder.expanded !== false,
+            updated_at: normalizeImportedStorageTimestamp(folder.updated_at, now),
+            deleted_at: ''
+        });
+        ++imported_folder_count;
+    }
+
+    const fallback_folder_id = query_snippets_state.folders
+        .filter(folder => !isDeletedStorageRecord(folder))
+        .at(-1)?.id || '';
+
+    for (const snippet of collection.snippets) {
+        const folder_id = folder_id_map.get(snippet.source_folder_id) || fallback_folder_id;
+        if (!folder_id) {
+            continue;
+        }
+
+        query_snippets_state.snippets.push({
+            id: getAvailableSnippetRecordId(snippet.source_id, 'snippet', snippet_ids),
+            folder_id: folder_id,
+            name: snippet.name,
+            query: snippet.query,
+            updated_at: normalizeImportedStorageTimestamp(snippet.updated_at, now),
+            deleted_at: ''
+        });
+        ++imported_snippet_count;
+    }
+
+    if (!imported_folder_count && !imported_snippet_count) {
+        alert('No snippets found in that import file.');
+        return false;
+    }
+
+    if (!saveQuerySnippets()) {
+        return false;
+    }
+
+    setSidebarTab('snippets');
+    renderSnippets();
+    alert(`Imported ${imported_snippet_count} snippet${imported_snippet_count == 1 ? '' : 's'} in ${imported_folder_count} folder${imported_folder_count == 1 ? '' : 's'}.`);
+    return true;
+}
+
+async function importSnippetCollectionFile(file) {
+    if (!file) {
+        return;
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(await file.text());
+    } catch (e) {
+        alert('That snippet import file is not valid JSON.');
+        return;
+    }
+
+    importSnippetCollection(parsed);
 }
 
 function setSidebarTab(tab_name, persist = true) {
@@ -3632,7 +4062,8 @@ async function copyTextToClipboard(text) {
 }
 
 function promptSnippetFolder(default_folder = null) {
-    const fallback_folder = default_folder || query_snippets_state.folders[0] || { name: 'General' };
+    const visible_folders = getVisibleSnippetFolders();
+    const fallback_folder = default_folder || visible_folders[0] || { name: 'General' };
     const folder_name = prompt('Folder name', fallback_folder.name);
     if (folder_name === null) {
         return null;
@@ -3640,7 +4071,7 @@ function promptSnippetFolder(default_folder = null) {
 
     const trimmed_name = folder_name.trim();
     if (!trimmed_name) {
-        return default_folder || query_snippets_state.folders[0] || createSnippetFolder('General');
+        return default_folder || visible_folders[0] || createSnippetFolder('General');
     }
 
     const existing_folder = findSnippetFolderByName(trimmed_name);
@@ -3675,15 +4106,20 @@ function saveCurrentQueryAsSnippet(default_folder = null) {
         return;
     }
 
+    const now = getStorageTimestamp();
     query_snippets_state.snippets.push({
         id: createQuerySnippetId('snippet'),
         folder_id: folder.id,
         name: trimmed_name,
         query: query,
-        updated_at: new Date().toISOString()
+        updated_at: now,
+        deleted_at: ''
     });
     folder.expanded = true;
-    saveQuerySnippets();
+    folder.updated_at = now;
+    if (!saveQuerySnippets()) {
+        return;
+    }
     setSidebarTab('snippets');
     renderSnippets();
 }
@@ -3706,7 +4142,9 @@ function createSnippetFolderFromPrompt() {
     }
 
     createSnippetFolder(trimmed_name);
-    saveQuerySnippets();
+    if (!saveQuerySnippets()) {
+        return;
+    }
     renderSnippets();
 }
 
@@ -3734,7 +4172,10 @@ function renameSnippetFolder(folder_id) {
     }
 
     folder.name = trimmed_name;
-    saveQuerySnippets();
+    folder.updated_at = getStorageTimestamp();
+    if (!saveQuerySnippets()) {
+        return;
+    }
     renderSnippets();
 }
 
@@ -3750,9 +4191,18 @@ function deleteSnippetFolder(folder_id) {
         return;
     }
 
-    query_snippets_state.folders = query_snippets_state.folders.filter(candidate => candidate.id != folder.id);
-    query_snippets_state.snippets = query_snippets_state.snippets.filter(snippet => snippet.folder_id != folder.id);
-    saveQuerySnippets();
+    const now = getStorageTimestamp();
+    folder.updated_at = now;
+    folder.deleted_at = now;
+    for (const snippet of query_snippets_state.snippets) {
+        if (!isDeletedStorageRecord(snippet) && snippet.folder_id == folder.id) {
+            snippet.updated_at = now;
+            snippet.deleted_at = now;
+        }
+    }
+    if (!saveQuerySnippets()) {
+        return;
+    }
     renderSnippets();
 }
 
@@ -3774,8 +4224,10 @@ function renameSnippet(snippet_id) {
     }
 
     snippet.name = trimmed_name;
-    snippet.updated_at = new Date().toISOString();
-    saveQuerySnippets();
+    snippet.updated_at = getStorageTimestamp();
+    if (!saveQuerySnippets()) {
+        return;
+    }
     renderSnippets();
 }
 
@@ -3791,8 +4243,10 @@ function updateSnippetFromEditor(snippet_id) {
     }
 
     snippet.query = query_area.value;
-    snippet.updated_at = new Date().toISOString();
-    saveQuerySnippets();
+    snippet.updated_at = getStorageTimestamp();
+    if (!saveQuerySnippets()) {
+        return;
+    }
     renderSnippets();
 }
 
@@ -3806,8 +4260,12 @@ function deleteSnippet(snippet_id) {
         return;
     }
 
-    query_snippets_state.snippets = query_snippets_state.snippets.filter(candidate => candidate.id != snippet.id);
-    saveQuerySnippets();
+    const now = getStorageTimestamp();
+    snippet.updated_at = now;
+    snippet.deleted_at = now;
+    if (!saveQuerySnippets()) {
+        return;
+    }
     renderSnippets();
 }
 
@@ -5451,39 +5909,95 @@ function showNavigatorContextMenu(items, x, y, options = {}) {
 }
 
 function deleteConnectionById(connection_id) {
-    let connections = getSavedConnections();
+    const store = getSavedConnectionStore();
+    const connections = store.connections.filter(connection => !isDeletedStorageRecord(connection));
     if (connections.length <= 1) {
         return;
     }
 
-    connections = connections.filter(connection => connection.id != connection_id);
-    saveConnections(connections);
+    const connection = store.connections.find(candidate => !isDeletedStorageRecord(candidate) && candidate.id == connection_id);
+    if (!connection) {
+        return;
+    }
+
+    const now = getStorageTimestamp();
+    connection.updated_at = now;
+    connection.deleted_at = now;
+    const saved_store = saveConnectionStore(store);
+    if (!saved_store) {
+        return;
+    }
+
+    const visible_connections = saved_store.connections.filter(candidate => !isDeletedStorageRecord(candidate));
 
     if (current_connection_id == connection_id) {
         closeConnectionEditor();
-        applyConnection(connections[0]);
+        applyConnection(visible_connections[0]);
     } else {
         renderNavigatorTree();
     }
 }
 
 function saveConnectionRecord(nextConnection) {
-    let connections = getSavedConnections();
+    const store = getSavedConnectionStore();
+    const now = getStorageTimestamp();
     let updated = false;
-    connections = connections.map(connection => {
+    let deleted_elsewhere = false;
+
+    const target_folder_id = nextConnection.folder_id
+        && store.folders.some(folder => !isDeletedStorageRecord(folder) && folder.id == nextConnection.folder_id)
+        ? nextConnection.folder_id
+        : '';
+    const normalized_connection = {
+        ...nextConnection,
+        id: String(nextConnection.id || createConnectionId()),
+        name: String(nextConnection.name || `Connection ${getSavedConnections().length + 1}`),
+        url: String(nextConnection.url || 'http://localhost:8123/'),
+        user: String(nextConnection.user || 'default'),
+        password: String(nextConnection.password || ''),
+        folder_id: target_folder_id,
+        updated_at: now,
+        deleted_at: ''
+    };
+
+    store.connections = store.connections.map(connection => {
         if (connection.id == nextConnection.id) {
+            if (isDeletedStorageRecord(connection)) {
+                alert('That connection was deleted in another tab. Create a new connection instead.');
+                updated = true;
+                deleted_elsewhere = true;
+                return connection;
+            }
             updated = true;
-            return nextConnection;
+            return normalized_connection;
         }
         return connection;
     });
 
     if (!updated) {
-        connections.push(nextConnection);
+        store.connections.push(normalized_connection);
     }
 
-    saveConnections(connections);
-    applyConnection(nextConnection);
+    if (deleted_elsewhere) {
+        renderNavigatorTree();
+        return false;
+    }
+
+    const saved_store = saveConnectionStore(store);
+    if (!saved_store) {
+        return false;
+    }
+
+    const saved_connection = saved_store.connections.find(connection =>
+        !isDeletedStorageRecord(connection) && connection.id == normalized_connection.id);
+    if (!saved_connection) {
+        alert('That connection was changed by another tab and was not saved.');
+        renderNavigatorTree();
+        return false;
+    }
+
+    applyConnection(saved_connection);
+    return true;
 }
 
 function updateNavigatorFooter(connection = null) {
@@ -5542,8 +6056,9 @@ function saveConnectionEditor() {
         folder_id: connection_folder_select_elem.value
     };
 
-    saveConnectionRecord(next_connection);
-    closeConnectionEditor();
+    if (saveConnectionRecord(next_connection)) {
+        closeConnectionEditor();
+    }
 }
 
 function openConnectionMenu(connection, anchor_rect) {
@@ -5755,7 +6270,10 @@ function toggleSnippetFolder(folder_id) {
     }
 
     folder.expanded = !folder.expanded;
-    saveQuerySnippets();
+    folder.updated_at = getStorageTimestamp();
+    if (!saveQuerySnippets()) {
+        return;
+    }
     renderSnippets();
 }
 
@@ -5769,16 +6287,17 @@ function snippetMatchesFilter(snippet, filter) {
 
 function renderSnippets() {
     const filter = snippet_filter_elem.value.trim().toLowerCase();
+    const visible_folders = getVisibleSnippetFolders();
     hideNavigatorContextMenu();
     snippets_browser_elem.innerHTML = '';
 
-    if (!query_snippets_state.folders.length) {
+    if (!visible_folders.length) {
         snippets_browser_empty_elem.style.display = 'block';
         snippets_browser_empty_elem.innerText = filter ? 'No snippets matched the current filter.' : 'No saved snippets.';
         return;
     }
 
-    for (const folder of query_snippets_state.folders) {
+    for (const folder of visible_folders) {
         const folder_snippets = getSnippetFolderSnippets(folder.id);
         const folder_matches = filter && folder.name.toLowerCase().includes(filter);
         const visible_snippets = folder_matches
@@ -6317,8 +6836,8 @@ function createConnectionFolderNavigatorNode(folder, connections, filter) {
 
 function renderNavigatorTree() {
     const store = getSavedConnectionStore();
-    const connections = store.connections;
-    const folders = store.folders;
+    const connections = store.connections.filter(connection => !isDeletedStorageRecord(connection));
+    const folders = store.folders.filter(folder => !isDeletedStorageRecord(folder));
     const filter = schema_filter_elem.value.trim().toLowerCase();
     hideNavigatorContextMenu();
     schema_browser_elem.innerHTML = '';
@@ -6518,7 +7037,7 @@ function saveCurrentConnection(newConnection) {
         folder_id: current_connection.folder_id || ''
     };
 
-    saveConnectionRecord(nextConnection);
+    return saveConnectionRecord(nextConnection);
 }
 
 function loadConnections() {
@@ -6526,12 +7045,58 @@ function loadConnections() {
     if (!connections.length) {
         const defaultConnection = createConnection('Localhost');
         connections = [defaultConnection];
-        saveConnections(connections);
+        const saved_store = saveConnections(connections);
+        if (saved_store) {
+            connections = saved_store.connections.filter(connection => !isDeletedStorageRecord(connection));
+        }
     }
 
     const storedActiveConnectionId = window.localStorage.getItem(active_connection_key);
     const activeConnection = connections.find(connection => connection.id == storedActiveConnectionId) || connections[0];
     applyConnection(activeConnection);
+}
+
+function handleSavedConnectionsChanged() {
+    const connections = getSavedConnections();
+    renderConnectionFolderOptions(connection_folder_select_elem.value);
+
+    if (!connections.length) {
+        closeConnectionEditor();
+        current_connection_id = null;
+        current_connection_name = 'default';
+        updateNavigatorFooter();
+        updateActiveConnectionBanner();
+        resetSchemaBrowser('No schema loaded.');
+        return;
+    }
+
+    const active_connection = connections.find(connection => connection.id == current_connection_id);
+    if (!active_connection) {
+        applyConnection(connections[0]);
+        return;
+    }
+
+    current_connection_name = active_connection.name || 'Connection';
+    updateNavigatorFooter(active_connection);
+    updateActiveConnectionBanner(active_connection);
+    renderNavigatorTree();
+}
+
+function handleQuerySnippetsChanged() {
+    query_snippets_state = loadQuerySnippets();
+    renderSnippets();
+}
+
+function handleLocalStorageChanged(e) {
+    if (e.storageArea != window.localStorage) {
+        return;
+    }
+
+    if (e.key == query_snippets_key) {
+        handleQuerySnippetsChanged();
+    } else if (e.key == saved_connections_key) {
+        handleSavedConnectionsChanged();
+    }
 }
 
 function scrollResultsToTop() {
@@ -9854,6 +10419,22 @@ save_query_snippet_elem.addEventListener('click', () => {
     saveCurrentQueryAsSnippet();
 });
 
+export_snippets_elem.addEventListener('click', () => {
+    exportSnippetCollection();
+});
+
+import_snippets_elem.addEventListener('click', () => {
+    import_snippets_file_elem.click();
+});
+
+import_snippets_file_elem.addEventListener('change', async () => {
+    try {
+        await importSnippetCollectionFile(import_snippets_file_elem.files?.[0]);
+    } finally {
+        import_snippets_file_elem.value = '';
+    }
+});
+
 document.getElementById('clear-history').addEventListener('click', () => {
     action_history = [];
     renderActionHistory();
@@ -9898,6 +10479,7 @@ document.addEventListener('keydown', e => {
         closeConnectionEditor();
     }
 });
+window.addEventListener('storage', handleLocalStorageChanged);
 
 setSidebarCollapsed(window.localStorage.getItem(sidebar_collapsed_key) === '1', false);
 loadConnections();
