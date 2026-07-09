@@ -391,6 +391,16 @@
             cursor: pointer;
         }
 
+        .navigator-icon-button svg,
+        .snippet-folder-action svg,
+        .snippet-row-action svg
+        {
+            width: 1rem;
+            height: 1rem;
+            stroke: currentColor;
+            flex: 0 0 auto;
+        }
+
         .navigator-refresh
         {
             font-size: 1.05rem;
@@ -2782,7 +2792,7 @@
                     <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
                     <div class="navigator-footer-status">
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
-                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.09.2</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.09.3</span>
                     </div>
                 </div>
             </div>
@@ -2790,10 +2800,37 @@
                 <div class="navigator-heading">
                     <div class="menu-section-title">Snippets</div>
                     <div class="navigator-heading-actions">
-                        <button id="new-snippet-folder" class="navigator-icon-button" type="button" title="New folder">+</button>
-                        <button id="save-query-snippet" class="navigator-icon-button" type="button" title="Save current query">▣</button>
-                        <button id="export-snippets" class="navigator-icon-button" type="button" title="Export snippets">⇩</button>
-                        <button id="import-snippets" class="navigator-icon-button" type="button" title="Import snippets">⇧</button>
+                        <button id="new-snippet-folder" class="navigator-icon-button" type="button" title="New folder" aria-label="New folder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"></path>
+                                <path d="M3 7v10a2 2 0 0 0 2 2h7"></path>
+                                <path d="M18 14v6"></path>
+                                <path d="M15 17h6"></path>
+                            </svg>
+                        </button>
+                        <button id="save-query-snippet" class="navigator-icon-button" type="button" title="Save current query" aria-label="Save current query">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </button>
+                        <button id="export-snippets" class="navigator-icon-button" type="button" title="Export snippets" aria-label="Export snippets">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3v12"></path>
+                                <path d="M7 10l5 5 5-5"></path>
+                                <path d="M5 21h14"></path>
+                                <path d="M5 17v4"></path>
+                                <path d="M19 17v4"></path>
+                            </svg>
+                        </button>
+                        <button id="import-snippets" class="navigator-icon-button" type="button" title="Import snippets" aria-label="Import snippets">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 15V3"></path>
+                                <path d="M7 8l5-5 5 5"></path>
+                                <path d="M5 21h14"></path>
+                                <path d="M5 17v4"></path>
+                                <path d="M19 17v4"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 <input id="import-snippets-file" type="file" accept="application/json,.json" hidden>
@@ -3692,7 +3729,7 @@ function normalizeQuerySnippetStore(stored) {
     const folders = [];
     const active_folder_ids = new Set();
 
-    for (const folder of raw_folders) {
+    for (const [folder_index, folder] of raw_folders.entries()) {
         if (!folder || !folder.id || !folder.name || folders.some(candidate => candidate.id == String(folder.id))) {
             continue;
         }
@@ -3701,6 +3738,7 @@ function normalizeQuerySnippetStore(stored) {
             id: String(folder.id),
             name: String(folder.name),
             expanded: folder.expanded !== false,
+            order: getSnippetRecordOrder(folder, folder_index),
             updated_at: String(folder.updated_at || folder.deleted_at || store_updated_at),
             deleted_at: String(folder.deleted_at || '')
         };
@@ -3714,7 +3752,7 @@ function normalizeQuerySnippetStore(stored) {
     const snippets = [];
     const snippet_ids = new Set();
 
-    for (const snippet of raw_snippets) {
+    for (const [snippet_index, snippet] of raw_snippets.entries()) {
         if (!snippet || !snippet.id || !snippet.folder_id || !snippet.name || snippet_ids.has(String(snippet.id))) {
             continue;
         }
@@ -3729,6 +3767,7 @@ function normalizeQuerySnippetStore(stored) {
             folder_id: folder_id,
             name: String(snippet.name),
             query: String(snippet.query || ''),
+            order: getSnippetRecordOrder(snippet, snippet_index),
             updated_at: String(snippet.updated_at || snippet.deleted_at || store_updated_at),
             deleted_at: String(snippet.deleted_at || '')
         };
@@ -3758,12 +3797,38 @@ function saveQuerySnippets() {
     return true;
 }
 
+function getSnippetRecordOrder(record, fallback_order) {
+    const order = Number(record?.order);
+    return Number.isFinite(order) ? order : fallback_order;
+}
+
+function sortSnippetRecordsByOrder(records) {
+    return records
+        .map((record, index) => ({ record: record, index: index }))
+        .sort((a, b) => {
+            const order_delta = getSnippetRecordOrder(a.record, a.index) - getSnippetRecordOrder(b.record, b.index);
+            if (order_delta != 0) {
+                return order_delta;
+            }
+            return a.index - b.index;
+        })
+        .map(entry => entry.record);
+}
+
+function getNextSnippetOrder(records) {
+    if (!records.length) {
+        return 0;
+    }
+
+    return Math.max(...records.map((record, index) => getSnippetRecordOrder(record, index))) + 1;
+}
+
 function getVisibleSnippetFolders() {
-    return query_snippets_state.folders.filter(folder => !isDeletedStorageRecord(folder));
+    return sortSnippetRecordsByOrder(query_snippets_state.folders.filter(folder => !isDeletedStorageRecord(folder)));
 }
 
 function getVisibleSnippets() {
-    return query_snippets_state.snippets.filter(snippet => !isDeletedStorageRecord(snippet));
+    return sortSnippetRecordsByOrder(query_snippets_state.snippets.filter(snippet => !isDeletedStorageRecord(snippet)));
 }
 
 function findSnippetFolderByName(name) {
@@ -3777,6 +3842,7 @@ function createSnippetFolder(name, expanded = true) {
         id: createQuerySnippetId('folder'),
         name: name.trim(),
         expanded: expanded,
+        order: getNextSnippetOrder(getVisibleSnippetFolders()),
         updated_at: now,
         deleted_at: ''
     };
@@ -3805,6 +3871,29 @@ function getSnippetFolderSnippets(folder_id) {
     return getVisibleSnippets().filter(snippet => snippet.folder_id == folder_id);
 }
 
+function createSnippetIcon(icon_name) {
+    const path_data_by_icon = {
+        bookmark: [
+            'M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z'
+        ]
+    };
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+
+    for (const path_data of path_data_by_icon[icon_name] || []) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', path_data);
+        svg.appendChild(path);
+    }
+
+    return svg;
+}
+
 function formatSnippetExportFilenameTimestamp(timestamp) {
     return timestamp
         .replace(/\.\d{3}Z$/, 'Z')
@@ -3816,6 +3905,7 @@ function buildSnippetExportCollection() {
         id: folder.id,
         name: folder.name,
         expanded: folder.expanded !== false,
+        order: folder.order,
         updated_at: folder.updated_at || ''
     }));
     const folder_ids = new Set(folders.map(folder => folder.id));
@@ -3826,6 +3916,7 @@ function buildSnippetExportCollection() {
             folder_id: snippet.folder_id,
             name: snippet.name,
             query: snippet.query,
+            order: snippet.order,
             updated_at: snippet.updated_at || ''
         }));
 
@@ -3879,6 +3970,7 @@ function normalizeImportedSnippetCollection(raw_collection) {
             source_id: source_id,
             name: String(folder.name),
             expanded: folder.expanded !== false,
+            order: getSnippetRecordOrder(folder, folders.length),
             updated_at: String(folder.updated_at || '')
         });
     }
@@ -3913,11 +4005,15 @@ function normalizeImportedSnippetCollection(raw_collection) {
             source_folder_id: String(snippet.folder_id || fallback_folder_id),
             name: String(snippet.name || 'Imported snippet'),
             query: String(snippet.query || ''),
+            order: getSnippetRecordOrder(snippet, snippets.length),
             updated_at: String(snippet.updated_at || '')
         });
     }
 
-    return { folders: folders, snippets: snippets };
+    return {
+        folders: sortSnippetRecordsByOrder(folders),
+        snippets: sortSnippetRecordsByOrder(snippets)
+    };
 }
 
 function getAvailableSnippetRecordId(preferred_id, prefix, used_ids) {
@@ -3948,6 +4044,7 @@ function importSnippetCollection(raw_collection) {
     const folder_id_map = new Map();
     let imported_folder_count = 0;
     let imported_snippet_count = 0;
+    let next_folder_order = getNextSnippetOrder(getVisibleSnippetFolders());
 
     for (const folder of collection.folders) {
         const folder_id = getAvailableSnippetRecordId(folder.source_id, 'folder', folder_ids);
@@ -3956,6 +4053,7 @@ function importSnippetCollection(raw_collection) {
             id: folder_id,
             name: folder.name,
             expanded: folder.expanded !== false,
+            order: next_folder_order++,
             updated_at: normalizeImportedStorageTimestamp(folder.updated_at, now),
             deleted_at: ''
         });
@@ -3965,6 +4063,7 @@ function importSnippetCollection(raw_collection) {
     const fallback_folder_id = query_snippets_state.folders
         .filter(folder => !isDeletedStorageRecord(folder))
         .at(-1)?.id || '';
+    const next_snippet_order_by_folder = new Map();
 
     for (const snippet of collection.snippets) {
         const folder_id = folder_id_map.get(snippet.source_folder_id) || fallback_folder_id;
@@ -3972,11 +4071,18 @@ function importSnippetCollection(raw_collection) {
             continue;
         }
 
+        if (!next_snippet_order_by_folder.has(folder_id)) {
+            next_snippet_order_by_folder.set(folder_id, getNextSnippetOrder(getSnippetFolderSnippets(folder_id)));
+        }
+        const snippet_order = next_snippet_order_by_folder.get(folder_id);
+        next_snippet_order_by_folder.set(folder_id, snippet_order + 1);
+
         query_snippets_state.snippets.push({
             id: getAvailableSnippetRecordId(snippet.source_id, 'snippet', snippet_ids),
             folder_id: folder_id,
             name: snippet.name,
             query: snippet.query,
+            order: snippet_order,
             updated_at: normalizeImportedStorageTimestamp(snippet.updated_at, now),
             deleted_at: ''
         });
@@ -4112,6 +4218,7 @@ function saveCurrentQueryAsSnippet(default_folder = null) {
         folder_id: folder.id,
         name: trimmed_name,
         query: query,
+        order: getNextSnippetOrder(getSnippetFolderSnippets(folder.id)),
         updated_at: now,
         deleted_at: ''
     });
@@ -4263,6 +4370,75 @@ function deleteSnippet(snippet_id) {
     const now = getStorageTimestamp();
     snippet.updated_at = now;
     snippet.deleted_at = now;
+    if (!saveQuerySnippets()) {
+        return;
+    }
+    renderSnippets();
+}
+
+function swapSnippetRecordOrder(records, index, target_index) {
+    if (index < 0 || target_index < 0 || index >= records.length || target_index >= records.length) {
+        return false;
+    }
+
+    const now = getStorageTimestamp();
+    const record = records[index];
+    const target_record = records[target_index];
+    const record_order = getSnippetRecordOrder(record, index);
+    const target_order = getSnippetRecordOrder(target_record, target_index);
+    record.order = target_order;
+    target_record.order = record_order;
+    record.updated_at = now;
+    target_record.updated_at = now;
+    return true;
+}
+
+function getSnippetFolderMoveState(folder_id) {
+    const folders = getVisibleSnippetFolders();
+    const index = folders.findIndex(folder => folder.id == folder_id);
+    return {
+        index: index,
+        can_move_up: index > 0,
+        can_move_down: index >= 0 && index < folders.length - 1
+    };
+}
+
+function moveSnippetFolder(folder_id, direction) {
+    const folders = getVisibleSnippetFolders();
+    const index = folders.findIndex(folder => folder.id == folder_id);
+    if (!swapSnippetRecordOrder(folders, index, index + direction)) {
+        return;
+    }
+
+    if (!saveQuerySnippets()) {
+        return;
+    }
+    renderSnippets();
+}
+
+function getSnippetMoveState(snippet_id) {
+    const snippet = getSnippet(snippet_id);
+    const snippets = snippet ? getSnippetFolderSnippets(snippet.folder_id) : [];
+    const index = snippets.findIndex(candidate => candidate.id == snippet_id);
+    return {
+        index: index,
+        can_move_up: index > 0,
+        can_move_down: index >= 0 && index < snippets.length - 1
+    };
+}
+
+function moveSnippet(snippet_id, direction) {
+    const snippet = getSnippet(snippet_id);
+    if (!snippet) {
+        return;
+    }
+
+    const snippets = getSnippetFolderSnippets(snippet.folder_id);
+    const index = snippets.findIndex(candidate => candidate.id == snippet_id);
+    if (!swapSnippetRecordOrder(snippets, index, index + direction)) {
+        return;
+    }
+
     if (!saveQuerySnippets()) {
         return;
     }
@@ -6205,11 +6381,24 @@ function openColumnMenu(anchor_rect, database, table, column) {
 }
 
 function openSnippetFolderMenu(folder, anchor_rect) {
+    const move_state = getSnippetFolderMoveState(folder.id);
     const items = [
         {
-            icon: '+',
+            icon: '▱',
             label: 'Save current query here',
             onClick: () => saveCurrentQueryAsSnippet(folder)
+        },
+        {
+            icon: '↑',
+            label: 'Move folder up',
+            disabled: !move_state.can_move_up,
+            onClick: () => moveSnippetFolder(folder.id, -1)
+        },
+        {
+            icon: '↓',
+            label: 'Move folder down',
+            disabled: !move_state.can_move_down,
+            onClick: () => moveSnippetFolder(folder.id, 1)
         },
         {
             icon: '✎',
@@ -6227,6 +6416,7 @@ function openSnippetFolderMenu(folder, anchor_rect) {
 }
 
 function openSnippetMenu(snippet, anchor_rect) {
+    const move_state = getSnippetMoveState(snippet.id);
     const items = [
         {
             icon: '+',
@@ -6247,6 +6437,18 @@ function openSnippetMenu(snippet, anchor_rect) {
             icon: '▣',
             label: 'Update from editor',
             onClick: () => updateSnippetFromEditor(snippet.id)
+        },
+        {
+            icon: '↑',
+            label: 'Move snippet up',
+            disabled: !move_state.can_move_up,
+            onClick: () => moveSnippet(snippet.id, -1)
+        },
+        {
+            icon: '↓',
+            label: 'Move snippet down',
+            disabled: !move_state.can_move_down,
+            onClick: () => moveSnippet(snippet.id, 1)
         },
         {
             icon: '✎',
@@ -6344,8 +6546,9 @@ function renderSnippets() {
         const save_here_button = document.createElement('button');
         save_here_button.type = 'button';
         save_here_button.className = 'snippet-folder-action';
-        save_here_button.innerText = '+';
         save_here_button.title = 'Save current query here';
+        save_here_button.setAttribute('aria-label', 'Save current query here');
+        save_here_button.appendChild(createSnippetIcon('bookmark'));
         save_here_button.addEventListener('click', e => {
             e.stopPropagation();
             saveCurrentQueryAsSnippet(folder);
