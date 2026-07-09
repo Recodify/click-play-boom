@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "node tools/build-single-file.mjs --write",
+    "build:check": "node tools/build-single-file.mjs --check"
+  }
+}

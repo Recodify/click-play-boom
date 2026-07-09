@@ -1,0 +1,126 @@
+        :root {
+            --background-color-rotate: 215;
+            --background-color: oklch(96% 0.0296 var(--background-color-rotate));
+            --element-background-color: #FFF;
+            --query-editor-background-color: var(--element-background-color);
+            --query-editor-text-color: var(--text-color);
+            --query-editor-font-size: 11pt;
+            --query-editor-line-height: 1.35;
+            --query-editor-padding: 0.25rem;
+            --element-color-ok: #080;
+            --element-color-fail: #C00;
+            --element-background-color-fail: #FEE;
+            --bar-color: #FF8; /* Light bar in background of table cells. */
+            --bar-color-negative: #FEE;
+            --border-color: #CCC;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --button-color: #FF0;
+            --text-color: #000;
+            --text-color-active: #000;
+            --button-active-color: #FE0;
+            --button-active-text-color: #000;
+            --copy-success-background-color: var(--button-color);
+            --copy-success-text-color: var(--button-text-color);
+            --misc-text-color: #888;
+            --error-color: #FEE; /* Light-pink on light-cyan is so neat, I even want to trigger errors to see this cool combination of colors. */
+            --table-header-color: #EEE;
+            --table-hover-filter: brightness(0.9);
+            --link-color: #06D;
+            --logo-color: #FFF;
+            --logo-opacity: 0.55;
+            --border-color-selected: #F80;
+            --menu-toggle-color: #000;
+
+            --progress-color: #0C4;
+            --progress: 0%;
+
+            --selection-color: #FFF;
+            --selection-background-color: #456;
+
+            --navigator-panel-background: #FFF;
+            --navigator-panel-border: #CCC;
+            --navigator-card-background: #FFF;
+            --navigator-card-border: #D7DFE5;
+            --navigator-card-header: #F4F7F9;
+            --navigator-card-header-active: #EDF4FF;
+            --navigator-text-color: #182225;
+            --navigator-muted-color: #5F6B76;
+            --navigator-link-hover-color: #0B57D0;
+
+            --syntax-default: var(--query-editor-text-color);
+            --syntax-keyword: var(--text-color-active);
+            --syntax-identifier: #00838F;
+            --syntax-function: #875F00;
+            --syntax-number: #008700;
+            --syntax-string: #006400;
+            --syntax-qident: #008B8B;
+            --syntax-comment: #757575;
+            --syntax-operator: var(--text-color-active);
+            --syntax-error: #B71C1C;
+
+            --result-color-rotate: var(--background-color-rotate);
+            --result-header-color: oklch(92% 0.0296 var(--result-color-rotate));
+            --result-tab-accent-color: oklch(62% 0.12 var(--result-color-rotate));
+            --result-tab-background-color: color-mix(in srgb, var(--table-header-color) 86%, var(--result-tab-accent-color));
+        }
+
+        [data-theme="dark"] {
+            --background-color-rotate: 250;
+            --background-color: oklch(15% 0.0296 var(--background-color-rotate));
+            --element-background-color: oklch(10% 0.0296 var(--background-color-rotate));
+            --query-editor-background-color: oklch(25% 0.0296 var(--background-color-rotate));
+            --query-editor-text-color: #E6EDF3;
+            --element-color-ok: #8F8;
+            --element-color-fail: #F66;
+            --element-background-color-fail: #300;
+            --bar-color: #320;
+            --bar-color-negative: #311;
+            --border-color: #444;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --text-color: #CCC;
+            --text-color-active: #FFF;
+            --button-color: rgb(250 255 105);
+            --button-text-color: #000;
+            --button-active-color: #FE0;
+            --button-active-text-color: #000;
+            --copy-success-background-color: var(--button-color);
+            --copy-success-text-color: var(--button-text-color);
+            --misc-text-color: #888;
+            --error-color: #400;
+            --table-header-color: oklch(15% 0.0296 var(--background-color-rotate));
+            --table-hover-filter: contrast(0.9) brightness(2);
+            --link-color: #4BDAF7;
+            --logo-color: #444;
+            --logo-opacity: 1;
+            --border-color-selected: #FF0;
+            --menu-toggle-color: #FF0;
+
+            --progress-color: #FF0;
+
+            --selection-color: #000;
+            --selection-background-color: #FF8;
+
+            --navigator-panel-background: oklch(15% 0.0296 var(--background-color-rotate));;
+            --navigator-panel-border: #344247;
+            --navigator-card-background: oklch(20% 0.0296 var(--background-color-rotate));
+            --navigator-card-border: #253138;
+            --navigator-card-header: oklch(17% 0.0296 var(--background-color-rotate));
+            --navigator-card-header-active: oklch(17% 0.0296 var(--background-color-rotate));;
+            --navigator-text-color: #E2EBEF;
+            --navigator-muted-color: #9AACB5;
+            --navigator-link-hover-color: #84C7FF;
+
+            --syntax-keyword: var(--text-color-active);
+            --syntax-identifier: #00CDCD;
+            --syntax-function: #CDCD00;
+            --syntax-number: #00D700;
+            --syntax-string: #00CD00;
+            --syntax-qident: #00D7D7;
+            --syntax-comment: #9E9E9E;
+            --syntax-operator: var(--text-color-active);
+            --syntax-error: #FF6E40;
+
+            --result-header-color: oklch(15% 0.0296 var(--result-color-rotate));
+            --result-tab-accent-color: oklch(70% 0.12 var(--result-color-rotate));
+            --result-tab-background-color: color-mix(in srgb, var(--table-header-color) 84%, var(--result-tab-accent-color));
+        }
