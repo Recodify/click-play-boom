@@ -1,5 +1,11 @@
 # Release Notes
 
+## client 2026.07.09.3
+
+- Replaced ambiguous snippet toolbar glyphs with clearer folder, bookmark, import, and export icons.
+- Added snippet folder and snippet move up/down actions with persisted ordering.
+- Preserved snippet ordering through collection export and import.
+
 ## client 2026.07.09.2
 
 - Added snippet collection export and import controls to the Snippets panel.
