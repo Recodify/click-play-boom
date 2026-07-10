@@ -1,5 +1,10 @@
 # Release Notes
 
+## client 2026.07.09.6
+
+- Added a repo-managed pre-commit hook that regenerates and stages `click-play-boom.html` automatically during local commits.
+- Added `npm run hooks:install` and documented the one-time setup for the generated artifact workflow.
+
 ## client 2026.07.09.5
 
 - Added a GitHub Actions build check so stale generated `click-play-boom.html` output fails CI.

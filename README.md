@@ -53,6 +53,12 @@ Edit files under `src/`, then regenerate the artifact:
 npm run build
 ```
 
+Install the repo-managed pre-commit hook once to regenerate and stage the artifact automatically during local commits:
+
+```bash
+npm run hooks:install
+```
+
 Check that the committed artifact is fresh:
 
 ```bash
@@ -160,6 +166,7 @@ This keeps deployment simple: replace or serve the HTML file wherever you want t
 Useful development checks:
 
 ```bash
+npm run hooks:install
 npm run build
 npm run build:check
 node --check tools/build-single-file.mjs
