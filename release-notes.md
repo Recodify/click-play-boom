@@ -1,5 +1,15 @@
 # Release Notes
 
+## client 2026.07.10.15
+
+- Made Schema database filtering a compact multiselect dropdown.
+- Made Schema search/database filters re-layout the visible graph with more generous spacing.
+
+## client 2026.07.10.14
+
+- Added a native Schema workspace that ports the ClickHouse core schema visualizer into the SPA using the active connection credentials.
+- Added Schema tab/URL state, an Open schema connection-menu action, graph search/filter controls, details panel, zoom, and load heat-map controls.
+
 ## client 2026.07.10.13
 
 - Changed Dashboard reload to a compact icon action and added more spacing around toolbar dividers.

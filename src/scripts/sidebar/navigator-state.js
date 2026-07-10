@@ -264,6 +264,14 @@ function openConnectionDashboard(connection) {
     openDashboardForConnection(connection);
 }
 
+function openConnectionSchema(connection) {
+    if (!connection || !(connection.url || '').trim()) {
+        return;
+    }
+
+    openSchemaForConnection(connection);
+}
+
 function buildSelectStatement(database, table, columns) {
     if (!columns.length) {
         return `SELECT * FROM ${database}.${table} LIMIT 100;`;

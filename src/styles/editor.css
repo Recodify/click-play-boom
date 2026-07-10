@@ -320,17 +320,22 @@
 
         body.workspace-dashboard #query_div,
         body.workspace-dashboard #run_div,
-        body.workspace-dashboard #results_workspace
+        body.workspace-dashboard #results_workspace,
+        body.workspace-schema #query_div,
+        body.workspace-schema #run_div,
+        body.workspace-schema #results_workspace
         {
             display: none;
         }
 
-        body.workspace-query #dashboard_workspace
+        body.workspace-query #dashboard_workspace,
+        body.workspace-query #schema_workspace
         {
             display: none;
         }
 
-        body.workspace-dashboard #controls
+        body.workspace-dashboard #controls,
+        body.workspace-schema #controls
         {
             margin-bottom: 0;
         }

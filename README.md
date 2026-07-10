@@ -112,7 +112,7 @@ The left navigator stores connections locally and lazy-loads schema information 
 - Use the filter box to search connections and loaded schema.
 - Use database/table context menus and column double-clicks to insert names into the editor.
 - Use table context menus to generate SQL into the editor.
-- Use the connection context menu to edit/delete a connection or open the native Dashboard workspace for that server.
+- Use the connection context menu to edit/delete a connection or open the native Dashboard or Schema workspace for that server.
 
 Connection details are stored in browser local storage, including passwords. Treat this as a local development convenience, not a secure secret store.
 

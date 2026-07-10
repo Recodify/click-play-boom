@@ -50,10 +50,26 @@ function queryResponse(response) {
   ].join('\n'));
 }
 
+function compactResponse(response, names, types, rows) {
+  response.writeHead(200, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/x-ndjson',
+  });
+  response.end([
+    JSON.stringify(names),
+    JSON.stringify(types),
+    ...rows.map(row => JSON.stringify(row)),
+    '',
+  ].join('\n'));
+}
+
 async function startFakeClickHouse() {
   const submissions = [];
   const dashboardRequests = [];
   const dashboardChartRequests = [];
+  const schemaRequests = [];
   const waiters = [];
 
   function notifyWaiters() {
@@ -144,6 +160,118 @@ async function startFakeClickHouse() {
       return;
     }
 
+    if (body.includes('FROM system.tables') && body.includes('engine_full')) {
+      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
+      schemaRequests.push({
+        body,
+        user: requestUrl.searchParams.get('user') || '',
+        password: requestUrl.searchParams.get('password') || '',
+      });
+      compactResponse(response, [
+        'database',
+        'name',
+        'engine',
+        'engine_full',
+        'create_table_query',
+        'sorting_key',
+        'primary_key',
+        'partition_key',
+        'sampling_key',
+        'total_rows',
+        'total_bytes',
+        'comment',
+        'target_database',
+        'target_table',
+        'dependents',
+        'depends_on',
+      ], [
+        'String',
+        'String',
+        'String',
+        'String',
+        'String',
+        'String',
+        'String',
+        'String',
+        'String',
+        'UInt64',
+        'UInt64',
+        'String',
+        'String',
+        'String',
+        'Array(String)',
+        'Array(String)',
+      ], [
+        ['analytics', 'raw_events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE analytics.raw_events (id UInt64) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 5, 256, '', '', '', [], []],
+        ['default', 'events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE default.events (id UInt64, name String) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 2, 128, '', '', '', ['default.events_mv'], []],
+        ['default', 'events_mv', 'MaterializedView', 'MaterializedView', 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT count() FROM default.events', '', '', '', '', 0, 0, '', 'default', 'events_summary', ['default.events_summary'], ['default.events']],
+        ['default', 'events_summary', 'AggregatingMergeTree', 'AggregatingMergeTree ORDER BY tuple()', 'CREATE TABLE default.events_summary (c UInt64) ENGINE = AggregatingMergeTree ORDER BY tuple()', '', '', '', '', 1, 64, '', '', '', [], []],
+      ]);
+      return;
+    }
+
+    if (body.includes('FROM system.columns') && body.includes('is_in_primary_key')) {
+      compactResponse(response, [
+        'database',
+        'table',
+        'name',
+        'type',
+        'is_key',
+        'has_default',
+      ], [
+        'String',
+        'String',
+        'String',
+        'String',
+        'UInt8',
+        'UInt8',
+      ], [
+        ['analytics', 'raw_events', 'id', 'UInt64', 1, 0],
+        ['default', 'events', 'id', 'UInt64', 1, 0],
+        ['default', 'events', 'name', 'String', 0, 0],
+        ['default', 'events_mv', 'c', 'UInt64', 0, 0],
+        ['default', 'events_summary', 'c', 'UInt64', 0, 0],
+      ]);
+      return;
+    }
+
+    if (body.includes('FROM system.dictionaries')) {
+      compactResponse(response, ['database', 'name', 'source'], ['String', 'String', 'String'], []);
+      return;
+    }
+
+    if (body.includes('FROM system.view_refreshes')) {
+      compactResponse(response, ['database', 'view', 'status', 'last_success_time', 'next_refresh_time', 'exception'], ['String', 'String', 'String', 'String', 'String', 'String'], []);
+      return;
+    }
+
+    if (body.includes('FROM system.query_views_log')) {
+      compactResponse(response, [
+        'view_name',
+        'view_target',
+        'executions',
+        'total_duration_ms',
+        'read_rows',
+        'read_bytes',
+        'written_rows',
+        'written_bytes',
+        'peak_memory_usage',
+      ], [
+        'String',
+        'String',
+        'UInt64',
+        'UInt64',
+        'UInt64',
+        'UInt64',
+        'UInt64',
+        'UInt64',
+        'UInt64',
+      ], [
+        ['default.events_mv', 'default.events_summary', 3, 42, 20, 200, 2, 64, 1024],
+      ]);
+      return;
+    }
+
     if (isProbeQuery(body)) {
       jsonResponse(response, { data: [] });
       return;
@@ -162,6 +290,7 @@ async function startFakeClickHouse() {
     submissions,
     dashboardRequests,
     dashboardChartRequests,
+    schemaRequests,
     waitForSubmissions(count) {
       if (submissions.length >= count) {
         return Promise.resolve(submissions.slice());
@@ -368,6 +497,41 @@ test.describe('query submission safety', () => {
     await page.reload();
     await expect(page.locator('#dashboard_workspace')).toBeVisible();
     await expect.poll(() => fakeClickHouse.dashboardRequests.some(request =>
+      request.user == 'default' && request.password == 'secret'
+    )).toBe(true);
+  });
+
+  test('schema workspace loads with active connection credentials', async ({ page }) => {
+    await page.evaluate(() => window.localStorage.clear());
+    await openAppWithPassword(page, fakeClickHouse.url, 'secret');
+
+    await page.locator('#app-view-schema').click();
+
+    await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('schema');
+    await expect(page.locator('#schema_workspace')).toBeVisible();
+    await expect(page.locator('#query_div')).toBeHidden();
+    await expect(page.locator('.schema-node[data-key="default.events"]')).toBeVisible();
+    await expect(page.locator('.schema-arrow')).toHaveCount(2);
+    await expect(page.locator('#schema-status')).toContainText('Loaded 4 tables');
+    await page.locator('#schema-db-filter-button').click();
+    await page.getByLabel('analytics (1)').check();
+    await expect(page.locator('#schema-db-filter-button')).toHaveText('analytics');
+    await expect(page.locator('.schema-node[data-key="analytics.raw_events"]')).toBeVisible();
+    await expect(page.locator('.schema-node[data-key="default.events"]')).toHaveCount(0);
+    await page.getByLabel('All databases').check();
+    await expect(page.locator('#schema-db-filter-button')).toHaveText('All databases');
+    await page.locator('#schema-search').fill('summary');
+    await expect(page.locator('.schema-node[data-key="default.events_summary"]')).toBeVisible();
+    await expect(page.locator('.schema-node[data-key="default.events"]')).toHaveCount(0);
+    await page.locator('#schema-search').fill('');
+    await expect(page.locator('.schema-node[data-key="default.events"]')).toBeVisible();
+    await page.locator('.schema-node[data-key="default.events"]').click();
+    await expect(page.locator('#schema-sidebar')).toHaveClass(/open/);
+    await expect(page.locator('#schema-sidebar-title')).toContainText('default.events');
+    await page.reload();
+    await expect(page.locator('#schema_workspace')).toBeVisible();
+    await expect(page.locator('.schema-node').filter({ hasText: 'events_summary' }).first()).toBeVisible();
+    await expect.poll(() => fakeClickHouse.schemaRequests.some(request =>
       request.user == 'default' && request.password == 'secret'
     )).toBe(true);
   });

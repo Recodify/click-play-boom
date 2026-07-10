@@ -272,6 +272,12 @@ function openConnectionMenu(connection, anchor_rect) {
             onClick: () => openConnectionDashboard(connection)
         },
         {
+            icon: '⌘',
+            label: 'Open schema',
+            disabled: !can_open_dashboard,
+            onClick: () => openConnectionSchema(connection)
+        },
+        {
             icon: '⇱',
             label: 'Move to top level',
             disabled: !(connection.folder_id || ''),
@@ -1246,6 +1252,7 @@ function applyConnection(connection) {
     checkURL();
     loadDatabases(connection.url, connection.user, connection.password);
     handleDashboardConnectionChanged(connection);
+    handleSchemaConnectionChanged(connection);
 }
 
 function saveCurrentConnection(newConnection) {
