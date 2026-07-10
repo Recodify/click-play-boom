@@ -1,0 +1,104 @@
+        ::selection {
+            color: var(--selection-color);
+            background-color: var(--selection-background-color);
+        }
+
+        *
+        {
+            box-sizing: border-box;
+            /* For iPad */
+            margin: 0;
+            border-radius: 0;
+            tab-size: 4;
+        }
+
+        html, body
+        {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            scrollbar-color: var(--border-color) var(--element-background-color);
+        }
+
+        html
+        {
+            /* The fonts that have full support for hinting. */
+            font-family: Roboto Mono, Liberation Sans, DejaVu Sans, sans-serif, Noto Color Emoji, Apple Color Emoji, Segoe UI Emoji;
+            background: var(--background-color);
+            color: var(--text-color);
+        }
+
+        body
+        {
+            position: relative;
+            display: grid;
+            grid-template-columns: var(--sidebar-width, 21rem) minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr);
+            grid-template-areas: "menu main";
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        body.sidebar-collapsed
+        {
+            grid-template-columns: 2.75rem 1fr;
+        }
+
+        #menu
+        {
+            padding: 0.25rem;
+            grid-area: menu;
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+            background: var(--table-header-color);
+            border-right: 1px solid var(--border-color);
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas: "databases-icon" "contents" "github-icon";
+        }
+
+        body.sidebar-collapsed #databases,
+        body.sidebar-collapsed #github-icon,
+        body.sidebar-collapsed #sidebar-resizer
+        {
+            display: none;
+        }
+
+        body.sidebar-resizing
+        {
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        #main
+        {
+            overflow: hidden;
+            grid-area: main;
+            padding: 0.5rem;
+            position: relative; /* for stacking context */
+            min-width: 0;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 0.75rem;
+        }
+
+        .menu-icon
+        {
+            width: 2.25em;
+            cursor: pointer;
+            user-select: none;
+            fill: var(--menu-toggle-color);
+        }
+
+        .menu-icon:hover
+        {
+            transform: translate(1px, 1px);
+        }
+
+        #databases-icon
+        {
+            grid-area: databases-icon;
+        }

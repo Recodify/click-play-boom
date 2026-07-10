@@ -1,5 +1,20 @@
 # Release Notes
 
+## client 2026.07.09.6
+
+- Added a repo-managed pre-commit hook that regenerates and stages `click-play-boom.html` automatically during local commits.
+- Added `npm run hooks:install` and documented the one-time setup for the generated artifact workflow.
+
+## client 2026.07.09.5
+
+- Added a GitHub Actions build check so stale generated `click-play-boom.html` output fails CI.
+- Marked `click-play-boom.html` as generated and documented the source-versus-artifact workflow in the README.
+
+## client 2026.07.09.4
+
+- Split the development source into `src/` HTML, CSS, script, template, and asset files while keeping `click-play-boom.html` as the generated single-file artifact.
+- Added a Node-based single-file build/check tool with `npm run build` and `npm run build:check`.
+
 ## client 2026.07.09.3
 
 - Replaced ambiguous snippet toolbar glyphs with clearer folder, bookmark, import, and export icons.

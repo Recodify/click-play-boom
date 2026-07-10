@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<!-- saved from url=(0026)http://localhost:8123/play -->
+<!-- build:generated-notice -->
+<html data-theme="dark"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <link rel="icon" href="__FAVICON_DATA_URL__">
+    <title>ClickHouse Query</title>
+
+    <!-- Code Style:
+
+    Do not use any JavaScript or CSS frameworks or preprocessors.
+    This HTML page should not require any build systems (node.js, npm, gulp, etc.)
+    This HTML page should not be minified, instead it should be reasonably minimalistic by itself.
+    This HTML page should not load any external resources on load.
+    (CSS and JavaScript must be embedded directly to the page. No external fonts or images should be loaded).
+    This UI should look as lightweight, clean and fast as possible.
+    All UI elements must be aligned in pixel-perfect way.
+    There should not be any animations except the progress bar.
+    No unexpected changes in positions of elements while the page is loading.
+    Navigation by keyboard should work.
+    64-bit numbers must display correctly.
+
+    -->
+
+    <!-- Development Roadmap:
+
+    1. Support readonly servers.
+    Check if readonly = 1 (with SELECT FROM system.settings) to avoid sending settings. It can be done once on address/credentials change.
+    It can be done in background, e.g. wait 100 ms after address/credentials change and do the check.
+    Also, it can provide visual indication that credentials are correct.
+
+    Nice to have:
+    - display totals
+    - show/hide the editor
+    - check for readonly
+    - query caching
+    - downloads in any format
+    - history navigation
+    - short links by saving in a special table
+    - sharing by creating a short-living user
+    - notebook mode
+
+    -->
+
+    <!-- build:styles -->
+</head>
+
+<body>
+    <div id="menu">
+        <div id="databases-icon" class="menu-icon">
+            <svg id="databases-toggle" viewBox="0 0 9 9"><path d="M0,0 h1 v8 h-1 z"></path><path d="M2,0 h1 v8 h-1 z"></path><path d="M4,0 h1 v8 h-1 z"></path><path d="M6,0 h1 v8 h-1 z"></path><path d="M8,3.25 h1 v1.5 h-1 z"></path></svg>
+        </div>
+        <div id="databases">
+            <div class="sidebar-tabs">
+                <button id="sidebar-tab-navigator" class="sidebar-tab active" type="button" data-sidebar-tab="navigator">Navigator</button>
+                <button id="sidebar-tab-snippets" class="sidebar-tab" type="button" data-sidebar-tab="snippets">Snippets</button>
+                <button id="sidebar-tab-history" class="sidebar-tab" type="button" data-sidebar-tab="history">History</button>
+            </div>
+            <div id="navigator-panel" class="sidebar-panel active" data-sidebar-panel="navigator">
+                <div class="navigator-heading">
+                    <div class="menu-section-title">Navigator</div>
+                    <div class="navigator-heading-actions">
+                        <button id="new-connection" class="navigator-icon-button" type="button" title="New connection">+</button>
+                        <button id="new-connection-folder" class="navigator-icon-button" type="button" title="New folder">▤</button>
+                        <button id="refresh-schema" class="navigator-icon-button navigator-refresh" type="button" title="Refresh schema">↻</button>
+                    </div>
+                </div>
+                <div id="connection-editor" class="connection-editor">
+                    <div id="connection-editor-title" class="connection-editor-title">Edit connection</div>
+                    <div class="connection-editor-grid">
+                        <input id="connection-name" class="connection-editor-full" type="text" placeholder="Connection name" spellcheck="false">
+                        <input id="connection-url" class="connection-editor-full monospace" type="url" placeholder="http://localhost:8123/" spellcheck="false">
+                        <input id="connection-user" class="monospace" type="text" placeholder="default" spellcheck="false">
+                        <input id="connection-password" class="monospace" type="password" placeholder="password">
+                        <select id="connection-folder" class="connection-editor-full" title="Connection folder" aria-label="Connection folder"></select>
+                    </div>
+                    <div class="connection-editor-actions">
+                        <button id="connection-editor-save" type="button">Save</button>
+                        <button id="connection-editor-cancel" type="button">Cancel</button>
+                    </div>
+                </div>
+                <input id="schema-filter" type="text" placeholder="filter connections or schema" spellcheck="false">
+                <div class="navigator-options">
+                    <label class="navigator-setting" title="Show table engines and column types">
+                        <input id="navigator-show-types" type="checkbox">
+                        <span>Show types</span>
+                    </label>
+                    <label class="navigator-setting" title="Preserve upstream play behavior: abort the ClickHouse query once the preview row/cell limit is reached">
+                        <input id="abort-preview-limit" type="checkbox">
+                        <span>Abort at preview limit</span>
+                    </label>
+                </div>
+                <div id="schema-browser-empty">Loading navigator...</div>
+                <div id="schema-browser"></div>
+                <div class="navigator-footer">
+                    <div id="navigator-footer-primary" class="navigator-footer-primary">No active connection</div>
+                    <div class="navigator-footer-status">
+                        <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection status unavailable</span>●</span>
+                        <span id="client-version" class="client-version" title="Client UI version">client 2026.07.09.6</span>
+                    </div>
+                </div>
+            </div>
+            <div id="snippets-panel" class="sidebar-panel" data-sidebar-panel="snippets">
+                <div class="navigator-heading">
+                    <div class="menu-section-title">Snippets</div>
+                    <div class="navigator-heading-actions">
+                        <button id="new-snippet-folder" class="navigator-icon-button" type="button" title="New folder" aria-label="New folder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"></path>
+                                <path d="M3 7v10a2 2 0 0 0 2 2h7"></path>
+                                <path d="M18 14v6"></path>
+                                <path d="M15 17h6"></path>
+                            </svg>
+                        </button>
+                        <button id="save-query-snippet" class="navigator-icon-button" type="button" title="Save current query" aria-label="Save current query">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </button>
+                        <button id="export-snippets" class="navigator-icon-button" type="button" title="Export snippets" aria-label="Export snippets">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3v12"></path>
+                                <path d="M7 10l5 5 5-5"></path>
+                                <path d="M5 21h14"></path>
+                                <path d="M5 17v4"></path>
+                                <path d="M19 17v4"></path>
+                            </svg>
+                        </button>
+                        <button id="import-snippets" class="navigator-icon-button" type="button" title="Import snippets" aria-label="Import snippets">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 15V3"></path>
+                                <path d="M7 8l5-5 5 5"></path>
+                                <path d="M5 21h14"></path>
+                                <path d="M5 17v4"></path>
+                                <path d="M19 17v4"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <input id="import-snippets-file" type="file" accept="application/json,.json" hidden>
+                <div class="snippet-tools">
+                    <input id="snippet-filter" class="snippets-filter" type="text" placeholder="filter snippets" spellcheck="false">
+                    <div class="snippet-insertion-options">
+                        <label class="snippet-insertion-label" for="snippet-insertion-mode">Insert mode</label>
+                        <select id="snippet-insertion-mode" class="snippet-insertion-select">
+                            <option value="append">Append</option>
+                            <option value="insert">Insert</option>
+                            <option value="overwrite">Replace</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="snippets-browser-empty">No saved snippets.</div>
+                <div id="snippets-browser"></div>
+            </div>
+            <div id="history-panel" class="sidebar-panel" data-sidebar-panel="history">
+                <div class="navigator-heading">
+                    <div class="menu-section-title">History</div>
+                    <div class="navigator-heading-actions">
+                        <button id="clear-history" class="navigator-icon-button" type="button" title="Clear history">×</button>
+                    </div>
+                </div>
+                <div id="action_history">
+                    <div id="action-history-empty">No actions yet.</div>
+                    <div id="action_body"></div>
+                </div>
+            </div>
+            <div id="navigator-context-menu" class="navigator-context-menu"></div>
+        </div>
+        <div id="sidebar-resizer" aria-hidden="true"></div>
+        <!-- https://github.com/logos -->
+        <div id="github-icon" class="menu-icon">
+            <!-- <a href="https://github.com/ClickHouse/ClickHouse/">
+                <svg id="github-icon-light" viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="#24292f"></path></svg>
+                <svg id="github-icon-dark" viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" fill="#fff"></path></svg>
+            </a> -->
+        </div>
+    </div>
+    <div id="main">
+        <form id="controls">
+            <div id="inputs" hidden>
+                <input name="url" spellcheck="false" class="monospace shadow" id="url" type="url" value="" placeholder="url">
+                <input name="user" spellcheck="false" class="monospace shadow" id="user" type="text" value="default" placeholder="user">
+                <input name="password" class="monospace shadow" id="password" type="password" placeholder="password">
+            </div>
+            <div id="active-connection-banner" class="active-connection-banner" role="status" aria-live="polite">
+                <div class="active-connection-label">Active connection</div>
+                <div class="active-connection-summary">
+                    <div id="active-connection-name" class="active-connection-name">No active connection</div>
+                    <div id="active-connection-meta" class="active-connection-meta">Select a connection in the navigator to run queries.</div>
+                </div>
+                <div id="theme"><span id="toggle-dark" title="Switch to dark theme">🌘</span><span id="toggle-light" title="Switch to light theme">☀️</span></div>
+            </div>
+            <div id="query_div"><div id="query-backdrop"></div><textarea autofocus="" spellcheck="false" autocorrect="false" autocomplete="false" data-gramm="false" class="monospace shadow" id="query" aria-autocomplete="list" aria-controls="autocomplete-menu"></textarea><div id="autocomplete-menu" role="listbox" aria-label="Schema autocomplete"></div><button type="button" id="toggle-editor" title="Compact query editor" aria-label="Compact query editor" aria-pressed="false">▴</button><div class="textarea-resizer"></div></div>
+            <div id="run_div">
+                <button type="submit" class="shadow" id="run" title="Run all (Ctrl/Cmd+Enter)" aria-label="Run all (Ctrl/Cmd+Enter)">Run</button>
+                <div id="hourglass">⧗</div>
+                <div id="progress"></div>
+                <div id="stats"></div>
+            </div>
+        </form>
+        <div id="results_workspace">
+            <div id="results_header" hidden>
+                <div id="results_tabs"></div>
+            </div>
+            <div id="results_panels"></div>
+            <p id="logo-container">
+                <a href="https://clickhouse.com/">
+            <!-- build:clickhouse-logo -->
+                </a>
+            </p>
+        </div>
+        <div id="download-dropdown">
+            <div>
+                <div class="download-option">
+                    <label for="download-filename">Download as:</label>
+                    <input type="text" id="download-filename" spellcheck="false">
+                </div>
+                <div class="download-option">
+                    <label for="download-format">Format:</label>
+                    <select id="download-format">
+                        <optgroup label="Common">
+                            <option value="CSVWithNames" selected="">CSV (with headers)</option>
+                            <option value="TSVWithNames">TSV (with headers)</option>
+                            <option value="JSON">JSON</option>
+                            <option value="Parquet">Parquet</option>
+                            <option value="Markdown">Markdown</option>
+                        </optgroup>
+                        <optgroup label="Additional">
+                            <option value="CSV">CSV</option>
+                            <option value="TSV">TSV</option>
+                            <option value="CSVWithNamesAndTypes">CSVWithNamesAndTypes</option>
+                            <option value="TSVWithNamesAndTypes">TSVWithNamesAndTypes</option>
+                            <option value="JSONEachRow">JSONEachRow</option>
+                            <option value="JSONCompact">JSONCompact</option>
+                            <option value="JSONCompactEachRow">JSONCompactEachRow</option>
+                            <option value="JSONStringsEachRow">JSONStringsEachRow</option>
+                            <option value="Pretty">Pretty</option>
+                            <option value="PrettyCompact">PrettyCompact</option>
+                            <option value="Vertical">Vertical</option>
+                            <option value="Values">Values</option>
+                            <option value="TSKV">TSKV</option>
+                            <option value="XML">XML</option>
+                            <option value="YAML">YAML</option>
+                            <option value="SQLInsert">SQLInsert</option>
+                            <option value="Native">Native</option>
+                            <option value="RowBinary">RowBinary</option>
+                            <option value="Arrow">Arrow</option>
+                            <option value="ArrowStream">ArrowStream</option>
+                            <option value="Avro">Avro</option>
+                            <option value="ORC">ORC</option>
+                            <option value="Protobuf">Protobuf</option>
+                            <option value="CapnProto">CapnProto</option>
+                            <option value="BSON">BSON</option>
+                            <option value="MsgPack">MsgPack</option>
+                            <option value="RawBLOB">RawBLOB</option>
+                        </optgroup>
+                        <option value="other">Other...</option>
+                    </select>
+                </div>
+                <input type="text" id="download-format-other" placeholder="Enter format name (e.g., CustomSeparated)">
+                <div class="download-section-title">Result Reuse</div>
+                <div class="download-option checkbox">
+                    <label for="download-use-cache">
+                        <input type="checkbox" id="download-use-cache">
+                        <span>
+                            Reuse cached result for download/copy
+                            <span class="download-option-help">Uses query cache so downloads and copy-as actions can reuse the preview result instead of rerunning the query.</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+            <button id="download-button">Download</button>
+        </div>
+        <!-- build:result-panel-template -->
+    </div>
+
+
+<!-- build:scripts -->
+
+</body></html>

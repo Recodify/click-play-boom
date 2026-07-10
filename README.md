@@ -6,8 +6,9 @@
 
 A rework of the ClickHouse Play page that keeps the same lightweight shape:
 
-- one self-contained HTML file
-- no build step, no framework
+- one self-contained deployable HTML file
+- split source files for development
+- no framework or runtime package dependencies
 - no external resources loaded on startup.
 
 The rework focuses on making the browser UI useful for real query work rather than only one-off single-statement experiments.
@@ -42,9 +43,27 @@ The rework focuses on making the browser UI useful for real query work rather th
 
 ## Files
 
-- [`click-play-boom.html`](./click-play-boom.html) is the app.
+- [`click-play-boom.html`](./click-play-boom.html) is the generated, committed app artifact. Open or deploy this file.
+- [`src/`](./src/) contains the editable source HTML, CSS, JavaScript, templates, and embedded assets.
+- [`tools/build-single-file.mjs`](./tools/build-single-file.mjs) assembles the source files into the root HTML artifact.
 
-There is intentionally no package manifest, build pipeline, or generated asset directory.
+Edit files under `src/`, then regenerate the artifact:
+
+```bash
+npm run build
+```
+
+Install the repo-managed pre-commit hook once to regenerate and stage the artifact automatically during local commits:
+
+```bash
+npm run hooks:install
+```
+
+Check that the committed artifact is fresh:
+
+```bash
+npm run build:check
+```
 
 ## Usage
 
@@ -133,15 +152,26 @@ The app stores preferences and local data in `localStorage`, including:
 
 ## Development
 
-The project follows the original ClickHouse Play constraint of being a standalone HTML document:
+The project keeps the original ClickHouse Play deployment constraint of being a standalone HTML document:
 
-- CSS is embedded in the page.
-- JavaScript is embedded in the page.
+- CSS is authored under `src/styles/` and embedded into the generated page.
+- JavaScript is authored under `src/scripts/` and embedded into the generated page.
+- Templates and assets are authored under `src/templates/` and `src/assets/`.
 - No npm install is required.
 - No bundler is required.
 - No external scripts, fonts, or images are loaded during startup.
 
 This keeps deployment simple: replace or serve the HTML file wherever you want the query UI to live.
+
+Useful development checks:
+
+```bash
+npm run hooks:install
+npm run build
+npm run build:check
+node --check tools/build-single-file.mjs
+find src/scripts -name '*.js' -print0 | xargs -0 -n1 node --check
+```
 
 ## Lineage
 

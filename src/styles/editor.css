@@ -1,0 +1,505 @@
+        #controls
+        {
+            min-width: 0;
+            position: relative;
+            z-index: 20;
+        }
+
+        .active-connection-banner
+        {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 0.35rem 0.75rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--navigator-card-border);
+            background: var(--navigator-card-header-active);
+        }
+
+        .active-connection-label
+        {
+            color: var(--misc-text-color);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .active-connection-summary
+        {
+            min-width: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem 0.18rem;
+            align-items: baseline;
+        }
+
+        .active-connection-name
+        {
+            flex: 0 1 auto;
+            min-width: 0;
+            font-size: 0.98rem;
+            font-weight: 700;
+        }
+
+        .active-connection-meta
+        {
+            flex: 0 1 auto;
+            min-width: 0;
+            color: var(--misc-text-color);
+            font-family: inherit;
+            font-size: 0.84rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Otherwise Webkit based browsers will display ugly border on focus. */
+        textarea, input, button
+        {
+            outline: none;
+            border: none;
+            color: var(--text-color);
+        }
+
+        .monospace
+        {
+            /* Prefer fonts that have full hinting info. This is important for non-retina displays.
+               Also I personally dislike "Ubuntu" font due to the similarity of 'r' and 'г' (it looks very ignorant). */
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+        }
+
+        .shadow
+        {
+            box-shadow: 0 0 1rem var(--shadow-color);
+        }
+
+        input, textarea
+        {
+            border: 1px solid var(--border-color);
+            /* The font must be not too small (to be inclusive) and not too large (it's less practical and make general feel of insecurity) */
+            font-size: var(--query-editor-font-size);
+            padding: var(--query-editor-padding);
+            background-color: var(--element-background-color);
+        }
+
+        input:focus, textarea:focus
+        {
+            color: var(--text-color-active);
+        }
+
+        #query
+        {
+            display: block;
+            position: relative;
+            z-index: 1;
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+            font-size: var(--query-editor-font-size);
+            line-height: var(--query-editor-line-height);
+            padding: var(--query-editor-padding);
+            background-color: var(--query-editor-background-color);
+            color: var(--query-editor-text-color);
+            /* Make enough space for even big queries. */
+            height: clamp(16rem, 50vh, 48rem);
+            min-height: 4rem;
+            max-height: min(calc(100vh - 10rem), 70rem);
+            /* Keeps query text-area's width full screen even when user adjusting the width of the query box. */
+            width: 100%;
+            min-width: 100%;
+            max-width: 100%;
+            margin-top: -1px; /* To compensate the border. */
+            contain: strict; /* Less input lag even if the table is large. */
+            resize: none; /* Disable default browser resizer */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        #query.has-backdrop
+        {
+            background: transparent;
+            color: transparent;
+            caret-color: var(--query-editor-text-color);
+        }
+
+        #query_div.compact #query
+        {
+            height: 3.5rem !important;
+            min-height: 3.5rem;
+        }
+
+        #query-backdrop
+        {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+            font-size: var(--query-editor-font-size);
+            line-height: var(--query-editor-line-height);
+            padding: var(--query-editor-padding);
+            border: 1px solid transparent;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            background-color: var(--query-editor-background-color);
+            color: var(--syntax-default);
+        }
+
+        #query-backdrop .q-kw  { color: var(--syntax-keyword); }
+        #query-backdrop .q-id  { color: var(--syntax-identifier); }
+        #query-backdrop .q-fn  { color: var(--syntax-function); }
+        #query-backdrop .q-num { color: var(--syntax-number); }
+        #query-backdrop .q-str { color: var(--syntax-string); }
+        #query-backdrop .q-qid { color: var(--syntax-qident); }
+        #query-backdrop .q-com { color: var(--syntax-comment); }
+        #query-backdrop .q-op  { color: var(--syntax-operator); }
+        #query-backdrop .q-err { color: var(--syntax-error); text-decoration: underline wavy; }
+
+        #autocomplete-menu
+        {
+            display: none;
+            position: absolute;
+            z-index: 30;
+            min-width: 18rem;
+            max-width: min(34rem, calc(100% - 1rem));
+            max-height: min(18rem, 60vh);
+            overflow: auto;
+            padding: 0.25rem;
+            border: 1px solid var(--navigator-card-border);
+            background: var(--navigator-card-background);
+            box-shadow: 0 0.35rem 1rem var(--shadow-color);
+            color: var(--navigator-text-color);
+            font-size: 10pt;
+        }
+
+        #autocomplete-menu.open
+        {
+            display: block;
+        }
+
+        .autocomplete-item
+        {
+            display: grid;
+            grid-template-columns: 5.5rem minmax(0, 1fr);
+            gap: 0.4rem;
+            align-items: baseline;
+            width: 100%;
+            padding: 0.25rem 0.35rem;
+            cursor: default;
+        }
+
+        .autocomplete-item.is-active
+        {
+            background: var(--navigator-card-header-active);
+            color: var(--text-color-active);
+        }
+
+        .autocomplete-kind
+        {
+            color: var(--navigator-muted-color);
+            font-size: 85%;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .autocomplete-main
+        {
+            min-width: 0;
+        }
+
+        .autocomplete-label,
+        .autocomplete-detail,
+        .autocomplete-empty
+        {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .autocomplete-label
+        {
+            color: inherit;
+        }
+
+        .autocomplete-detail
+        {
+            color: var(--navigator-muted-color);
+            font-size: 85%;
+            margin-top: 0.1rem;
+        }
+
+        .autocomplete-empty
+        {
+            padding: 0.35rem 0.5rem;
+            color: var(--navigator-muted-color);
+        }
+
+        #inputs
+        {
+            white-space: nowrap;
+        }
+
+        #url
+        {
+            width: 70%;
+        }
+
+        #user, #password
+        {
+            width: calc(15% + 1px);
+            margin-left: -1px;
+        }
+
+        input.ok
+        {
+            color: var(--element-color-ok);
+        }
+
+        input.fail
+        {
+            background-color: var(--element-background-color-fail);
+        }
+
+        #run_div
+        {
+            margin-top: 0.5rem;
+            display: grid;
+            place-items: center;
+            gap: 0.75rem;
+            grid-template-columns: auto auto minmax(6rem, 1fr);
+            grid-template-areas: "run hourglass progress-bar";
+        }
+
+        #run
+        {
+            grid-area: run;
+            user-select: none;
+            color: var(--button-text-color);
+            background-color: var(--button-color);
+            padding: 0.25rem 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 100%; /* Otherwise button element will have a lower font size. */
+        }
+
+        #run:hover, #run:focus,
+        .result-action-button:hover,
+        .result-action-button:focus
+        {
+            color: var(--button-active-text-color);
+            background-color: var(--button-active-color);
+        }
+
+        #toggle-editor
+        {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            z-index: 5;
+            user-select: none;
+            border: 1px solid var(--border-color);
+            background-color: var(--element-background-color);
+            color: var(--text-color);
+            width: 1.8rem;
+            height: 1.8rem;
+            cursor: pointer;
+            line-height: 1;
+            font-size: 0.95rem;
+            box-shadow: none;
+        }
+
+        #toggle-editor:hover,
+        #toggle-editor:focus,
+        #toggle-editor[aria-pressed="true"]
+        {
+            border-color: var(--border-color-selected);
+            color: var(--text-color-active);
+        }
+
+        #hourglass
+        {
+            grid-area: hourglass;
+            display: none;
+            font-size: 110%;
+            color: #888;
+            animation: hourglass-animation 2s linear infinite;
+        }
+
+        #stats
+        {
+            display: none;
+            color: var(--misc-text-color);
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #stats b
+        {
+            color: var(--progress-color);
+        }
+
+        .download-icon
+        {
+            width: 1em;
+            height: 1em;
+        }
+
+        #download-dropdown
+        {
+            display: none;
+            position: absolute;
+            background-color: var(--button-color);
+            border: 1px solid var(--button-text-color);
+            padding: 0.5rem;
+            z-index: 999;
+            box-shadow: 0 4px 6px var(--shadow-color);
+        }
+
+        #download-dropdown.show
+        {
+            display: block;
+        }
+
+        .download-option
+        {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .download-option label
+        {
+            color: var(--button-text-color);
+            white-space: nowrap;
+            margin-right: 0.5rem;
+        }
+
+        .download-option.checkbox
+        {
+            align-items: flex-start;
+        }
+
+        .download-option.checkbox label
+        {
+            margin-right: 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.4rem;
+            white-space: normal;
+            line-height: 1.3;
+        }
+
+        .download-option.checkbox input
+        {
+            margin-top: 0.15rem;
+        }
+
+        .download-section-title
+        {
+            color: var(--button-text-color);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin: 0.35rem 0 0.25rem;
+        }
+
+        .download-option-help
+        {
+            display: block;
+            opacity: 0.8;
+            font-size: 0.72rem;
+            line-height: 1.3;
+            margin-top: 0.1rem;
+        }
+
+        .download-option select,
+        #download-filename,
+        #download-format-other
+        {
+            flex: 1;
+            min-width: 0;
+            padding: 0.25rem;
+            background-color: var(--element-background-color);
+            color: var(--text-color);
+            border: 1px solid var(--shadow-color);
+
+            &:focus {
+                outline: none;
+            }
+        }
+
+        #download-format-other
+        {
+            display: none;
+            margin-top: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        #download-format-other.show
+        {
+            display: block;
+        }
+
+        #download-button
+        {
+            width: 100%;
+            margin-top: 0rem;
+            padding: 0.5rem 0.5rem;
+            background-color: var(--element-background-color);
+            color: var(--text-color);
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+
+            &:hover {
+                background-color: var(--button-active-color);
+                color: var(--button-active-text-color);
+            }
+        }
+
+        #progress
+        {
+            display: none;
+            width: 100%;
+            color: var(--misc-text-color);
+
+            grid-area: progress-bar;
+            background: linear-gradient(to right,
+                transparent 0%,
+                var(--progress-color) var(--progress),
+                transparent var(--progress));
+        }
+
+        #theme
+        {
+            justify-self: end;
+            display: flex;
+            align-items: center;
+            color: var(--misc-text-color);
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        #toggle-light, #toggle-dark
+        {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        [data-theme="light"] #toggle-light, [data-theme="dark"] #toggle-dark
+        {
+            display: none;
+        }
