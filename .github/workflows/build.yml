@@ -21,6 +21,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       - name: Check generated HTML
         run: npm run build:check
 
@@ -29,3 +35,6 @@ jobs:
 
       - name: Check source script syntax
         run: find src/scripts -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Test query submission safety
+        run: npm run test:query-submit

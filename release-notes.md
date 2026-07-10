@@ -1,5 +1,10 @@
 # Release Notes
 
+## client 2026.07.10.1
+
+- Added focused Playwright browser tests that assert selected and full-script query runs submit the intended HTTP POST bodies.
+- Added the query submission safety test command to CI and development docs.
+
 ## client 2026.07.09.6
 
 - Added a repo-managed pre-commit hook that regenerates and stages `click-play-boom.html` automatically during local commits.

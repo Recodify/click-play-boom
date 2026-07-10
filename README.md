@@ -65,6 +65,13 @@ Check that the committed artifact is fresh:
 npm run build:check
 ```
 
+Run the focused browser safety tests for query selection/submission:
+
+```bash
+npm run browsers:install
+npm run test:query-submit
+```
+
 ## Usage
 
 Open [`click-play-boom.html`](./click-play-boom.html) in a browser.
@@ -169,6 +176,8 @@ Useful development checks:
 npm run hooks:install
 npm run build
 npm run build:check
+npm run browsers:install
+npm run test:query-submit
 node --check tools/build-single-file.mjs
 find src/scripts -name '*.js' -print0 | xargs -0 -n1 node --check
 ```
