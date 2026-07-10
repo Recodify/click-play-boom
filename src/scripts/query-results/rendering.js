@@ -691,7 +691,7 @@ async function postImplForRenderTarget(posted_request_num, query)
         };
         const title = "ClickHouse Query: " + query;
 
-        let history_url = window.location.pathname + '?user=' + encodeURIComponent(user);
+        let history_url = window.location.pathname + '?view=query&user=' + encodeURIComponent(user);
         if (run_immediately) {
             history_url += "&run=1";
         }
@@ -982,6 +982,9 @@ document.getElementById('controls').addEventListener('submit', e =>
 document.addEventListener('keydown', event => {
     /// Firefox has code 13 for Enter and Chromium has code 10.
     if ((event.metaKey || event.ctrlKey) && (event.keyCode == 13 || event.keyCode == 10)) {
+        if (current_workspace_view != 'query') {
+            return;
+        }
         document.getElementById('controls').requestSubmit();
     }
 });

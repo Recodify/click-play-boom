@@ -1,0 +1,484 @@
+        .dashboard-workspace
+        {
+            min-width: 0;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+            gap: 0.5rem;
+            overflow: hidden;
+        }
+
+        .dashboard-workspace[hidden],
+        .dashboard-global-error[hidden],
+        .dashboard-mass-editor[hidden],
+        .dashboard-charts[hidden],
+        .dashboard-range input[hidden],
+        .dashboard-range select[hidden],
+        .dashboard-range-absolute[hidden]
+        {
+            display: none !important;
+        }
+
+        .dashboard-controls
+        {
+            grid-row: 1;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+            container: dashboard-controls / inline-size;
+        }
+
+        .dashboard-params
+        {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            min-width: 0;
+            flex: 999 1 26rem;
+        }
+
+        .dashboard-toolbar-actions
+        {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: max-content;
+            margin-left: auto;
+            padding-left: 0.75rem;
+        }
+
+        .dashboard-toolbar-divider
+        {
+            flex: 0 0 auto;
+            width: 1px;
+            height: 1.75rem;
+            margin: 0 0.35rem;
+            background: var(--border-color);
+            opacity: 0.85;
+        }
+
+        .dashboard-action-divider
+        {
+            margin-left: 0.4rem;
+            margin-right: 0.4rem;
+        }
+
+        .dashboard-reload,
+        .dashboard-toolbar-actions button,
+        .dashboard-mass-editor-actions button,
+        .dashboard-chart-buttons button,
+        .dashboard-edit-confirm
+        {
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            cursor: pointer;
+            font-weight: 700;
+            min-height: 2rem;
+            padding: 0.25rem 0.55rem;
+        }
+
+        .dashboard-reload:hover,
+        .dashboard-reload:focus,
+        .dashboard-toolbar-actions button:hover,
+        .dashboard-toolbar-actions button:focus,
+        .dashboard-mass-editor-actions button:hover,
+        .dashboard-mass-editor-actions button:focus,
+        .dashboard-chart-buttons button:hover,
+        .dashboard-chart-buttons button:focus,
+        .dashboard-edit-confirm:hover,
+        .dashboard-edit-confirm:focus
+        {
+            background: var(--button-active-color);
+            color: var(--button-active-text-color);
+        }
+
+        .dashboard-reload:disabled,
+        .dashboard-toolbar-actions button:disabled
+        {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .dashboard-icon-button
+        {
+            display: inline-grid;
+            place-items: center;
+            width: 2rem;
+            height: 2rem;
+            min-width: 2rem;
+            padding: 0;
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .dashboard-icon-button svg
+        {
+            width: 1.05rem;
+            height: 1.05rem;
+            stroke: currentColor;
+        }
+
+        .dashboard-search
+        {
+            display: inline-flex;
+            align-items: stretch;
+            min-width: 0;
+            flex: 1 1 18rem;
+            max-width: 28rem;
+        }
+
+        .dashboard-search select
+        {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            padding: 0.25rem 0.45rem;
+            min-height: 2rem;
+        }
+
+        .dashboard-param
+        {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            color: var(--misc-text-color);
+            min-width: 0;
+        }
+
+        .dashboard-param input
+        {
+            min-width: 5ch;
+            max-width: 28ch;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            padding: 0.25rem 0.4rem;
+        }
+
+        .dashboard-range,
+        .dashboard-rounding,
+        .dashboard-custom-params
+        {
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 0.35rem;
+            min-width: 0;
+        }
+
+        .dashboard-rounding-label,
+        .dashboard-custom-params-label
+        {
+            color: var(--misc-text-color);
+            font-weight: 700;
+        }
+
+        .dashboard-rounding-unit
+        {
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+            font-weight: 400;
+        }
+
+        .dashboard-range select,
+        .dashboard-range input,
+        .dashboard-rounding input
+        {
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            padding: 0.25rem 0.4rem;
+            min-height: 2rem;
+        }
+
+        .dashboard-range-duration
+        {
+            width: 7ch;
+        }
+
+        .dashboard-rounding input
+        {
+            width: 6ch;
+        }
+
+        .dashboard-range-absolute
+        {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 0.35rem;
+        }
+
+        .dashboard-range-absolute input
+        {
+            width: 20ch;
+        }
+
+        .dashboard-global-error
+        {
+            grid-row: 2;
+            border: 1px solid var(--element-color-fail);
+            background: var(--element-background-color-fail);
+            color: var(--text-color-active);
+            padding: 0.7rem 0.85rem;
+            white-space: pre-wrap;
+        }
+
+        .dashboard-charts
+        {
+            grid-row: 3;
+            min-width: 0;
+            min-height: 0;
+            overflow: auto;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 0.5rem;
+            padding: 0.1rem;
+            scrollbar-color: var(--border-color) var(--element-background-color);
+        }
+
+        .dashboard-chart
+        {
+            position: relative;
+            flex: 1 1 30rem;
+            min-width: min(100%, 20rem);
+            height: clamp(18rem, 36vh, 28rem);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--element-background-color);
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+        }
+
+        .dashboard-chart.dashboard-chart-maximized
+        {
+            height: min(72vh, 52rem);
+        }
+
+        .dashboard-chart.dashboard-chart-moving
+        {
+            position: fixed;
+            z-index: 80;
+            opacity: 0.82;
+            pointer-events: none;
+        }
+
+        .dashboard-chart.dashboard-chart-displaced
+        {
+            outline: 2px solid var(--border-color-selected);
+            outline-offset: -3px;
+        }
+
+        .dashboard-chart-title
+        {
+            color: var(--text-color-active);
+            font-size: 0.92rem;
+            font-weight: 700;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dashboard-chart-header
+        {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 0;
+            padding: 0.35rem 0.45rem 0.25rem 0.6rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--table-header-color);
+            position: relative;
+            z-index: 12;
+        }
+
+        .dashboard-chart-plot
+        {
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .dashboard-chart-error
+        {
+            position: absolute;
+            inset: 3rem 0.75rem 0.75rem;
+            z-index: 6;
+            display: none;
+            overflow: auto;
+            white-space: pre-wrap;
+            color: var(--element-color-fail);
+            background: var(--element-background-color);
+            padding: 0.6rem;
+        }
+
+        .dashboard-chart-buttons
+        {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .dashboard-chart-buttons button
+        {
+            width: 1.85rem;
+            height: 1.85rem;
+            min-height: 1.85rem;
+            padding: 0;
+            line-height: 1;
+            touch-action: none;
+        }
+
+        .dashboard-query-editor
+        {
+            position: absolute;
+            inset: 3rem 0.6rem 0.6rem;
+            z-index: 20;
+            display: none;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            gap: 0.4rem;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            box-shadow: 0 0.4rem 1.4rem var(--shadow-color);
+        }
+
+        .dashboard-query-editor.open
+        {
+            display: grid;
+        }
+
+        .dashboard-query-editor input,
+        .dashboard-query-editor textarea,
+        .dashboard-mass-editor textarea
+        {
+            min-width: 0;
+            border: 1px solid var(--border-color);
+            background: var(--query-editor-background-color);
+            color: var(--query-editor-text-color);
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+            padding: 0.45rem;
+        }
+
+        .dashboard-query-editor textarea
+        {
+            resize: none;
+        }
+
+        .dashboard-edit-confirm
+        {
+            justify-self: end;
+        }
+
+        .dashboard-mass-editor
+        {
+            grid-row: 3;
+            min-width: 0;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto auto;
+            gap: 0.45rem;
+            overflow: hidden;
+        }
+
+        .dashboard-mass-editor-heading
+        {
+            color: var(--text-color-active);
+            font-weight: 700;
+        }
+
+        .dashboard-mass-editor textarea
+        {
+            resize: none;
+        }
+
+        .dashboard-mass-editor-actions
+        {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.35rem;
+        }
+
+        #dashboard-mass-editor-message
+        {
+            min-height: 1.2rem;
+            color: var(--element-color-fail);
+            white-space: pre-wrap;
+        }
+
+        @container dashboard-controls (max-width: 44rem)
+        {
+            .dashboard-controls > .dashboard-toolbar-divider
+            {
+                display: none;
+            }
+
+            .dashboard-search,
+            .dashboard-params
+            {
+                flex: 1 1 100%;
+                max-width: none;
+            }
+
+            .dashboard-toolbar-actions
+            {
+                margin-left: auto;
+            }
+        }
+
+        @container dashboard-controls (max-width: 30rem)
+        {
+            .dashboard-param-divider
+            {
+                display: none;
+            }
+
+            .dashboard-range,
+            .dashboard-rounding,
+            .dashboard-custom-params
+            {
+                flex-wrap: wrap;
+            }
+
+            .dashboard-toolbar-actions
+            {
+                margin-left: 0;
+                justify-content: flex-end;
+                padding-left: 0;
+                border-left: 0;
+            }
+
+            .dashboard-search
+            {
+                flex-basis: 100%;
+            }
+        }
+
+        @media (max-width: 46rem)
+        {
+            .dashboard-controls
+            {
+                align-items: stretch;
+                padding: 0.4rem;
+            }
+
+            .dashboard-chart
+            {
+                flex-basis: 100%;
+                min-width: 100%;
+                height: 22rem;
+            }
+        }

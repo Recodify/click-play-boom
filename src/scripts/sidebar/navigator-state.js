@@ -257,13 +257,11 @@ function copyConnectionPasswordToClipboard(connection) {
 }
 
 function openConnectionDashboard(connection) {
-    const dashboard_url = getConnectionDashboardUrl(connection);
-    if (!dashboard_url) {
+    if (!connection || !(connection.url || '').trim()) {
         return;
     }
 
-    copyConnectionPasswordToClipboard(connection);
-    window.open(dashboard_url, '_blank', 'noopener');
+    openDashboardForConnection(connection);
 }
 
 function buildSelectStatement(database, table, columns) {

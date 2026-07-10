@@ -52,6 +52,8 @@ function queryResponse(response) {
 
 async function startFakeClickHouse() {
   const submissions = [];
+  const dashboardRequests = [];
+  const dashboardChartRequests = [];
   const waiters = [];
 
   function notifyWaiters() {
@@ -92,6 +94,56 @@ async function startFakeClickHouse() {
       return;
     }
 
+    if (body.includes('FROM system.dashboards')) {
+      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
+      dashboardRequests.push({
+        body,
+        user: requestUrl.searchParams.get('user') || '',
+        password: requestUrl.searchParams.get('password') || '',
+      });
+
+      if (body.includes('SELECT dashboard FROM system.dashboards')) {
+        jsonResponse(response, {
+          meta: [{ name: 'dashboard', type: 'String' }],
+          data: { dashboard: ['Overview'] },
+          rows: 1,
+        });
+      } else {
+        jsonResponse(response, {
+          meta: [
+            { name: 'title', type: 'String' },
+            { name: 'query', type: 'String' },
+          ],
+          data: {
+            title: ['Tiny dashboard'],
+            query: ['SELECT {seconds:UInt32} AS t, toUInt32(2) AS v, {rounding:UInt32} AS r'],
+          },
+          rows: 1,
+        });
+      }
+      return;
+    }
+
+    if (body.includes('SELECT {seconds:UInt32} AS t, toUInt32(2) AS v')) {
+      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
+      dashboardChartRequests.push({
+        body,
+        params: Object.fromEntries(requestUrl.searchParams.entries()),
+      });
+      jsonResponse(response, {
+        meta: [
+          { name: 't', type: 'UInt32' },
+          { name: 'v', type: 'UInt32' },
+        ],
+        data: {
+          t: [1],
+          v: [2],
+        },
+        rows: 1,
+      });
+      return;
+    }
+
     if (isProbeQuery(body)) {
       jsonResponse(response, { data: [] });
       return;
@@ -108,6 +160,8 @@ async function startFakeClickHouse() {
   return {
     url: `http://127.0.0.1:${port}/`,
     submissions,
+    dashboardRequests,
+    dashboardChartRequests,
     waitForSubmissions(count) {
       if (submissions.length >= count) {
         return Promise.resolve(submissions.slice());
@@ -127,6 +181,7 @@ async function startFakeClickHouse() {
     },
     close() {
       return new Promise((resolve, reject) => {
+        server.closeAllConnections?.();
         server.close(error => error ? reject(error) : resolve());
       });
     },
@@ -137,6 +192,67 @@ async function openApp(page, serverUrl) {
   await page.goto(`${app_file_url}?url=${encodeURIComponent(serverUrl)}&user=default`);
   await expect(page.locator('#query')).toBeVisible();
   await expect(page.locator('#run')).toHaveText('Run all');
+}
+
+async function openAppWithPassword(page, serverUrl, password) {
+  await page.goto(`${app_file_url}?url=${encodeURIComponent(serverUrl)}&user=default&password=${encodeURIComponent(password)}`);
+  await expect(page.locator('#query')).toBeVisible();
+  await expect(page.locator('#run')).toHaveText('Run all');
+}
+
+async function stubUplot(page) {
+  await page.evaluate(() => {
+    window.uPlot = function(opts, data, element) {
+      this.opts = opts;
+      this.data = data;
+      this.over = document.createElement('div');
+      this.over.className = 'u-over';
+      element.appendChild(this.over);
+      this.destroy = function() {};
+      this.setSize = function() {};
+      this.setScale = function() {};
+    };
+    window.uPlot.sync = function() { return { sub: function() {} }; };
+    window.uPlot.assign = Object.assign;
+    window.loadUplot = function() { return Promise.resolve(true); };
+  });
+}
+
+async function expectVisibleRectsDoNotOverlap(page, selector) {
+  const overlaps = await page.locator(selector).evaluateAll(elements => {
+    const rects = elements
+      .map(element => {
+        const style = window.getComputedStyle(element);
+        if (style.display === 'none' || style.visibility === 'hidden') {
+          return null;
+        }
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+          return null;
+        }
+        return {
+          name: element.id || element.className || element.tagName,
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      })
+      .filter(Boolean);
+
+    const result = [];
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        const horizontal = Math.min(rects[i].right, rects[j].right) - Math.max(rects[i].left, rects[j].left);
+        const vertical = Math.min(rects[i].bottom, rects[j].bottom) - Math.max(rects[i].top, rects[j].top);
+        if (horizontal > 1 && vertical > 1) {
+          result.push(`${rects[i].name} overlaps ${rects[j].name}`);
+        }
+      }
+    }
+    return result;
+  });
+  expect(overlaps).toEqual([]);
 }
 
 async function setEditorText(page, text) {
@@ -217,5 +333,42 @@ test.describe('query submission safety', () => {
     await page.locator('#run').click();
 
     await expect.poll(() => fakeClickHouse.submissions).toEqual(['drop table blah;']);
+  });
+
+  test('dashboard workspace loads with active connection credentials', async ({ page }) => {
+    await page.evaluate(() => window.localStorage.clear());
+    await openAppWithPassword(page, fakeClickHouse.url, 'secret');
+    await stubUplot(page);
+
+    await page.locator('#app-view-dashboard').click();
+
+    await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('dashboard');
+    await expect(page.locator('#dashboard_workspace')).toBeVisible();
+    await expect(page.locator('#dashboard-mass-editor')).toBeHidden();
+    await expect(page.locator('.dashboard-range')).toBeVisible();
+    await expect(page.getByText('Bucket')).toBeVisible();
+    await expect(page.locator('.dashboard-chart-title')).toHaveText('Tiny dashboard');
+    await page.setViewportSize({ width: 1100, height: 760 });
+    const zoomStyle = await page.addStyleTag({ content: 'html { font-size: 150%; }' });
+    await expectVisibleRectsDoNotOverlap(page, '#active-connection-banner > *');
+    await expectVisibleRectsDoNotOverlap(page, '#dashboard-controls > *');
+    await zoomStyle.evaluate(element => element.remove());
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(page.getByRole('button', { name: 'Ok' })).toHaveCount(0);
+    await page.locator('[name="dashboard-range-unit"]').selectOption('60');
+    await expect.poll(() => fakeClickHouse.dashboardChartRequests.some(request =>
+      request.params.param_seconds == '60' && request.params.param_rounding == '60'
+    )).toBe(true);
+    await expect(page.locator('#dashboard-edit')).toBeEnabled();
+    await page.locator('#dashboard-edit').click();
+    await expect(page.locator('#dashboard-mass-editor')).toBeVisible();
+    await expect.poll(() => page.locator('#dashboard-mass-editor-textarea').evaluate(element =>
+      element.getBoundingClientRect().height
+    )).toBeGreaterThan(200);
+    await page.reload();
+    await expect(page.locator('#dashboard_workspace')).toBeVisible();
+    await expect.poll(() => fakeClickHouse.dashboardRequests.some(request =>
+      request.user == 'default' && request.password == 'secret'
+    )).toBe(true);
   });
 });

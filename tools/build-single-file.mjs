@@ -12,6 +12,7 @@ const css_files = [
   'src/styles/navigator.css',
   'src/styles/editor.css',
   'src/styles/results.css',
+  'src/styles/dashboard.css',
   'src/styles/vendors/uplot.css',
 ];
 
@@ -28,6 +29,7 @@ const script_files = [
   'src/scripts/query-results/rendering.js',
   'src/scripts/query-results/charts.js',
   'src/scripts/query-editor/lexer.js',
+  'src/scripts/dashboard/dashboard.js',
   'src/scripts/boot.js',
   'src/scripts/query-results/download.js',
 ];
