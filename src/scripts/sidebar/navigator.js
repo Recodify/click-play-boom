@@ -257,7 +257,7 @@ function saveConnectionEditor() {
 }
 
 function openConnectionMenu(connection, anchor_rect) {
-    const dashboard_url = getConnectionDashboardUrl(connection);
+    const can_open_dashboard = !!(connection?.url || '').trim();
     const folders = getSavedConnectionFolders();
     const items = [
         {
@@ -266,10 +266,16 @@ function openConnectionMenu(connection, anchor_rect) {
             onClick: () => openConnectionEditor(connection)
         },
         {
-            icon: '↗',
+            icon: '▦',
             label: 'Open dashboard',
-            disabled: !dashboard_url,
+            disabled: !can_open_dashboard,
             onClick: () => openConnectionDashboard(connection)
+        },
+        {
+            icon: '⌘',
+            label: 'Open schema',
+            disabled: !can_open_dashboard,
+            onClick: () => openConnectionSchema(connection)
         },
         {
             icon: '⇱',
@@ -1245,6 +1251,8 @@ function applyConnection(connection) {
     renderNavigatorTree();
     checkURL();
     loadDatabases(connection.url, connection.user, connection.password);
+    handleDashboardConnectionChanged(connection);
+    handleSchemaConnectionChanged(connection);
 }
 
 function saveCurrentConnection(newConnection) {

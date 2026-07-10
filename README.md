@@ -65,6 +65,13 @@ Check that the committed artifact is fresh:
 npm run build:check
 ```
 
+Run the focused browser safety tests for query selection/submission:
+
+```bash
+npm run browsers:install
+npm run test:query-submit
+```
+
 ## Usage
 
 Open [`click-play-boom.html`](./click-play-boom.html) in a browser.
@@ -105,7 +112,7 @@ The left navigator stores connections locally and lazy-loads schema information 
 - Use the filter box to search connections and loaded schema.
 - Use database/table context menus and column double-clicks to insert names into the editor.
 - Use table context menus to generate SQL into the editor.
-- Use the connection context menu to edit/delete a connection or open the ClickHouse dashboard for that server.
+- Use the connection context menu to edit/delete a connection or open the native Dashboard or Schema workspace for that server.
 
 Connection details are stored in browser local storage, including passwords. Treat this as a local development convenience, not a secure secret store.
 
@@ -169,6 +176,8 @@ Useful development checks:
 npm run hooks:install
 npm run build
 npm run build:check
+npm run browsers:install
+npm run test:query-submit
 node --check tools/build-single-file.mjs
 find src/scripts -name '*.js' -print0 | xargs -0 -n1 node --check
 ```

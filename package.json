@@ -3,6 +3,11 @@
   "scripts": {
     "build": "node tools/build-single-file.mjs --write",
     "build:check": "node tools/build-single-file.mjs --check",
-    "hooks:install": "git config core.hooksPath .githooks"
+    "browsers:install": "playwright install chromium",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "test:query-submit": "playwright test tests/query-submission.spec.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
   }
 }

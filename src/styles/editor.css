@@ -7,14 +7,49 @@
 
         .active-connection-banner
         {
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr) auto;
+            display: flex;
+            flex-wrap: wrap;
             gap: 0.35rem 0.75rem;
             align-items: center;
             margin-bottom: 0.5rem;
             padding: 0.55rem 0.75rem;
             border: 1px solid var(--navigator-card-border);
             background: var(--navigator-card-header-active);
+        }
+
+        .app-view-tabs
+        {
+            display: inline-flex;
+            align-items: stretch;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            min-width: 0;
+            flex: 0 0 auto;
+            margin-left: auto;
+        }
+
+        .app-view-tab
+        {
+            min-width: 5.5rem;
+            padding: 0.28rem 0.6rem;
+            background: transparent;
+            color: var(--misc-text-color);
+            cursor: pointer;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .app-view-tab + .app-view-tab
+        {
+            border-left: 1px solid var(--border-color);
+        }
+
+        .app-view-tab:hover,
+        .app-view-tab:focus,
+        .app-view-tab.active
+        {
+            color: var(--button-active-text-color);
+            background: var(--button-active-color);
         }
 
         .active-connection-label
@@ -25,10 +60,12 @@
             letter-spacing: 0.08em;
             text-transform: uppercase;
             white-space: nowrap;
+            flex: 0 0 auto;
         }
 
         .active-connection-summary
         {
+            flex: 1 1 14rem;
             min-width: 0;
             display: flex;
             flex-wrap: wrap;
@@ -42,6 +79,9 @@
             min-width: 0;
             font-size: 0.98rem;
             font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .active-connection-meta
@@ -278,6 +318,59 @@
             grid-template-areas: "run hourglass progress-bar";
         }
 
+        body.workspace-dashboard #query_div,
+        body.workspace-dashboard #run_div,
+        body.workspace-dashboard #results_workspace,
+        body.workspace-schema #query_div,
+        body.workspace-schema #run_div,
+        body.workspace-schema #results_workspace
+        {
+            display: none;
+        }
+
+        body.workspace-query #dashboard_workspace,
+        body.workspace-query #schema_workspace
+        {
+            display: none;
+        }
+
+        body.workspace-dashboard #controls,
+        body.workspace-schema #controls
+        {
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 56rem)
+        {
+            .active-connection-banner
+            {
+                align-items: flex-start;
+            }
+
+            .active-connection-label
+            {
+                display: none;
+            }
+
+            .active-connection-summary
+            {
+                flex: 1 1 100%;
+                order: 1;
+            }
+
+            .app-view-tabs
+            {
+                order: 2;
+                margin-left: 0;
+            }
+
+            #theme
+            {
+                order: 3;
+                margin-left: auto;
+            }
+        }
+
         #run
         {
             grid-area: run;
@@ -485,6 +578,7 @@
 
         #theme
         {
+            flex: 0 0 auto;
             justify-self: end;
             display: flex;
             align-items: center;

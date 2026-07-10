@@ -5,6 +5,8 @@ function setColorTheme(new_theme, update_preference) {
     }
     document.documentElement.setAttribute('data-theme', theme);
     redrawChart();
+    redrawDashboardCharts();
+    redrawSchemaGraph();
 }
 /// First we check if theme is set via the 'theme' GET parameter, if not, we check localStorage, otherwise we check OS preference.
 let theme = current_url.searchParams.get('theme');
@@ -119,6 +121,9 @@ snippet_insertion_mode_elem.addEventListener('change', () => {
 setAbortPreviewLimit(window.localStorage.getItem(abort_preview_limit_key) === '1', false);
 setSidebarTab(window.localStorage.getItem(sidebar_active_tab_key) || 'navigator', false);
 renderSnippets();
+initializeWorkspaceViews();
+initializeDashboardView();
+initializeSchemaView();
 
 const stored_sidebar_width = Number(window.localStorage.getItem(sidebar_width_key));
 if (Number.isFinite(stored_sidebar_width) && stored_sidebar_width > 0) {
