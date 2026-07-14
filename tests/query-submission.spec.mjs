@@ -65,7 +65,8 @@ function compactResponse(response, names, types, rows) {
   ].join('\n'));
 }
 
-async function startFakeClickHouse() {
+async function startFakeClickHouse(options = {}) {
+  const schemaTargetMode = options.schemaTargetMode || 'native';
   const submissions = [];
   const dashboardRequests = [];
   const dashboardChartRequests = [];
@@ -107,6 +108,24 @@ async function startFakeClickHouse() {
 
     if (body.includes('FROM system.databases')) {
       jsonResponse(response, { data: [{ database: 'default', current: 1 }] });
+      return;
+    }
+
+    if (body.includes('FROM system.columns')
+      && body.includes("table = 'tables'")
+      && body.includes("'target_database'")) {
+      compactResponse(response, ['name'], ['String'], schemaTargetMode === 'native'
+        ? [['target_database'], ['target_table']]
+        : []);
+      return;
+    }
+
+    if (body.includes('FROM system.columns')
+      && body.includes("database = 'click_play_boom'")
+      && body.includes("table = 'schema_mv_targets'")) {
+      compactResponse(response, ['name'], ['String'], schemaTargetMode === 'compat'
+        ? [['database'], ['name'], ['target_database'], ['target_table']]
+        : []);
       return;
     }
 
@@ -204,7 +223,7 @@ async function startFakeClickHouse() {
       ], [
         ['analytics', 'raw_events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE analytics.raw_events (id UInt64) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 5, 256, '', '', '', [], []],
         ['default', 'events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE default.events (id UInt64, name String) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 2, 128, '', '', '', ['default.events_mv'], []],
-        ['default', 'events_mv', 'MaterializedView', 'MaterializedView', 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT count() FROM default.events', '', '', '', '', 0, 0, '', 'default', 'events_summary', ['default.events_summary'], ['default.events']],
+        ['default', 'events_mv', 'MaterializedView', 'MaterializedView', 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT count() FROM default.events', '', '', '', '', 0, 0, '', schemaTargetMode === 'missing' ? '' : 'default', schemaTargetMode === 'missing' ? '' : 'events_summary', schemaTargetMode === 'native' ? ['default.events_summary'] : [], ['default.events']],
         ['default', 'events_summary', 'AggregatingMergeTree', 'AggregatingMergeTree ORDER BY tuple()', 'CREATE TABLE default.events_summary (c UInt64) ENGINE = AggregatingMergeTree ORDER BY tuple()', '', '', '', '', 1, 64, '', '', '', [], []],
       ]);
       return;
@@ -534,5 +553,29 @@ test.describe('query submission safety', () => {
     await expect.poll(() => fakeClickHouse.schemaRequests.some(request =>
       request.user == 'default' && request.password == 'secret'
     )).toBe(true);
+  });
+
+  test('schema workspace uses optional MV target compatibility table on older servers', async ({ page }) => {
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse({ schemaTargetMode: 'compat' });
+    await page.evaluate(() => window.localStorage.clear());
+    await openAppWithPassword(page, fakeClickHouse.url, 'secret');
+
+    await page.locator('#app-view-schema').click();
+
+    await expect(page.locator('#schema_workspace')).toBeVisible();
+    await expect(page.locator('#schema-status')).toContainText('MV targets: compat table');
+    await expect(page.locator('.schema-arrow')).toHaveCount(2);
+    await expect.poll(() => fakeClickHouse.schemaRequests.some(request =>
+      request.body.includes('LEFT JOIN') && request.body.includes('click_play_boom.schema_mv_targets')
+    )).toBe(true);
+  });
+
+  test('database menu generates schema compatibility table DDL', async ({ page }) => {
+    const ddl = await page.evaluate(() => buildSchemaCompatTableStatement('default'));
+
+    expect(ddl).toContain('CREATE DATABASE IF NOT EXISTS click_play_boom');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS click_play_boom.schema_mv_targets');
+    expect(ddl).toContain("('default', 'materialized_view_name', 'default', 'target_table_name')");
   });
 });

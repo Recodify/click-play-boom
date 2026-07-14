@@ -55,6 +55,35 @@ function buildInsertStatement(database, table, columns) {
     return `INSERT INTO ${database}.${table}\n(\n${column_lines.join('\n')}\n)\nVALUES\n(\n${value_lines.join('\n')}\n);`;
 }
 
+function buildSchemaCompatTableStatement(database) {
+    const example_database = database || 'default';
+    return `CREATE DATABASE IF NOT EXISTS click_play_boom;
+
+CREATE TABLE IF NOT EXISTS click_play_boom.schema_mv_targets
+(
+    database String,
+    name String,
+    target_database String,
+    target_table String,
+    updated_at DateTime DEFAULT now()
+)
+ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (database, name);
+
+-- Populate manually for materialized views on older ClickHouse versions
+-- where system.tables does not expose target_database / target_table.
+--
+-- Example:
+-- INSERT INTO click_play_boom.schema_mv_targets
+--     (database, name, target_database, target_table)
+-- VALUES
+--     ('${example_database}', 'materialized_view_name', '${example_database}', 'target_table_name');
+
+SELECT *
+FROM click_play_boom.schema_mv_targets
+ORDER BY database, name;`;
+}
+
 function hideNavigatorContextMenu() {
     navigator_context_menu_elem.classList.remove('open');
     navigator_context_menu_elem.innerHTML = '';
@@ -306,6 +335,11 @@ function openDatabaseMenu(anchor_rect, database) {
             icon: '↪',
             label: 'Insert database name',
             onClick: () => insertIntoQueryEditor(formatClickHouseIdentifier(database), { mode: 'insert' })
+        },
+        {
+            icon: '⌘',
+            label: 'Generate schema compat table',
+            onClick: () => insertTextIntoEditor(buildSchemaCompatTableStatement(database))
         }
     ];
 

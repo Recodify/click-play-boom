@@ -1,5 +1,10 @@
 # Release Notes
 
+## client 2026.07.14.1
+
+- Made Schema tolerate older ClickHouse versions without `system.tables.target_database` / `target_table`.
+- Added optional `click_play_boom.schema_mv_targets` compatibility-table support and a database context-menu DDL generator.
+
 ## client 2026.07.10.15
 
 - Made Schema database filtering a compact multiselect dropdown.

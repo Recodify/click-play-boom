@@ -23,6 +23,7 @@ const schema_view_state = {
     load_by_mv: new Map(),
     load_by_edge: new Map(),
     load_max: { by_mv: {}, by_edge: {} },
+    target_metadata_source: 'native',
     search_timer: null
 };
 
@@ -67,6 +68,7 @@ function resetSchemaStateForConnection(connection = getCurrentSchemaConnection()
     schema_view_state.load_by_mv = new Map();
     schema_view_state.load_by_edge = new Map();
     schema_view_state.load_max = { by_mv: {}, by_edge: {} };
+    schema_view_state.target_metadata_source = 'native';
     schema_canvas_elem.querySelectorAll('.schema-node, .schema-db-group').forEach(element => element.remove());
     schema_links_svg_elem.innerHTML = '';
     schema_empty_elem.classList.remove('hidden');
@@ -262,6 +264,41 @@ async function schemaFetch(query) {
     return { columns, types, rows };
 }
 
+async function getSchemaTargetMetadataSource() {
+    const native_columns_query = `
+        SELECT name
+        FROM system.columns
+        WHERE database = 'system'
+          AND table = 'tables'
+          AND name IN ('target_database', 'target_table')
+    `;
+    const native_columns = new Set((await schemaFetch(native_columns_query)).rows.map(row => row.name));
+    if (native_columns.has('target_database') && native_columns.has('target_table')) {
+        return 'native';
+    }
+
+    const compat_columns_query = `
+        SELECT name
+        FROM system.columns
+        WHERE database = 'click_play_boom'
+          AND table = 'schema_mv_targets'
+          AND name IN ('database', 'name', 'target_database', 'target_table')
+    `;
+    try {
+        const compat_columns = new Set((await schemaFetch(compat_columns_query)).rows.map(row => row.name));
+        if (compat_columns.has('database')
+            && compat_columns.has('name')
+            && compat_columns.has('target_database')
+            && compat_columns.has('target_table')) {
+            return 'compat';
+        }
+    } catch (error) {
+        console.info('Schema MV target compatibility table check failed:', error.message);
+    }
+
+    return 'missing';
+}
+
 function schemaEngineKind(engine) {
     if (!engine) return 'other';
     if (engine == 'Dictionary') return 'dict';
@@ -277,31 +314,68 @@ async function loadSchemaAll() {
     setSchemaControlsDisabled(true);
     schemaSetStatus('Loading tables...');
 
-    const system_filter = schema_view_state.show_system
+    const table_system_filter = schema_view_state.show_system
+        ? ''
+        : "WHERE st.database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')";
+    const column_system_filter = schema_view_state.show_system
         ? ''
         : "WHERE database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')";
 
+    let target_columns_sql = `
+            st.target_database AS target_database,
+            st.target_table AS target_table,`;
+    let compat_join_sql = '';
+
+    try {
+        schema_view_state.target_metadata_source = await getSchemaTargetMetadataSource();
+    } catch (error) {
+        console.info('Schema target metadata source check failed:', error.message);
+        schema_view_state.target_metadata_source = 'missing';
+    }
+
+    if (schema_view_state.target_metadata_source == 'compat') {
+        target_columns_sql = `
+            compat.target_database AS target_database,
+            compat.target_table AS target_table,`;
+        compat_join_sql = `
+        LEFT JOIN
+        (
+            SELECT
+                database,
+                name,
+                argMax(target_database, updated_at) AS target_database,
+                argMax(target_table, updated_at) AS target_table
+            FROM click_play_boom.schema_mv_targets
+            GROUP BY database, name
+        ) AS compat
+               ON compat.database = st.database AND compat.name = st.name`;
+    } else if (schema_view_state.target_metadata_source == 'missing') {
+        target_columns_sql = `
+            '' AS target_database,
+            '' AS target_table,`;
+    }
+
     const tables_query = `
         SELECT
-            database,
-            name,
-            engine,
-            engine_full,
-            create_table_query,
-            sorting_key,
-            primary_key,
-            partition_key,
-            sampling_key,
-            total_rows,
-            total_bytes,
-            comment,
-            target_database,
-            target_table,
-            arrayMap((d, t) -> concat(d, '.', t), dependencies_database, dependencies_table) AS dependents,
-            arrayMap((d, t) -> concat(d, '.', t), loading_dependencies_database, loading_dependencies_table) AS depends_on
-        FROM system.tables
-        ${system_filter}
-        ORDER BY database, name
+            st.database AS database,
+            st.name AS name,
+            st.engine AS engine,
+            st.engine_full AS engine_full,
+            st.create_table_query AS create_table_query,
+            st.sorting_key AS sorting_key,
+            st.primary_key AS primary_key,
+            st.partition_key AS partition_key,
+            st.sampling_key AS sampling_key,
+            st.total_rows AS total_rows,
+            st.total_bytes AS total_bytes,
+            st.comment AS comment,
+            ${target_columns_sql}
+            arrayMap((d, tbl) -> concat(d, '.', tbl), st.dependencies_database, st.dependencies_table) AS dependents,
+            arrayMap((d, tbl) -> concat(d, '.', tbl), st.loading_dependencies_database, st.loading_dependencies_table) AS depends_on
+        FROM system.tables AS st
+        ${compat_join_sql}
+        ${table_system_filter}
+        ORDER BY st.database, st.name
     `;
 
     const columns_query = `
@@ -309,7 +383,7 @@ async function loadSchemaAll() {
                (is_in_primary_key OR is_in_sorting_key) AS is_key,
                default_kind != '' AS has_default
         FROM system.columns
-        ${system_filter}
+        ${column_system_filter}
         ORDER BY database, table, position
     `;
 
@@ -357,7 +431,7 @@ async function loadSchemaAll() {
             schema_view_state.refreshes.set(schemaFullName(refresh.database, refresh.view), refresh);
         }
 
-        schemaSetStatus(`Loaded ${schema_view_state.tables.length} tables, ${columns_result.rows.length} columns.`);
+        schemaSetStatus(getSchemaLoadedStatus(columns_result.rows.length));
         buildSchemaGraph();
         updateSchemaDbFilter();
         await loadSchemaViewsLoad();
@@ -368,6 +442,17 @@ async function loadSchemaAll() {
     } finally {
         setSchemaControlsDisabled(false);
     }
+}
+
+function getSchemaLoadedStatus(column_count = null) {
+    const columns = column_count == null ? '' : `, ${column_count} columns`;
+    let suffix = '';
+    if (schema_view_state.target_metadata_source == 'compat') {
+        suffix = ' MV targets: compat table.';
+    } else if (schema_view_state.target_metadata_source == 'missing') {
+        suffix = ' MV targets unavailable.';
+    }
+    return `Loaded ${schema_view_state.tables.length} tables${columns}.${suffix}`;
 }
 
 async function loadSchemaViewsLoad() {
@@ -407,7 +492,7 @@ async function loadSchemaViewsLoad() {
         rows = (await schemaFetch(query)).rows;
     } catch (error) {
         console.info('system.query_views_log not available:', error.message);
-        schemaSetStatus(`Loaded ${schema_view_state.tables.length} tables, ${schema_view_state.nodes.size} nodes (query_views_log unavailable).`);
+        schemaSetStatus(`${getSchemaLoadedStatus()} ${schema_view_state.nodes.size} nodes (query_views_log unavailable).`);
         return;
     }
 
@@ -446,7 +531,7 @@ async function loadSchemaViewsLoad() {
     }
 
     schema_view_state.load_max = { by_mv: max_by_mv, by_edge: max_by_edge };
-    schemaSetStatus(`Loaded ${schema_view_state.tables.length} tables, ${schema_view_state.nodes.size} nodes. INSERT load: ${matched}/${rows.length} rows over ${days}d.`);
+    schemaSetStatus(`${getSchemaLoadedStatus()} ${schema_view_state.nodes.size} nodes. INSERT load: ${matched}/${rows.length} rows over ${days}d.`);
 }
 
 function makeSchemaMetrics() {
