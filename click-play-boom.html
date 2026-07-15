@@ -619,6 +619,12 @@
             display: grid;
         }
 
+        .schema-compat-editor input[hidden],
+        .schema-compat-editor select[hidden]
+        {
+            display: none;
+        }
+
         .connection-editor-title
         {
             color: var(--navigator-text-color);
@@ -658,6 +664,13 @@
             background: var(--element-background-color);
             color: var(--text-color);
             padding: 0.3rem 0.55rem;
+        }
+
+        .schema-compat-editor-message
+        {
+            min-height: 1rem;
+            color: var(--element-color-fail);
+            font-size: 0.72rem;
         }
 
         #schema-filter
@@ -3693,7 +3706,7 @@
 
         .schema-node-name
         {
-            flex: 1;
+            flex: 1 1 auto;
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -3709,6 +3722,13 @@
             opacity: 0.9;
             white-space: nowrap;
             font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+        }
+
+        .schema-node-kind
+        {
+            max-width: 5.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .schema-load-badge
@@ -4027,6 +4047,24 @@
                         <button id="connection-editor-cancel" type="button">Cancel</button>
                     </div>
                 </div>
+                <div id="schema-compat-editor" class="connection-editor schema-compat-editor">
+                    <div id="schema-compat-editor-title" class="connection-editor-title">Schema compatibility table</div>
+                    <div class="connection-editor-grid">
+                        <select id="schema-compat-database" class="connection-editor-full"
+                            aria-label="Compatibility table database"></select>
+                        <label class="navigator-setting connection-editor-full">
+                            <input id="schema-compat-create-database" type="checkbox">
+                            <span>Create new database</span>
+                        </label>
+                        <input id="schema-compat-new-database" class="connection-editor-full monospace" type="text"
+                            placeholder="Database name" spellcheck="false" hidden>
+                    </div>
+                    <div id="schema-compat-editor-message" class="schema-compat-editor-message"></div>
+                    <div class="connection-editor-actions">
+                        <button id="schema-compat-editor-generate" type="button">Generate</button>
+                        <button id="schema-compat-editor-cancel" type="button">Cancel</button>
+                    </div>
+                </div>
                 <input id="schema-filter" type="text" placeholder="filter connections or schema" spellcheck="false">
                 <div class="navigator-options">
                     <label class="navigator-setting" title="Show table engines and column types">
@@ -4047,7 +4085,7 @@
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection
                                 status unavailable</span>●</span>
                         <span id="client-version" class="client-version" title="Client UI version">client
-                            2026.07.14.1</span>
+                            2026.07.15.2</span>
                     </div>
                 </div>
             </div>
@@ -4534,6 +4572,14 @@ let connection_password_input_elem = document.getElementById('connection-passwor
 let connection_folder_select_elem = document.getElementById('connection-folder');
 let connection_editor_save_elem = document.getElementById('connection-editor-save');
 let connection_editor_cancel_elem = document.getElementById('connection-editor-cancel');
+let schema_compat_editor_elem = document.getElementById('schema-compat-editor');
+let schema_compat_editor_title_elem = document.getElementById('schema-compat-editor-title');
+let schema_compat_database_elem = document.getElementById('schema-compat-database');
+let schema_compat_create_database_elem = document.getElementById('schema-compat-create-database');
+let schema_compat_new_database_elem = document.getElementById('schema-compat-new-database');
+let schema_compat_editor_message_elem = document.getElementById('schema-compat-editor-message');
+let schema_compat_editor_generate_elem = document.getElementById('schema-compat-editor-generate');
+let schema_compat_editor_cancel_elem = document.getElementById('schema-compat-editor-cancel');
 let active_connection_banner_elem = document.getElementById('active-connection-banner');
 let active_connection_name_elem = document.getElementById('active-connection-name');
 let active_connection_meta_elem = document.getElementById('active-connection-meta');
@@ -4628,6 +4674,7 @@ let render_result_meta = null;
 let current_connection_id = null;
 let current_connection_name = 'default';
 let connection_editor_state = null;
+let schema_compat_editor_state = null;
 let stop_after_current = false;
 let query_editor_expanded_height = '';
 let query_snippets_state = loadQuerySnippets();
@@ -4784,6 +4831,7 @@ function createConnection(name) {
         user: user_elem.value || 'default',
         password: password_elem.value || '',
         folder_id: '',
+        schema_compat_database: 'system',
         updated_at: now,
         deleted_at: ''
     };
@@ -4919,6 +4967,7 @@ function normalizeConnectionStore(stored) {
             user: String(connection.user || 'default'),
             password: String(connection.password || ''),
             folder_id: active_folder_ids.has(folder_id) || isDeletedStorageRecord(connection) ? folder_id : '',
+            schema_compat_database: String(connection.schema_compat_database || 'system'),
             updated_at: String(connection.updated_at || connection.deleted_at || store_updated_at),
             deleted_at: String(connection.deleted_at || '')
         };
@@ -4970,6 +5019,19 @@ function getSavedConnections() {
 
 function getSavedConnectionFolders() {
     return getSavedConnectionStore().folders.filter(folder => !isDeletedStorageRecord(folder));
+}
+
+function saveConnectionSchemaCompatDatabase(connection_id, database) {
+    const store = getSavedConnectionStore();
+    const connection = store.connections.find(candidate =>
+        !isDeletedStorageRecord(candidate) && candidate.id == connection_id);
+    if (!connection) return null;
+
+    connection.schema_compat_database = String(database || 'system');
+    connection.updated_at = getStorageTimestamp();
+    const saved_store = saveConnectionStore(store);
+    return saved_store?.connections.find(candidate =>
+        !isDeletedStorageRecord(candidate) && candidate.id == connection_id) || null;
 }
 
 function saveConnections(connections) {
@@ -7525,11 +7587,13 @@ function buildInsertStatement(database, table, columns) {
     return `INSERT INTO ${database}.${table}\n(\n${column_lines.join('\n')}\n)\nVALUES\n(\n${value_lines.join('\n')}\n);`;
 }
 
-function buildSchemaCompatTableStatement(database) {
-    const example_database = database || 'default';
-    return `CREATE DATABASE IF NOT EXISTS click_play_boom;
-
-CREATE TABLE IF NOT EXISTS click_play_boom.schema_mv_targets
+function buildSchemaCompatTableStatement(database, create_database = false) {
+    const database_name = String(database || 'system');
+    const qualified_table = formatQualifiedIdentifier(database_name, 'schema_mv_targets');
+    const create_database_sql = create_database
+        ? `CREATE DATABASE IF NOT EXISTS ${formatClickHouseIdentifier(database_name)};\n\n`
+        : '';
+    return `${create_database_sql}CREATE TABLE IF NOT EXISTS ${qualified_table}
 (
     database String,
     name String,
@@ -7544,13 +7608,13 @@ ORDER BY (database, name);
 -- where system.tables does not expose target_database / target_table.
 --
 -- Example:
--- INSERT INTO click_play_boom.schema_mv_targets
+-- INSERT INTO ${qualified_table}
 --     (database, name, target_database, target_table)
 -- VALUES
---     ('${example_database}', 'materialized_view_name', '${example_database}', 'target_table_name');
+--     ('source_database', 'materialized_view_name', 'target_database', 'target_table_name');
 
 SELECT *
-FROM click_play_boom.schema_mv_targets
+FROM ${qualified_table}
 ORDER BY database, name;`;
 }
 
@@ -7718,6 +7782,7 @@ function updateActiveConnectionBanner(connection = null) {
 }
 
 function openConnectionEditor(connection = null) {
+    closeSchemaCompatEditor();
     const draft = connection ? { ...connection } : createConnection(`Connection ${getSavedConnections().length + 1}`);
     connection_editor_state = { id: draft.id };
     connection_editor_title_elem.innerText = connection ? 'Edit connection' : 'New connection';
@@ -7741,7 +7806,9 @@ function saveConnectionEditor() {
         return;
     }
 
+    const existing_connection = getSavedConnections().find(connection => connection.id == connection_editor_state.id) || {};
     const next_connection = {
+        ...existing_connection,
         id: connection_editor_state.id,
         name: connection_name_input_elem.value.trim() || `Connection ${getSavedConnections().length + 1}`,
         url: connection_url_input_elem.value.trim() || 'http://localhost:8123/',
@@ -7753,6 +7820,111 @@ function saveConnectionEditor() {
     if (saveConnectionRecord(next_connection)) {
         closeConnectionEditor();
     }
+}
+
+function closeSchemaCompatEditor() {
+    schema_compat_editor_state = null;
+    schema_compat_editor_elem.classList.remove('open');
+    schema_compat_editor_message_elem.textContent = '';
+}
+
+function updateSchemaCompatEditorGenerateState() {
+    const create_database = schema_compat_create_database_elem.checked;
+    const database = create_database
+        ? schema_compat_new_database_elem.value.trim()
+        : schema_compat_database_elem.value;
+    schema_compat_editor_generate_elem.disabled = !schema_compat_editor_state || !database;
+}
+
+function updateSchemaCompatEditorMode() {
+    const create_database = schema_compat_create_database_elem.checked;
+    schema_compat_database_elem.hidden = create_database;
+    schema_compat_new_database_elem.hidden = !create_database;
+    schema_compat_editor_message_elem.textContent = '';
+    updateSchemaCompatEditorGenerateState();
+    if (create_database) {
+        schema_compat_new_database_elem.focus();
+    }
+}
+
+function renderSchemaCompatDatabaseOptions(databases, selected_database) {
+    schema_compat_database_elem.innerHTML = '';
+    for (const database of databases) {
+        const option = document.createElement('option');
+        option.value = database;
+        option.textContent = database;
+        schema_compat_database_elem.appendChild(option);
+    }
+
+    const preferred_database = databases.includes(selected_database)
+        ? selected_database
+        : databases.includes('system') ? 'system' : (databases[0] || '');
+    schema_compat_database_elem.value = preferred_database;
+}
+
+async function openSchemaCompatEditor(connection) {
+    if (!connection) return;
+    closeConnectionEditor();
+    closeSchemaCompatEditor();
+    schema_compat_editor_state = { connection_id: connection.id };
+    schema_compat_editor_title_elem.textContent = `Schema compatibility · ${connection.name || 'Connection'}`;
+    schema_compat_create_database_elem.checked = false;
+    schema_compat_new_database_elem.value = '';
+    schema_compat_database_elem.disabled = true;
+    schema_compat_editor_generate_elem.disabled = true;
+    schema_compat_editor_message_elem.textContent = 'Loading databases...';
+    schema_compat_editor_elem.classList.add('open');
+    updateSchemaCompatEditorMode();
+
+    const cached_databases = schema_state.connection_id == connection.id && !schema_state.loading
+        ? schema_state.databases.map(database => database.database)
+        : [];
+    const loaded_databases = cached_databases.length
+        ? cached_databases
+        : await fetchDatabases(connection.url, connection.user, connection.password);
+    if (!schema_compat_editor_state || schema_compat_editor_state.connection_id != connection.id) return;
+
+    if (loaded_databases === false || !loaded_databases.length) {
+        schema_compat_editor_message_elem.textContent = 'Could not load databases. Create a new database or retry.';
+        schema_compat_create_database_elem.checked = true;
+        updateSchemaCompatEditorMode();
+        return;
+    }
+
+    renderSchemaCompatDatabaseOptions(
+        loaded_databases.map(database => typeof database == 'string' ? database : database.database),
+        connection.schema_compat_database || 'system');
+    schema_compat_database_elem.disabled = false;
+    schema_compat_editor_message_elem.textContent = '';
+    updateSchemaCompatEditorGenerateState();
+}
+
+function generateSchemaCompatTable() {
+    if (!schema_compat_editor_state) return;
+    const create_database = schema_compat_create_database_elem.checked;
+    const database = (create_database
+        ? schema_compat_new_database_elem.value
+        : schema_compat_database_elem.value).trim();
+    if (!database) {
+        schema_compat_editor_message_elem.textContent = 'Database name is required.';
+        return;
+    }
+
+    const saved_connection = saveConnectionSchemaCompatDatabase(schema_compat_editor_state.connection_id, database);
+    if (!saved_connection) {
+        schema_compat_editor_message_elem.textContent = 'The connection changed before the preference could be saved.';
+        return;
+    }
+
+    const statement = buildSchemaCompatTableStatement(database, create_database);
+    closeSchemaCompatEditor();
+    if (saved_connection.id != current_connection_id) {
+        applyConnection(saved_connection);
+    } else {
+        renderNavigatorTree();
+    }
+    setWorkspaceView('query');
+    insertTextIntoEditor(statement);
 }
 
 function openConnectionMenu(connection, anchor_rect) {
@@ -7775,6 +7947,12 @@ function openConnectionMenu(connection, anchor_rect) {
             label: 'Open schema',
             disabled: !can_open_dashboard,
             onClick: () => openConnectionSchema(connection)
+        },
+        {
+            icon: '▤',
+            label: 'Generate schema compat table',
+            disabled: !can_open_dashboard,
+            onClick: () => void openSchemaCompatEditor(connection)
         },
         {
             icon: '⇱',
@@ -7805,11 +7983,6 @@ function openDatabaseMenu(anchor_rect, database) {
             icon: '↪',
             label: 'Insert database name',
             onClick: () => insertIntoQueryEditor(formatClickHouseIdentifier(database), { mode: 'insert' })
-        },
-        {
-            icon: '⌘',
-            label: 'Generate schema compat table',
-            onClick: () => insertTextIntoEditor(buildSchemaCompatTableStatement(database))
         }
     ];
 
@@ -8741,6 +8914,7 @@ function applyConnection(connection) {
     }
 
     closeConnectionEditor();
+    closeSchemaCompatEditor();
     current_connection_id = connection.id;
     current_connection_name = connection.name || 'Connection';
     window.localStorage.setItem(active_connection_key, current_connection_id);
@@ -9444,6 +9618,45 @@ async function getServerStatus(server_address, user, password) {
 }
 
 let load_databases_request_num = 0;
+async function fetchDatabases(server_address, user, password) {
+    let url = server_address +
+        (server_address.indexOf('?') >= 0 ? '&' : '?') +
+        'add_http_cors_header=1&default_format=JSON';
+    if (user) url += '&user=' + encodeURIComponent(user);
+    if (password) url += '&password=' + encodeURIComponent(password);
+
+    let response = await fetch(url, {
+        method: "POST",
+        body: `SELECT database, database = currentDatabase() AS current
+            FROM system.databases WHERE database != 'INFORMATION_SCHEMA'
+            ORDER BY
+                database = 'information_schema',
+                database = 'system',
+                database != 'default',
+                database`,
+        headers: { 'Authorization': 'never' } });
+    if (!response.ok) return false;
+
+    const response_json = await response.json();
+    const databases = response_json.data || [];
+
+    // Use natural order for database names while keeping the familiar defaults first.
+    databases.sort((a, b) => {
+        const getPriority = (name) => {
+            switch (name) {
+                case 'default': return 0;
+                case 'system': return 2;
+                case 'information_schema': return 3;
+                default: return 1;
+            }
+        };
+
+        return getPriority(a.database) - getPriority(b.database)
+            || a.database.localeCompare(b.database, undefined, { numeric: true });
+    });
+    return databases;
+}
+
 async function loadDatabases(server_address, user, password) {
     ++load_databases_request_num;
     const current_load_databases_request_num = load_databases_request_num;
@@ -9464,23 +9677,8 @@ async function loadDatabases(server_address, user, password) {
     };
     renderNavigatorTree();
 
-    let url = server_address +
-        (server_address.indexOf('?') >= 0 ? '&' : '?') +
-        'add_http_cors_header=1&default_format=JSON';
-    if (user) url += '&user=' + encodeURIComponent(user);
-    if (password) url += '&password=' + encodeURIComponent(password);
-
-    let response = await fetch(url, {
-        method: "POST",
-        body: `SELECT database, database = currentDatabase() AS current
-            FROM system.databases WHERE database != 'INFORMATION_SCHEMA'
-            ORDER BY
-                database = 'information_schema',
-                database = 'system',
-                database != 'default',
-                database`,
-        headers: { 'Authorization': 'never' } });
-    if (!response.ok) {
+    const databases = await fetchDatabases(server_address, user, password);
+    if (databases === false) {
         schema_state = {
             loading: false,
             connection_id: target_connection_id,
@@ -9495,39 +9693,23 @@ async function loadDatabases(server_address, user, password) {
         renderNavigatorTree();
         return false;
     }
-    json = await response.json();
 
     if (current_load_databases_request_num != load_databases_request_num) return false;
     if (target_connection_id != current_connection_id) return false;
 
-    // Use natural order for database names
-    json.data.sort((a, b) => {
-        // Maintain original order for default, system, information_schema
-        const getPriority = (name) => {
-            switch (name) {
-                case 'default': return 0;
-                case 'system': return 2;
-                case 'information_schema': return 3
-                default: return 1;
-            }
-        }
-
-        return getPriority(a.database) - getPriority(b.database)
-            || a.database.localeCompare(b.database, undefined, { numeric: true });
-    });
-
     schema_state = {
         loading: false,
         connection_id: target_connection_id,
-        databases: json.data,
+        databases,
         tables: {},
         columns: {},
         loading_tables: {},
         table_messages: {},
-        message: json.data.length ? '' : 'No databases found.'
+        message: databases.length ? '' : 'No databases found.'
     };
     ++autocomplete_schema_revision;
     renderNavigatorTree();
+    return databases;
 }
 
 async function loadTables(server_address, user, password, database) {
@@ -13478,6 +13660,7 @@ const schema_view_state = {
     load_by_edge: new Map(),
     load_max: { by_mv: {}, by_edge: {} },
     target_metadata_source: 'native',
+    target_metadata_database: 'system',
     search_timer: null
 };
 
@@ -13523,6 +13706,7 @@ function resetSchemaStateForConnection(connection = getCurrentSchemaConnection()
     schema_view_state.load_by_edge = new Map();
     schema_view_state.load_max = { by_mv: {}, by_edge: {} };
     schema_view_state.target_metadata_source = 'native';
+    schema_view_state.target_metadata_database = 'system';
     schema_canvas_elem.querySelectorAll('.schema-node, .schema-db-group').forEach(element => element.remove());
     schema_links_svg_elem.innerHTML = '';
     schema_empty_elem.classList.remove('hidden');
@@ -13728,29 +13912,34 @@ async function getSchemaTargetMetadataSource() {
     `;
     const native_columns = new Set((await schemaFetch(native_columns_query)).rows.map(row => row.name));
     if (native_columns.has('target_database') && native_columns.has('target_table')) {
-        return 'native';
+        return { source: 'native', database: 'system' };
     }
+
+    const saved_connection = getSavedConnections().find(connection => connection.id == current_connection_id);
+    const compat_database = saved_connection?.schema_compat_database || 'system';
+    const compat_database_literal = `'${String(compat_database).replace(/'/g, "''")}'`;
 
     const compat_columns_query = `
         SELECT name
         FROM system.columns
-        WHERE database = 'click_play_boom'
+        WHERE database = ${compat_database_literal}
           AND table = 'schema_mv_targets'
-          AND name IN ('database', 'name', 'target_database', 'target_table')
+          AND name IN ('database', 'name', 'target_database', 'target_table', 'updated_at')
     `;
     try {
         const compat_columns = new Set((await schemaFetch(compat_columns_query)).rows.map(row => row.name));
         if (compat_columns.has('database')
             && compat_columns.has('name')
             && compat_columns.has('target_database')
-            && compat_columns.has('target_table')) {
-            return 'compat';
+            && compat_columns.has('target_table')
+            && compat_columns.has('updated_at')) {
+            return { source: 'compat', database: compat_database };
         }
     } catch (error) {
         console.info('Schema MV target compatibility table check failed:', error.message);
     }
 
-    return 'missing';
+    return { source: 'missing', database: compat_database };
 }
 
 function schemaEngineKind(engine) {
@@ -13761,6 +13950,48 @@ function schemaEngineKind(engine) {
     if (engine == 'MaterializedView') return 'mv';
     if (String(engine).includes('MergeTree')) return 'mt';
     return 'other';
+}
+
+function schemaEngineAbbreviation(engine, kind) {
+    if (kind == 'rmv') return 'rmv';
+
+    const engine_name = String(engine || '').trim();
+    const aliases = {
+        MaterializedView: 'mv',
+        Dictionary: 'dict',
+        Distributed: 'dist',
+        View: 'view',
+        LiveView: 'live',
+        WindowView: 'window'
+    };
+    if (aliases[engine_name]) return aliases[engine_name];
+
+    const replicated = engine_name.startsWith('Replicated');
+    const base_engine = replicated ? engine_name.slice('Replicated'.length) : engine_name;
+    const merge_tree_aliases = {
+        MergeTree: 'mt',
+        ReplacingMergeTree: 'rmt',
+        SummingMergeTree: 'smt',
+        AggregatingMergeTree: 'amt',
+        CollapsingMergeTree: 'cmt',
+        VersionedCollapsingMergeTree: 'vcmt',
+        CoalescingMergeTree: 'comt',
+        GraphiteMergeTree: 'gmt'
+    };
+    if (merge_tree_aliases[base_engine]) {
+        return `${replicated ? 'rep.' : ''}${merge_tree_aliases[base_engine]}`;
+    }
+
+    if (!engine_name) return '?';
+    if (engine_name.length <= 8) return engine_name.toLowerCase();
+
+    const abbreviation_source = base_engine.endsWith('MergeTree')
+        ? base_engine.slice(0, -'MergeTree'.length)
+        : engine_name;
+    const words = abbreviation_source.match(/[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]?[a-z]+|\d+/g) || [abbreviation_source];
+    const merge_tree_suffix = base_engine.endsWith('MergeTree') ? 'mt' : '';
+    const replication_prefix = replicated && merge_tree_suffix ? 'rep.' : '';
+    return `${replication_prefix}${words.map(word => word[0].toLowerCase()).join('')}${merge_tree_suffix}`.slice(0, 8);
 }
 
 async function loadSchemaAll() {
@@ -13781,10 +14012,14 @@ async function loadSchemaAll() {
     let compat_join_sql = '';
 
     try {
-        schema_view_state.target_metadata_source = await getSchemaTargetMetadataSource();
+        const target_metadata = await getSchemaTargetMetadataSource();
+        schema_view_state.target_metadata_source = target_metadata.source;
+        schema_view_state.target_metadata_database = target_metadata.database;
     } catch (error) {
         console.info('Schema target metadata source check failed:', error.message);
         schema_view_state.target_metadata_source = 'missing';
+        const saved_connection = getSavedConnections().find(connection => connection.id == current_connection_id);
+        schema_view_state.target_metadata_database = saved_connection?.schema_compat_database || 'system';
     }
 
     if (schema_view_state.target_metadata_source == 'compat') {
@@ -13799,7 +14034,7 @@ async function loadSchemaAll() {
                 name,
                 argMax(target_database, updated_at) AS target_database,
                 argMax(target_table, updated_at) AS target_table
-            FROM click_play_boom.schema_mv_targets
+            FROM ${formatQualifiedIdentifier(schema_view_state.target_metadata_database, 'schema_mv_targets')}
             GROUP BY database, name
         ) AS compat
                ON compat.database = st.database AND compat.name = st.name`;
@@ -13902,9 +14137,9 @@ function getSchemaLoadedStatus(column_count = null) {
     const columns = column_count == null ? '' : `, ${column_count} columns`;
     let suffix = '';
     if (schema_view_state.target_metadata_source == 'compat') {
-        suffix = ' MV targets: compat table.';
+        suffix = ` MV targets: ${schemaFullName(schema_view_state.target_metadata_database, 'schema_mv_targets')}.`;
     } else if (schema_view_state.target_metadata_source == 'missing') {
-        suffix = ' MV targets unavailable.';
+        suffix = ` MV targets unavailable: ${schemaFullName(schema_view_state.target_metadata_database, 'schema_mv_targets')}.`;
     }
     return `Loaded ${schema_view_state.tables.length} tables${columns}.${suffix}`;
 }
@@ -14445,7 +14680,8 @@ function schemaRender() {
         name.textContent = node.name;
         const kind = document.createElement('span');
         kind.className = 'schema-node-kind';
-        kind.textContent = node.kind == 'rmv' ? 'Refreshable MV' : (node.engine || '');
+        kind.textContent = schemaEngineAbbreviation(node.engine, node.kind);
+        kind.title = node.kind == 'rmv' ? 'Refreshable MaterializedView' : (node.engine || 'Unknown engine');
         header.append(name, kind);
 
         const mv_load = schema_view_state.load_by_mv.get(node.key);
@@ -14870,6 +15106,16 @@ connection_editor_save_elem.addEventListener('click', () => {
 connection_editor_cancel_elem.addEventListener('click', () => {
     closeConnectionEditor();
 });
+
+schema_compat_create_database_elem.addEventListener('change', updateSchemaCompatEditorMode);
+
+schema_compat_new_database_elem.addEventListener('input', updateSchemaCompatEditorGenerateState);
+
+schema_compat_database_elem.addEventListener('change', updateSchemaCompatEditorGenerateState);
+
+schema_compat_editor_generate_elem.addEventListener('click', generateSchemaCompatTable);
+
+schema_compat_editor_cancel_elem.addEventListener('click', closeSchemaCompatEditor);
 
 schema_filter_elem.addEventListener('input', () => {
     renderNavigatorTree();

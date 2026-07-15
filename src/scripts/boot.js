@@ -47,6 +47,16 @@ connection_editor_cancel_elem.addEventListener('click', () => {
     closeConnectionEditor();
 });
 
+schema_compat_create_database_elem.addEventListener('change', updateSchemaCompatEditorMode);
+
+schema_compat_new_database_elem.addEventListener('input', updateSchemaCompatEditorGenerateState);
+
+schema_compat_database_elem.addEventListener('change', updateSchemaCompatEditorGenerateState);
+
+schema_compat_editor_generate_elem.addEventListener('click', generateSchemaCompatTable);
+
+schema_compat_editor_cancel_elem.addEventListener('click', closeSchemaCompatEditor);
+
 schema_filter_elem.addEventListener('input', () => {
     renderNavigatorTree();
 });

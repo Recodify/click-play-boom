@@ -24,6 +24,7 @@ const schema_view_state = {
     load_by_edge: new Map(),
     load_max: { by_mv: {}, by_edge: {} },
     target_metadata_source: 'native',
+    target_metadata_database: 'system',
     search_timer: null
 };
 
@@ -69,6 +70,7 @@ function resetSchemaStateForConnection(connection = getCurrentSchemaConnection()
     schema_view_state.load_by_edge = new Map();
     schema_view_state.load_max = { by_mv: {}, by_edge: {} };
     schema_view_state.target_metadata_source = 'native';
+    schema_view_state.target_metadata_database = 'system';
     schema_canvas_elem.querySelectorAll('.schema-node, .schema-db-group').forEach(element => element.remove());
     schema_links_svg_elem.innerHTML = '';
     schema_empty_elem.classList.remove('hidden');
@@ -274,29 +276,34 @@ async function getSchemaTargetMetadataSource() {
     `;
     const native_columns = new Set((await schemaFetch(native_columns_query)).rows.map(row => row.name));
     if (native_columns.has('target_database') && native_columns.has('target_table')) {
-        return 'native';
+        return { source: 'native', database: 'system' };
     }
+
+    const saved_connection = getSavedConnections().find(connection => connection.id == current_connection_id);
+    const compat_database = saved_connection?.schema_compat_database || 'system';
+    const compat_database_literal = `'${String(compat_database).replace(/'/g, "''")}'`;
 
     const compat_columns_query = `
         SELECT name
         FROM system.columns
-        WHERE database = 'click_play_boom'
+        WHERE database = ${compat_database_literal}
           AND table = 'schema_mv_targets'
-          AND name IN ('database', 'name', 'target_database', 'target_table')
+          AND name IN ('database', 'name', 'target_database', 'target_table', 'updated_at')
     `;
     try {
         const compat_columns = new Set((await schemaFetch(compat_columns_query)).rows.map(row => row.name));
         if (compat_columns.has('database')
             && compat_columns.has('name')
             && compat_columns.has('target_database')
-            && compat_columns.has('target_table')) {
-            return 'compat';
+            && compat_columns.has('target_table')
+            && compat_columns.has('updated_at')) {
+            return { source: 'compat', database: compat_database };
         }
     } catch (error) {
         console.info('Schema MV target compatibility table check failed:', error.message);
     }
 
-    return 'missing';
+    return { source: 'missing', database: compat_database };
 }
 
 function schemaEngineKind(engine) {
@@ -307,6 +314,48 @@ function schemaEngineKind(engine) {
     if (engine == 'MaterializedView') return 'mv';
     if (String(engine).includes('MergeTree')) return 'mt';
     return 'other';
+}
+
+function schemaEngineAbbreviation(engine, kind) {
+    if (kind == 'rmv') return 'rmv';
+
+    const engine_name = String(engine || '').trim();
+    const aliases = {
+        MaterializedView: 'mv',
+        Dictionary: 'dict',
+        Distributed: 'dist',
+        View: 'view',
+        LiveView: 'live',
+        WindowView: 'window'
+    };
+    if (aliases[engine_name]) return aliases[engine_name];
+
+    const replicated = engine_name.startsWith('Replicated');
+    const base_engine = replicated ? engine_name.slice('Replicated'.length) : engine_name;
+    const merge_tree_aliases = {
+        MergeTree: 'mt',
+        ReplacingMergeTree: 'rmt',
+        SummingMergeTree: 'smt',
+        AggregatingMergeTree: 'amt',
+        CollapsingMergeTree: 'cmt',
+        VersionedCollapsingMergeTree: 'vcmt',
+        CoalescingMergeTree: 'comt',
+        GraphiteMergeTree: 'gmt'
+    };
+    if (merge_tree_aliases[base_engine]) {
+        return `${replicated ? 'rep.' : ''}${merge_tree_aliases[base_engine]}`;
+    }
+
+    if (!engine_name) return '?';
+    if (engine_name.length <= 8) return engine_name.toLowerCase();
+
+    const abbreviation_source = base_engine.endsWith('MergeTree')
+        ? base_engine.slice(0, -'MergeTree'.length)
+        : engine_name;
+    const words = abbreviation_source.match(/[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]?[a-z]+|\d+/g) || [abbreviation_source];
+    const merge_tree_suffix = base_engine.endsWith('MergeTree') ? 'mt' : '';
+    const replication_prefix = replicated && merge_tree_suffix ? 'rep.' : '';
+    return `${replication_prefix}${words.map(word => word[0].toLowerCase()).join('')}${merge_tree_suffix}`.slice(0, 8);
 }
 
 async function loadSchemaAll() {
@@ -327,10 +376,14 @@ async function loadSchemaAll() {
     let compat_join_sql = '';
 
     try {
-        schema_view_state.target_metadata_source = await getSchemaTargetMetadataSource();
+        const target_metadata = await getSchemaTargetMetadataSource();
+        schema_view_state.target_metadata_source = target_metadata.source;
+        schema_view_state.target_metadata_database = target_metadata.database;
     } catch (error) {
         console.info('Schema target metadata source check failed:', error.message);
         schema_view_state.target_metadata_source = 'missing';
+        const saved_connection = getSavedConnections().find(connection => connection.id == current_connection_id);
+        schema_view_state.target_metadata_database = saved_connection?.schema_compat_database || 'system';
     }
 
     if (schema_view_state.target_metadata_source == 'compat') {
@@ -345,7 +398,7 @@ async function loadSchemaAll() {
                 name,
                 argMax(target_database, updated_at) AS target_database,
                 argMax(target_table, updated_at) AS target_table
-            FROM click_play_boom.schema_mv_targets
+            FROM ${formatQualifiedIdentifier(schema_view_state.target_metadata_database, 'schema_mv_targets')}
             GROUP BY database, name
         ) AS compat
                ON compat.database = st.database AND compat.name = st.name`;
@@ -448,9 +501,9 @@ function getSchemaLoadedStatus(column_count = null) {
     const columns = column_count == null ? '' : `, ${column_count} columns`;
     let suffix = '';
     if (schema_view_state.target_metadata_source == 'compat') {
-        suffix = ' MV targets: compat table.';
+        suffix = ` MV targets: ${schemaFullName(schema_view_state.target_metadata_database, 'schema_mv_targets')}.`;
     } else if (schema_view_state.target_metadata_source == 'missing') {
-        suffix = ' MV targets unavailable.';
+        suffix = ` MV targets unavailable: ${schemaFullName(schema_view_state.target_metadata_database, 'schema_mv_targets')}.`;
     }
     return `Loaded ${schema_view_state.tables.length} tables${columns}.${suffix}`;
 }
@@ -991,7 +1044,8 @@ function schemaRender() {
         name.textContent = node.name;
         const kind = document.createElement('span');
         kind.className = 'schema-node-kind';
-        kind.textContent = node.kind == 'rmv' ? 'Refreshable MV' : (node.engine || '');
+        kind.textContent = schemaEngineAbbreviation(node.engine, node.kind);
+        kind.title = node.kind == 'rmv' ? 'Refreshable MaterializedView' : (node.engine || 'Unknown engine');
         header.append(name, kind);
 
         const mv_load = schema_view_state.load_by_mv.get(node.key);

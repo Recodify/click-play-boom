@@ -336,6 +336,12 @@
             display: grid;
         }
 
+        .schema-compat-editor input[hidden],
+        .schema-compat-editor select[hidden]
+        {
+            display: none;
+        }
+
         .connection-editor-title
         {
             color: var(--navigator-text-color);
@@ -375,6 +381,13 @@
             background: var(--element-background-color);
             color: var(--text-color);
             padding: 0.3rem 0.55rem;
+        }
+
+        .schema-compat-editor-message
+        {
+            min-height: 1rem;
+            color: var(--element-color-fail);
+            font-size: 0.72rem;
         }
 
         #schema-filter

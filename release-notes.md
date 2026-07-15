@@ -1,5 +1,15 @@
 # Release Notes
 
+## client 2026.07.15.2
+
+- Moved Schema compatibility-table generation to the connection menu with existing- and new-database modes.
+- Persisted each connection's selected compatibility database and made Schema query that exact table.
+
+## client 2026.07.15.1
+
+- Replaced full Schema node engine names with compact badges so table names receive more header space.
+- Added full ClickHouse engine names as engine-badge hover titles.
+
 ## client 2026.07.14.1
 
 - Made Schema tolerate older ClickHouse versions without `system.tables.target_database` / `target_table`.

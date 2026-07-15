@@ -55,11 +55,13 @@ function buildInsertStatement(database, table, columns) {
     return `INSERT INTO ${database}.${table}\n(\n${column_lines.join('\n')}\n)\nVALUES\n(\n${value_lines.join('\n')}\n);`;
 }
 
-function buildSchemaCompatTableStatement(database) {
-    const example_database = database || 'default';
-    return `CREATE DATABASE IF NOT EXISTS click_play_boom;
-
-CREATE TABLE IF NOT EXISTS click_play_boom.schema_mv_targets
+function buildSchemaCompatTableStatement(database, create_database = false) {
+    const database_name = String(database || 'system');
+    const qualified_table = formatQualifiedIdentifier(database_name, 'schema_mv_targets');
+    const create_database_sql = create_database
+        ? `CREATE DATABASE IF NOT EXISTS ${formatClickHouseIdentifier(database_name)};\n\n`
+        : '';
+    return `${create_database_sql}CREATE TABLE IF NOT EXISTS ${qualified_table}
 (
     database String,
     name String,
@@ -74,13 +76,13 @@ ORDER BY (database, name);
 -- where system.tables does not expose target_database / target_table.
 --
 -- Example:
--- INSERT INTO click_play_boom.schema_mv_targets
+-- INSERT INTO ${qualified_table}
 --     (database, name, target_database, target_table)
 -- VALUES
---     ('${example_database}', 'materialized_view_name', '${example_database}', 'target_table_name');
+--     ('source_database', 'materialized_view_name', 'target_database', 'target_table_name');
 
 SELECT *
-FROM click_play_boom.schema_mv_targets
+FROM ${qualified_table}
 ORDER BY database, name;`;
 }
 
@@ -248,6 +250,7 @@ function updateActiveConnectionBanner(connection = null) {
 }
 
 function openConnectionEditor(connection = null) {
+    closeSchemaCompatEditor();
     const draft = connection ? { ...connection } : createConnection(`Connection ${getSavedConnections().length + 1}`);
     connection_editor_state = { id: draft.id };
     connection_editor_title_elem.innerText = connection ? 'Edit connection' : 'New connection';
@@ -271,7 +274,9 @@ function saveConnectionEditor() {
         return;
     }
 
+    const existing_connection = getSavedConnections().find(connection => connection.id == connection_editor_state.id) || {};
     const next_connection = {
+        ...existing_connection,
         id: connection_editor_state.id,
         name: connection_name_input_elem.value.trim() || `Connection ${getSavedConnections().length + 1}`,
         url: connection_url_input_elem.value.trim() || 'http://localhost:8123/',
@@ -283,6 +288,111 @@ function saveConnectionEditor() {
     if (saveConnectionRecord(next_connection)) {
         closeConnectionEditor();
     }
+}
+
+function closeSchemaCompatEditor() {
+    schema_compat_editor_state = null;
+    schema_compat_editor_elem.classList.remove('open');
+    schema_compat_editor_message_elem.textContent = '';
+}
+
+function updateSchemaCompatEditorGenerateState() {
+    const create_database = schema_compat_create_database_elem.checked;
+    const database = create_database
+        ? schema_compat_new_database_elem.value.trim()
+        : schema_compat_database_elem.value;
+    schema_compat_editor_generate_elem.disabled = !schema_compat_editor_state || !database;
+}
+
+function updateSchemaCompatEditorMode() {
+    const create_database = schema_compat_create_database_elem.checked;
+    schema_compat_database_elem.hidden = create_database;
+    schema_compat_new_database_elem.hidden = !create_database;
+    schema_compat_editor_message_elem.textContent = '';
+    updateSchemaCompatEditorGenerateState();
+    if (create_database) {
+        schema_compat_new_database_elem.focus();
+    }
+}
+
+function renderSchemaCompatDatabaseOptions(databases, selected_database) {
+    schema_compat_database_elem.innerHTML = '';
+    for (const database of databases) {
+        const option = document.createElement('option');
+        option.value = database;
+        option.textContent = database;
+        schema_compat_database_elem.appendChild(option);
+    }
+
+    const preferred_database = databases.includes(selected_database)
+        ? selected_database
+        : databases.includes('system') ? 'system' : (databases[0] || '');
+    schema_compat_database_elem.value = preferred_database;
+}
+
+async function openSchemaCompatEditor(connection) {
+    if (!connection) return;
+    closeConnectionEditor();
+    closeSchemaCompatEditor();
+    schema_compat_editor_state = { connection_id: connection.id };
+    schema_compat_editor_title_elem.textContent = `Schema compatibility · ${connection.name || 'Connection'}`;
+    schema_compat_create_database_elem.checked = false;
+    schema_compat_new_database_elem.value = '';
+    schema_compat_database_elem.disabled = true;
+    schema_compat_editor_generate_elem.disabled = true;
+    schema_compat_editor_message_elem.textContent = 'Loading databases...';
+    schema_compat_editor_elem.classList.add('open');
+    updateSchemaCompatEditorMode();
+
+    const cached_databases = schema_state.connection_id == connection.id && !schema_state.loading
+        ? schema_state.databases.map(database => database.database)
+        : [];
+    const loaded_databases = cached_databases.length
+        ? cached_databases
+        : await fetchDatabases(connection.url, connection.user, connection.password);
+    if (!schema_compat_editor_state || schema_compat_editor_state.connection_id != connection.id) return;
+
+    if (loaded_databases === false || !loaded_databases.length) {
+        schema_compat_editor_message_elem.textContent = 'Could not load databases. Create a new database or retry.';
+        schema_compat_create_database_elem.checked = true;
+        updateSchemaCompatEditorMode();
+        return;
+    }
+
+    renderSchemaCompatDatabaseOptions(
+        loaded_databases.map(database => typeof database == 'string' ? database : database.database),
+        connection.schema_compat_database || 'system');
+    schema_compat_database_elem.disabled = false;
+    schema_compat_editor_message_elem.textContent = '';
+    updateSchemaCompatEditorGenerateState();
+}
+
+function generateSchemaCompatTable() {
+    if (!schema_compat_editor_state) return;
+    const create_database = schema_compat_create_database_elem.checked;
+    const database = (create_database
+        ? schema_compat_new_database_elem.value
+        : schema_compat_database_elem.value).trim();
+    if (!database) {
+        schema_compat_editor_message_elem.textContent = 'Database name is required.';
+        return;
+    }
+
+    const saved_connection = saveConnectionSchemaCompatDatabase(schema_compat_editor_state.connection_id, database);
+    if (!saved_connection) {
+        schema_compat_editor_message_elem.textContent = 'The connection changed before the preference could be saved.';
+        return;
+    }
+
+    const statement = buildSchemaCompatTableStatement(database, create_database);
+    closeSchemaCompatEditor();
+    if (saved_connection.id != current_connection_id) {
+        applyConnection(saved_connection);
+    } else {
+        renderNavigatorTree();
+    }
+    setWorkspaceView('query');
+    insertTextIntoEditor(statement);
 }
 
 function openConnectionMenu(connection, anchor_rect) {
@@ -305,6 +415,12 @@ function openConnectionMenu(connection, anchor_rect) {
             label: 'Open schema',
             disabled: !can_open_dashboard,
             onClick: () => openConnectionSchema(connection)
+        },
+        {
+            icon: '▤',
+            label: 'Generate schema compat table',
+            disabled: !can_open_dashboard,
+            onClick: () => void openSchemaCompatEditor(connection)
         },
         {
             icon: '⇱',
@@ -335,11 +451,6 @@ function openDatabaseMenu(anchor_rect, database) {
             icon: '↪',
             label: 'Insert database name',
             onClick: () => insertIntoQueryEditor(formatClickHouseIdentifier(database), { mode: 'insert' })
-        },
-        {
-            icon: '⌘',
-            label: 'Generate schema compat table',
-            onClick: () => insertTextIntoEditor(buildSchemaCompatTableStatement(database))
         }
     ];
 
@@ -1271,6 +1382,7 @@ function applyConnection(connection) {
     }
 
     closeConnectionEditor();
+    closeSchemaCompatEditor();
     current_connection_id = connection.id;
     current_connection_name = connection.name || 'Connection';
     window.localStorage.setItem(active_connection_key, current_connection_id);

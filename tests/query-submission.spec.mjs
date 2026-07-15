@@ -107,7 +107,11 @@ async function startFakeClickHouse(options = {}) {
     }
 
     if (body.includes('FROM system.databases')) {
-      jsonResponse(response, { data: [{ database: 'default', current: 1 }] });
+      jsonResponse(response, { data: [
+        { database: 'default', current: 1 },
+        { database: 'analytics', current: 0 },
+        { database: 'system', current: 0 },
+      ] });
       return;
     }
 
@@ -121,10 +125,9 @@ async function startFakeClickHouse(options = {}) {
     }
 
     if (body.includes('FROM system.columns')
-      && body.includes("database = 'click_play_boom'")
       && body.includes("table = 'schema_mv_targets'")) {
       compactResponse(response, ['name'], ['String'], schemaTargetMode === 'compat'
-        ? [['database'], ['name'], ['target_database'], ['target_table']]
+        ? [['database'], ['name'], ['target_database'], ['target_table'], ['updated_at']]
         : []);
       return;
     }
@@ -224,7 +227,7 @@ async function startFakeClickHouse(options = {}) {
         ['analytics', 'raw_events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE analytics.raw_events (id UInt64) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 5, 256, '', '', '', [], []],
         ['default', 'events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE default.events (id UInt64, name String) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 2, 128, '', '', '', ['default.events_mv'], []],
         ['default', 'events_mv', 'MaterializedView', 'MaterializedView', 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT count() FROM default.events', '', '', '', '', 0, 0, '', schemaTargetMode === 'missing' ? '' : 'default', schemaTargetMode === 'missing' ? '' : 'events_summary', schemaTargetMode === 'native' ? ['default.events_summary'] : [], ['default.events']],
-        ['default', 'events_summary', 'AggregatingMergeTree', 'AggregatingMergeTree ORDER BY tuple()', 'CREATE TABLE default.events_summary (c UInt64) ENGINE = AggregatingMergeTree ORDER BY tuple()', '', '', '', '', 1, 64, '', '', '', [], []],
+        ['default', 'events_summary', 'ReplicatedAggregatingMergeTree', 'ReplicatedAggregatingMergeTree ORDER BY tuple()', 'CREATE TABLE default.events_summary (c UInt64) ENGINE = ReplicatedAggregatingMergeTree ORDER BY tuple()', '', '', '', '', 1, 64, '', '', '', [], []],
       ]);
       return;
     }
@@ -530,6 +533,12 @@ test.describe('query submission safety', () => {
     await expect(page.locator('#schema_workspace')).toBeVisible();
     await expect(page.locator('#query_div')).toBeHidden();
     await expect(page.locator('.schema-node[data-key="default.events"]')).toBeVisible();
+    await expect(page.locator('.schema-node[data-key="default.events"] .schema-node-kind')).toHaveText('mt');
+    await expect(page.locator('.schema-node[data-key="default.events"] .schema-node-kind')).toHaveAttribute('title', 'MergeTree');
+    await expect(page.locator('.schema-node[data-key="default.events_mv"] .schema-node-kind')).toHaveText('mv');
+    await expect(page.locator('.schema-node[data-key="default.events_mv"] .schema-node-kind')).toHaveAttribute('title', 'MaterializedView');
+    await expect(page.locator('.schema-node[data-key="default.events_summary"] .schema-node-kind')).toHaveText('rep.amt');
+    await expect(page.locator('.schema-node[data-key="default.events_summary"] .schema-node-kind')).toHaveAttribute('title', 'ReplicatedAggregatingMergeTree');
     await expect(page.locator('.schema-arrow')).toHaveCount(2);
     await expect(page.locator('#schema-status')).toContainText('Loaded 4 tables');
     await page.locator('#schema-db-filter-button').click();
@@ -561,21 +570,49 @@ test.describe('query submission safety', () => {
     await page.evaluate(() => window.localStorage.clear());
     await openAppWithPassword(page, fakeClickHouse.url, 'secret');
 
+    await page.locator('.navigator-connection-menu').click();
+    await page.getByRole('button', { name: 'Generate schema compat table' }).click();
+    await expect(page.locator('#schema-compat-editor')).toHaveClass(/open/);
+    await page.locator('#schema-compat-database').selectOption('analytics');
+    await page.locator('#schema-compat-editor-generate').click();
+
+    await expect(page.locator('#query')).toHaveValue(/CREATE TABLE IF NOT EXISTS analytics\.schema_mv_targets/);
+    await expect(page.locator('#query')).not.toHaveValue(/CREATE DATABASE/);
+    await expect.poll(() => page.evaluate(() =>
+      getSavedConnections().find(connection => connection.id == current_connection_id)?.schema_compat_database
+    )).toBe('analytics');
+
+    await page.locator('.navigator-connection-menu').click();
+    await page.getByRole('button', { name: 'Edit connection' }).click();
+    await page.locator('#connection-editor-save').click();
+    await expect.poll(() => page.evaluate(() =>
+      getSavedConnections().find(connection => connection.id == current_connection_id)?.schema_compat_database
+    )).toBe('analytics');
+
     await page.locator('#app-view-schema').click();
 
     await expect(page.locator('#schema_workspace')).toBeVisible();
-    await expect(page.locator('#schema-status')).toContainText('MV targets: compat table');
+    await expect(page.locator('#schema-status')).toContainText('MV targets: analytics.schema_mv_targets');
     await expect(page.locator('.schema-arrow')).toHaveCount(2);
     await expect.poll(() => fakeClickHouse.schemaRequests.some(request =>
-      request.body.includes('LEFT JOIN') && request.body.includes('click_play_boom.schema_mv_targets')
+      request.body.includes('LEFT JOIN') && request.body.includes('analytics.schema_mv_targets')
     )).toBe(true);
   });
 
-  test('database menu generates schema compatibility table DDL', async ({ page }) => {
-    const ddl = await page.evaluate(() => buildSchemaCompatTableStatement('default'));
+  test('server menu generates a compatibility table in a new database', async ({ page }) => {
+    await page.locator('.navigator-connection-menu').click();
+    await page.getByRole('button', { name: 'Generate schema compat table' }).click();
+    await page.locator('#schema-compat-create-database').check();
+    await page.locator('#schema-compat-new-database').fill('ops_metadata');
+    await page.locator('#schema-compat-editor-generate').click();
 
-    expect(ddl).toContain('CREATE DATABASE IF NOT EXISTS click_play_boom');
-    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS click_play_boom.schema_mv_targets');
-    expect(ddl).toContain("('default', 'materialized_view_name', 'default', 'target_table_name')");
+    await expect(page.locator('#query')).toHaveValue(/CREATE DATABASE IF NOT EXISTS ops_metadata/);
+    await expect(page.locator('#query')).toHaveValue(/CREATE TABLE IF NOT EXISTS ops_metadata\.schema_mv_targets/);
+    await expect.poll(() => page.evaluate(() =>
+      getSavedConnections().find(connection => connection.id == current_connection_id)?.schema_compat_database
+    )).toBe('ops_metadata');
+
+    await page.locator('.database-header').first().click({ button: 'right' });
+    await expect(page.locator('#navigator-context-menu')).not.toContainText('Generate schema compat table');
   });
 });
