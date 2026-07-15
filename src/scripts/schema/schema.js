@@ -234,9 +234,15 @@ function setSchemaControlsDisabled(disabled) {
     schema_reload_elem.setAttribute('aria-label', disabled ? 'Loading schema' : 'Reload schema');
 }
 
-async function schemaFetch(query) {
+async function schemaFetch(query, extra_params = {}) {
     const connection = getCurrentSchemaConnection();
-    const url = buildClickHouseUrl(connection.url.replace(/\/+$/, ''), connection.user, connection.password, 'JSONCompactEachRowWithNamesAndTypes');
+    const url = buildClickHouseUrl(
+        connection.url.replace(/\/+$/, ''),
+        connection.user,
+        connection.password,
+        'JSONCompactEachRowWithNamesAndTypes',
+        extra_params
+    );
     const response = await fetch(url, {
         method: 'POST',
         body: query,
@@ -655,6 +661,8 @@ function buildSchemaGraph() {
             columns: schema_view_state.columns_by_table.get(key) || [],
             dict_source: schema_view_state.dict_sources.get(key),
             refresh: schema_view_state.refreshes.get(key),
+            create_query_format_result: null,
+            create_query_format_promise: null,
             x: 0,
             y: 0,
             w: 0,
@@ -1270,6 +1278,82 @@ function appendSchemaDetailsRow(table, key, value) {
     table.appendChild(tr);
 }
 
+function extractSchemaTopLevelGroupBy(formatted_query) {
+    const lines = String(formatted_query || '').replace(/\r\n?/g, '\n').split('\n');
+    const start = lines.findIndex(line => /^GROUP\s+BY(?:\s|$)/i.test(line));
+    if (start < 0) return '';
+
+    const next_clause = /^(?:HAVING|QUALIFY|WINDOW|ORDER\s+BY|LIMIT|OFFSET|SETTINGS|UNION|EXCEPT|INTERSECT|INTO\s+OUTFILE|FORMAT)(?:\s|$)/i;
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+        if (next_clause.test(lines[i])) {
+            end = i;
+            break;
+        }
+    }
+
+    return lines.slice(start, end).join('\n').replace(/^GROUP\s+BY\s*/i, '').trim();
+}
+
+async function getSchemaCreateQueryFormat(node) {
+    if (node.create_query_format_result) {
+        return node.create_query_format_result;
+    }
+    if (node.create_query_format_promise) {
+        return node.create_query_format_promise;
+    }
+
+    node.create_query_format_promise = (async () => {
+        try {
+            const result = await schemaFetch(
+                'SELECT formatQuery({create_query:String}) AS formatted_create_query',
+                { param_create_query: node.create_query }
+            );
+            const formatted_query = String(result.rows[0]?.formatted_create_query || '').trim();
+            if (!formatted_query) {
+                throw new Error('ClickHouse returned an empty formatted statement.');
+            }
+            node.create_query_format_result = { query: formatted_query, formatted: true, error: '' };
+        } catch (error) {
+            console.info(`Could not format Schema CREATE statement for ${node.key}:`, error.message);
+            node.create_query_format_result = {
+                query: node.create_query,
+                formatted: false,
+                error: error.message || 'Formatting unavailable.'
+            };
+        }
+        return node.create_query_format_result;
+    })();
+
+    return node.create_query_format_promise;
+}
+
+async function populateSchemaCreateDetails(node, create_statement, group_by, generation) {
+    const result = await getSchemaCreateQueryFormat(node);
+    if (generation != schema_view_state.generation
+        || schema_view_state.selected_key != node.key
+        || schema_view_state.nodes.get(node.key) !== node) {
+        return;
+    }
+
+    create_statement.textContent = result.query;
+    create_statement.classList.remove('schema-sql-pending');
+    if (!result.formatted) {
+        create_statement.title = result.error;
+    }
+
+    if (group_by) {
+        group_by.textContent = result.formatted
+            ? (extractSchemaTopLevelGroupBy(result.query) || 'None')
+            : 'Unavailable';
+        group_by.classList.remove('schema-sql-pending');
+        group_by.classList.toggle('schema-sql-muted', !result.formatted);
+        if (!result.formatted) {
+            group_by.title = result.error;
+        }
+    }
+}
+
 function showSchemaSidebar(key) {
     const node = schema_view_state.nodes.get(key);
     if (!node) return;
@@ -1337,11 +1421,23 @@ function showSchemaSidebar(key) {
     appendSchemaRelatedLinks('Writes to / depended on by', schema_view_state._outgoing?.get(key) || []);
 
     if (node.create_query) {
+        let group_by = null;
+        if (node.kind == 'mv' || node.kind == 'rmv') {
+            const group_heading = document.createElement('h3');
+            group_heading.textContent = 'Group by';
+            group_by = document.createElement('pre');
+            group_by.className = 'schema-group-by schema-sql-pending';
+            group_by.textContent = 'Formatting...';
+            schema_sidebar_content_elem.append(group_heading, group_by);
+        }
+
         const heading = document.createElement('h3');
         heading.textContent = 'CREATE statement';
         const pre = document.createElement('pre');
-        pre.textContent = node.create_query;
+        pre.className = 'schema-create-statement schema-sql-pending';
+        pre.textContent = 'Formatting...';
         schema_sidebar_content_elem.append(heading, pre);
+        void populateSchemaCreateDetails(node, pre, group_by, schema_view_state.generation);
     }
 
     schema_sidebar_elem.classList.add('open');

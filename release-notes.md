@@ -1,5 +1,11 @@
 # Release Notes
 
+## client 2026.07.15.3
+
+- Added lazy, cached ClickHouse formatting for Schema CREATE statements with raw-query fallback.
+- Added a dedicated top-level GROUP BY summary for materialized and refreshable materialized views.
+- Made Schema definition blocks wider and horizontally scrollable instead of breaking SQL tokens.
+
 ## client 2026.07.15.2
 
 - Moved Schema compatibility-table generation to the connection menu with existing- and new-database modes.

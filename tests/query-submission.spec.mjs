@@ -67,11 +67,46 @@ function compactResponse(response, names, types, rows) {
 
 async function startFakeClickHouse(options = {}) {
   const schemaTargetMode = options.schemaTargetMode || 'native';
+  const schemaMvHasGroupBy = options.schemaMvHasGroupBy !== false;
+  const schemaFormatFailureMatch = options.schemaFormatFailureMatch || '';
   const submissions = [];
   const dashboardRequests = [];
   const dashboardChartRequests = [];
   const schemaRequests = [];
+  const schemaFormatRequests = [];
   const waiters = [];
+
+  const schemaMvCreateQuery = schemaMvHasGroupBy
+    ? 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT id, count() AS c FROM (SELECT id FROM default.events GROUP BY id, name) GROUP BY id'
+    : 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT id, count() AS c FROM (SELECT id FROM default.events GROUP BY id, name)';
+  const formattedSchemaMvCreateQuery = schemaMvHasGroupBy
+    ? [
+        'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary',
+        'AS SELECT',
+        '    id,',
+        '    count() AS c',
+        'FROM',
+        '(',
+        '    SELECT id',
+        '    FROM default.events',
+        '    GROUP BY',
+        '        id,',
+        '        name',
+        ')',
+        'GROUP BY id',
+      ].join('\n')
+    : [
+        'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary',
+        'AS SELECT',
+        '    id,',
+        '    count() AS c',
+        'FROM',
+        '(',
+        '    SELECT id',
+        '    FROM default.events',
+        '    GROUP BY id',
+        ')',
+      ].join('\n');
 
   function notifyWaiters() {
     for (const waiter of [...waiters]) {
@@ -103,6 +138,26 @@ async function startFakeClickHouse(options = {}) {
     const body = await readRequestBody(request);
     if (body.includes('SELECT version() AS v')) {
       jsonResponse(response, { v: 'test', t: 123 });
+      return;
+    }
+
+    if (body.includes('formatQuery({create_query:String})')) {
+      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
+      const createQuery = requestUrl.searchParams.get('param_create_query') || '';
+      schemaFormatRequests.push(createQuery);
+      if (schemaFormatFailureMatch && createQuery.includes(schemaFormatFailureMatch)) {
+        response.writeHead(400, { 'Content-Type': 'text/plain' });
+        response.end('Formatting unavailable');
+        return;
+      }
+      compactResponse(
+        response,
+        ['formatted_create_query'],
+        ['String'],
+        [[createQuery.includes('default.events_mv')
+          ? formattedSchemaMvCreateQuery
+          : createQuery.replace(' ENGINE = ', '\nENGINE = ').replace(' ORDER BY ', '\nORDER BY ')]],
+      );
       return;
     }
 
@@ -226,7 +281,7 @@ async function startFakeClickHouse(options = {}) {
       ], [
         ['analytics', 'raw_events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE analytics.raw_events (id UInt64) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 5, 256, '', '', '', [], []],
         ['default', 'events', 'MergeTree', 'MergeTree ORDER BY id', 'CREATE TABLE default.events (id UInt64, name String) ENGINE = MergeTree ORDER BY id', 'id', 'id', '', '', 2, 128, '', '', '', ['default.events_mv'], []],
-        ['default', 'events_mv', 'MaterializedView', 'MaterializedView', 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT count() FROM default.events', '', '', '', '', 0, 0, '', schemaTargetMode === 'missing' ? '' : 'default', schemaTargetMode === 'missing' ? '' : 'events_summary', schemaTargetMode === 'native' ? ['default.events_summary'] : [], ['default.events']],
+        ['default', 'events_mv', 'MaterializedView', 'MaterializedView', schemaMvCreateQuery, '', '', '', '', 0, 0, '', schemaTargetMode === 'missing' ? '' : 'default', schemaTargetMode === 'missing' ? '' : 'events_summary', schemaTargetMode === 'native' ? ['default.events_summary'] : [], ['default.events']],
         ['default', 'events_summary', 'ReplicatedAggregatingMergeTree', 'ReplicatedAggregatingMergeTree ORDER BY tuple()', 'CREATE TABLE default.events_summary (c UInt64) ENGINE = ReplicatedAggregatingMergeTree ORDER BY tuple()', '', '', '', '', 1, 64, '', '', '', [], []],
       ]);
       return;
@@ -313,6 +368,7 @@ async function startFakeClickHouse(options = {}) {
     dashboardRequests,
     dashboardChartRequests,
     schemaRequests,
+    schemaFormatRequests,
     waitForSubmissions(count) {
       if (submissions.length >= count) {
         return Promise.resolve(submissions.slice());
@@ -556,12 +612,46 @@ test.describe('query submission safety', () => {
     await page.locator('.schema-node[data-key="default.events"]').click();
     await expect(page.locator('#schema-sidebar')).toHaveClass(/open/);
     await expect(page.locator('#schema-sidebar-title')).toContainText('default.events');
+    await expect(page.locator('.schema-create-statement')).toContainText('\nENGINE = MergeTree\nORDER BY id');
+    await page.locator('.schema-node[data-key="default.events_mv"]').click();
+    await expect(page.locator('.schema-group-by')).toHaveText('id');
+    await expect(page.locator('.schema-create-statement')).toContainText('\n    GROUP BY\n        id,\n        name\n)\nGROUP BY id');
+    await page.locator('.schema-node[data-key="default.events"]').click();
+    await page.locator('.schema-node[data-key="default.events_mv"]').click();
+    await expect.poll(() => fakeClickHouse.schemaFormatRequests.filter(query =>
+      query.includes('default.events_mv')
+    ).length).toBe(1);
     await page.reload();
     await expect(page.locator('#schema_workspace')).toBeVisible();
     await expect(page.locator('.schema-node').filter({ hasText: 'events_summary' }).first()).toBeVisible();
     await expect.poll(() => fakeClickHouse.schemaRequests.some(request =>
       request.user == 'default' && request.password == 'secret'
     )).toBe(true);
+  });
+
+  test('schema CREATE formatting handles ungrouped MVs and formatter failures', async ({ page }) => {
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse({
+      schemaMvHasGroupBy: false,
+      schemaFormatFailureMatch: 'analytics.raw_events',
+    });
+    await page.evaluate(() => window.localStorage.clear());
+    await openAppWithPassword(page, fakeClickHouse.url, 'secret');
+    await page.locator('#app-view-schema').click();
+
+    await page.locator('.schema-node[data-key="default.events_mv"]').click();
+    await expect(page.locator('.schema-group-by')).toHaveText('None');
+    await expect(page.locator('.schema-create-statement')).toContainText('    GROUP BY id\n)');
+
+    await page.locator('.schema-node[data-key="analytics.raw_events"]').click();
+    await expect(page.locator('.schema-create-statement')).toHaveText(
+      'CREATE TABLE analytics.raw_events (id UInt64) ENGINE = MergeTree ORDER BY id',
+    );
+    await page.locator('.schema-node[data-key="default.events_mv"]').click();
+    await page.locator('.schema-node[data-key="analytics.raw_events"]').click();
+    await expect.poll(() => fakeClickHouse.schemaFormatRequests.filter(query =>
+      query.includes('analytics.raw_events')
+    ).length).toBe(1);
   });
 
   test('schema workspace uses optional MV target compatibility table on older servers', async ({ page }) => {
