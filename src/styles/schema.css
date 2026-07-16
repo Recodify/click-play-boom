@@ -390,7 +390,7 @@
 
         .schema-node-name
         {
-            flex: 1;
+            flex: 1 1 auto;
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -406,6 +406,13 @@
             opacity: 0.9;
             white-space: nowrap;
             font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+        }
+
+        .schema-node-kind
+        {
+            max-width: 5.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .schema-load-badge
@@ -508,7 +515,7 @@
             top: 0;
             right: 0;
             bottom: 0;
-            width: min(30rem, 92%);
+            width: min(42rem, 92%);
             display: none;
             overflow-y: auto;
             padding: 0.9rem 1rem;
@@ -588,14 +595,30 @@
         {
             overflow-x: auto;
             margin: 0;
-            padding: 0.6rem 0.75rem;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 0.8rem 1rem;
             border: 1px solid var(--schema-border-color);
             background: var(--query-editor-background-color);
             color: var(--query-editor-text-color);
             font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
-            font-size: 0.76rem;
-            white-space: pre-wrap;
-            word-break: break-word;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            tab-size: 4;
+            white-space: pre;
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+
+        .schema-sidebar .schema-group-by
+        {
+            box-shadow: inset 0.22rem 0 var(--schema-header-mv);
+        }
+
+        .schema-sidebar .schema-sql-pending,
+        .schema-sidebar .schema-sql-muted
+        {
+            color: var(--schema-muted);
         }
 
         .schema-related-table

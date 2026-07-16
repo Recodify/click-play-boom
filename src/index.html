@@ -98,6 +98,24 @@
                         <button id="connection-editor-cancel" type="button">Cancel</button>
                     </div>
                 </div>
+                <div id="schema-compat-editor" class="connection-editor schema-compat-editor">
+                    <div id="schema-compat-editor-title" class="connection-editor-title">Schema compatibility table</div>
+                    <div class="connection-editor-grid">
+                        <select id="schema-compat-database" class="connection-editor-full"
+                            aria-label="Compatibility table database"></select>
+                        <label class="navigator-setting connection-editor-full">
+                            <input id="schema-compat-create-database" type="checkbox">
+                            <span>Create new database</span>
+                        </label>
+                        <input id="schema-compat-new-database" class="connection-editor-full monospace" type="text"
+                            placeholder="Database name" spellcheck="false" hidden>
+                    </div>
+                    <div id="schema-compat-editor-message" class="schema-compat-editor-message"></div>
+                    <div class="connection-editor-actions">
+                        <button id="schema-compat-editor-generate" type="button">Generate</button>
+                        <button id="schema-compat-editor-cancel" type="button">Cancel</button>
+                    </div>
+                </div>
                 <input id="schema-filter" type="text" placeholder="filter connections or schema" spellcheck="false">
                 <div class="navigator-options">
                     <label class="navigator-setting" title="Show table engines and column types">
@@ -118,7 +136,7 @@
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection
                                 status unavailable</span>●</span>
                         <span id="client-version" class="client-version" title="Client UI version">client
-                            2026.07.10.15</span>
+                            2026.07.16.1</span>
                     </div>
                 </div>
             </div>

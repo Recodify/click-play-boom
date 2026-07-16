@@ -1,5 +1,31 @@
 # Release Notes
 
+## client 2026.07.16.1
+
+- Added source-connection generation of batched Schema compatibility inserts from native materialized-view target metadata.
+- Added a compatibility-table database prompt and kept generated inserts selected for review and explicit execution on the older destination connection.
+
+## client 2026.07.15.3
+
+- Added lazy, cached ClickHouse formatting for Schema CREATE statements with raw-query fallback.
+- Added a dedicated top-level GROUP BY summary for materialized and refreshable materialized views.
+- Made Schema definition blocks wider and horizontally scrollable instead of breaking SQL tokens.
+
+## client 2026.07.15.2
+
+- Moved Schema compatibility-table generation to the connection menu with existing- and new-database modes.
+- Persisted each connection's selected compatibility database and made Schema query that exact table.
+
+## client 2026.07.15.1
+
+- Replaced full Schema node engine names with compact badges so table names receive more header space.
+- Added full ClickHouse engine names as engine-badge hover titles.
+
+## client 2026.07.14.1
+
+- Made Schema tolerate older ClickHouse versions without `system.tables.target_database` / `target_table`.
+- Added optional `click_play_boom.schema_mv_targets` compatibility-table support and a database context-menu DDL generator.
+
 ## client 2026.07.10.15
 
 - Made Schema database filtering a compact multiselect dropdown.

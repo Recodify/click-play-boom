@@ -46,6 +46,45 @@ async function getServerStatus(server_address, user, password) {
 }
 
 let load_databases_request_num = 0;
+async function fetchDatabases(server_address, user, password) {
+    let url = server_address +
+        (server_address.indexOf('?') >= 0 ? '&' : '?') +
+        'add_http_cors_header=1&default_format=JSON';
+    if (user) url += '&user=' + encodeURIComponent(user);
+    if (password) url += '&password=' + encodeURIComponent(password);
+
+    let response = await fetch(url, {
+        method: "POST",
+        body: `SELECT database, database = currentDatabase() AS current
+            FROM system.databases WHERE database != 'INFORMATION_SCHEMA'
+            ORDER BY
+                database = 'information_schema',
+                database = 'system',
+                database != 'default',
+                database`,
+        headers: { 'Authorization': 'never' } });
+    if (!response.ok) return false;
+
+    const response_json = await response.json();
+    const databases = response_json.data || [];
+
+    // Use natural order for database names while keeping the familiar defaults first.
+    databases.sort((a, b) => {
+        const getPriority = (name) => {
+            switch (name) {
+                case 'default': return 0;
+                case 'system': return 2;
+                case 'information_schema': return 3;
+                default: return 1;
+            }
+        };
+
+        return getPriority(a.database) - getPriority(b.database)
+            || a.database.localeCompare(b.database, undefined, { numeric: true });
+    });
+    return databases;
+}
+
 async function loadDatabases(server_address, user, password) {
     ++load_databases_request_num;
     const current_load_databases_request_num = load_databases_request_num;
@@ -66,23 +105,8 @@ async function loadDatabases(server_address, user, password) {
     };
     renderNavigatorTree();
 
-    let url = server_address +
-        (server_address.indexOf('?') >= 0 ? '&' : '?') +
-        'add_http_cors_header=1&default_format=JSON';
-    if (user) url += '&user=' + encodeURIComponent(user);
-    if (password) url += '&password=' + encodeURIComponent(password);
-
-    let response = await fetch(url, {
-        method: "POST",
-        body: `SELECT database, database = currentDatabase() AS current
-            FROM system.databases WHERE database != 'INFORMATION_SCHEMA'
-            ORDER BY
-                database = 'information_schema',
-                database = 'system',
-                database != 'default',
-                database`,
-        headers: { 'Authorization': 'never' } });
-    if (!response.ok) {
+    const databases = await fetchDatabases(server_address, user, password);
+    if (databases === false) {
         schema_state = {
             loading: false,
             connection_id: target_connection_id,
@@ -97,39 +121,23 @@ async function loadDatabases(server_address, user, password) {
         renderNavigatorTree();
         return false;
     }
-    json = await response.json();
 
     if (current_load_databases_request_num != load_databases_request_num) return false;
     if (target_connection_id != current_connection_id) return false;
 
-    // Use natural order for database names
-    json.data.sort((a, b) => {
-        // Maintain original order for default, system, information_schema
-        const getPriority = (name) => {
-            switch (name) {
-                case 'default': return 0;
-                case 'system': return 2;
-                case 'information_schema': return 3
-                default: return 1;
-            }
-        }
-
-        return getPriority(a.database) - getPriority(b.database)
-            || a.database.localeCompare(b.database, undefined, { numeric: true });
-    });
-
     schema_state = {
         loading: false,
         connection_id: target_connection_id,
-        databases: json.data,
+        databases,
         tables: {},
         columns: {},
         loading_tables: {},
         table_messages: {},
-        message: json.data.length ? '' : 'No databases found.'
+        message: databases.length ? '' : 'No databases found.'
     };
     ++autocomplete_schema_revision;
     renderNavigatorTree();
+    return databases;
 }
 
 async function loadTables(server_address, user, password, database) {

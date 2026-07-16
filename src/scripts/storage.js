@@ -15,6 +15,7 @@ function createConnection(name) {
         user: user_elem.value || 'default',
         password: password_elem.value || '',
         folder_id: '',
+        schema_compat_database: 'system',
         updated_at: now,
         deleted_at: ''
     };
@@ -150,6 +151,7 @@ function normalizeConnectionStore(stored) {
             user: String(connection.user || 'default'),
             password: String(connection.password || ''),
             folder_id: active_folder_ids.has(folder_id) || isDeletedStorageRecord(connection) ? folder_id : '',
+            schema_compat_database: String(connection.schema_compat_database || 'system'),
             updated_at: String(connection.updated_at || connection.deleted_at || store_updated_at),
             deleted_at: String(connection.deleted_at || '')
         };
@@ -201,6 +203,19 @@ function getSavedConnections() {
 
 function getSavedConnectionFolders() {
     return getSavedConnectionStore().folders.filter(folder => !isDeletedStorageRecord(folder));
+}
+
+function saveConnectionSchemaCompatDatabase(connection_id, database) {
+    const store = getSavedConnectionStore();
+    const connection = store.connections.find(candidate =>
+        !isDeletedStorageRecord(candidate) && candidate.id == connection_id);
+    if (!connection) return null;
+
+    connection.schema_compat_database = String(database || 'system');
+    connection.updated_at = getStorageTimestamp();
+    const saved_store = saveConnectionStore(store);
+    return saved_store?.connections.find(candidate =>
+        !isDeletedStorageRecord(candidate) && candidate.id == connection_id) || null;
 }
 
 function saveConnections(connections) {
