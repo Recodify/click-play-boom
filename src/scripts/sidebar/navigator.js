@@ -86,6 +86,125 @@ FROM ${qualified_table}
 ORDER BY database, name;`;
 }
 
+function formatClickHouseStringLiteral(value) {
+    const escapes = {
+        '\0': '\\0',
+        '\b': '\\b',
+        '\f': '\\f',
+        '\n': '\\n',
+        '\r': '\\r',
+        '\t': '\\t',
+        '\v': '\\v',
+        "'": "\\'"
+    };
+    const escaped = String(value ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/[\0\b\f\n\r\t\v']/g, character => escapes[character]);
+    return `'${escaped}'`;
+}
+
+async function fetchSchemaCompatMappings(connection) {
+    const url = buildClickHouseUrl(
+        connection.url,
+        connection.user,
+        connection.password,
+        'JSON'
+    );
+    const query = `SELECT
+    database,
+    name,
+    target_database,
+    target_table
+FROM system.tables
+WHERE database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
+  AND target_database != ''
+  AND target_table != ''
+ORDER BY database, name`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        body: query,
+        headers: { 'Authorization': 'never' }
+    });
+    const response_text = await response.text();
+    if (!response.ok) {
+        throw new Error(response_text.trim() || 'The source server rejected the metadata query.');
+    }
+
+    let response_json;
+    try {
+        response_json = JSON.parse(response_text);
+    } catch (error) {
+        throw new Error('The source server returned invalid metadata JSON.');
+    }
+
+    return (Array.isArray(response_json.data) ? response_json.data : [])
+        .map(row => ({
+            database: String(row.database ?? ''),
+            name: String(row.name ?? ''),
+            target_database: String(row.target_database ?? ''),
+            target_table: String(row.target_table ?? '')
+        }))
+        .filter(row => row.database && row.name && row.target_database && row.target_table)
+        .sort((left, right) => left.database < right.database ? -1
+            : left.database > right.database ? 1
+                : left.name < right.name ? -1
+                    : left.name > right.name ? 1 : 0);
+}
+
+function buildSchemaCompatInsertStatement(database, mappings) {
+    const qualified_table = formatQualifiedIdentifier(database, 'schema_mv_targets');
+    const values = mappings.map((mapping, index) => {
+        const suffix = index < mappings.length - 1 ? ',' : ';';
+        return `    (${[
+            mapping.database,
+            mapping.name,
+            mapping.target_database,
+            mapping.target_table
+        ].map(formatClickHouseStringLiteral).join(', ')})${suffix}`;
+    });
+    return `INSERT INTO ${qualified_table}
+    (database, name, target_database, target_table)
+VALUES
+${values.join('\n')}`;
+}
+
+async function generateSchemaCompatInserts(connection) {
+    const database_input = prompt('Compatibility table database', 'system');
+    if (database_input === null) return;
+
+    const database = database_input.trim();
+    if (!database) {
+        alert('Compatibility table database is required.');
+        return;
+    }
+
+    let mappings;
+    try {
+        mappings = await fetchSchemaCompatMappings(connection);
+    } catch (error) {
+        alert(`Could not generate schema compatibility inserts.\n\n${error.message}`);
+        return;
+    }
+
+    if (!mappings.length) {
+        alert(`No native materialized-view target mappings were found on ${connection.name || 'this connection'}.`);
+        return;
+    }
+
+    const source_connection = getSavedConnections().find(candidate => candidate.id == connection.id);
+    if (!source_connection) {
+        alert('The source connection changed before the inserts could be generated.');
+        return;
+    }
+
+    if (source_connection.id != current_connection_id) {
+        applyConnection(source_connection);
+    }
+    setWorkspaceView('query');
+    insertTextIntoEditor(buildSchemaCompatInsertStatement(database, mappings));
+}
+
 function hideNavigatorContextMenu() {
     navigator_context_menu_elem.classList.remove('open');
     navigator_context_menu_elem.innerHTML = '';
@@ -421,6 +540,12 @@ function openConnectionMenu(connection, anchor_rect) {
             label: 'Generate schema compat table',
             disabled: !can_open_dashboard,
             onClick: () => void openSchemaCompatEditor(connection)
+        },
+        {
+            icon: '⇥',
+            label: 'Generate schema compat inserts',
+            disabled: !can_open_dashboard,
+            onClick: () => void generateSchemaCompatInserts(connection)
         },
         {
             icon: '⇱',

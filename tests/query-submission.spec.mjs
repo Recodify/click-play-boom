@@ -67,6 +67,7 @@ function compactResponse(response, names, types, rows) {
 
 async function startFakeClickHouse(options = {}) {
   const schemaTargetMode = options.schemaTargetMode || 'native';
+  const schemaCompatInsertMode = options.schemaCompatInsertMode || 'native';
   const schemaMvHasGroupBy = options.schemaMvHasGroupBy !== false;
   const schemaFormatFailureMatch = options.schemaFormatFailureMatch || '';
   const submissions = [];
@@ -74,6 +75,7 @@ async function startFakeClickHouse(options = {}) {
   const dashboardChartRequests = [];
   const schemaRequests = [];
   const schemaFormatRequests = [];
+  const schemaCompatInsertRequests = [];
   const waiters = [];
 
   const schemaMvCreateQuery = schemaMvHasGroupBy
@@ -184,6 +186,39 @@ async function startFakeClickHouse(options = {}) {
       compactResponse(response, ['name'], ['String'], schemaTargetMode === 'compat'
         ? [['database'], ['name'], ['target_database'], ['target_table'], ['updated_at']]
         : []);
+      return;
+    }
+
+    if (body.includes('FROM system.tables')
+      && body.includes("target_database != ''")
+      && body.includes("target_table != ''")) {
+      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
+      schemaCompatInsertRequests.push({
+        body,
+        user: requestUrl.searchParams.get('user') || '',
+        password: requestUrl.searchParams.get('password') || '',
+      });
+      if (schemaCompatInsertMode === 'unsupported') {
+        response.writeHead(400, { 'Content-Type': 'text/plain' });
+        response.end('Code: 47. Unknown expression identifier target_database');
+        return;
+      }
+      jsonResponse(response, {
+        data: schemaCompatInsertMode === 'empty' ? [] : [
+          {
+            database: 'default',
+            name: 'events_mv',
+            target_database: 'default',
+            target_table: 'events_summary',
+          },
+          {
+            database: "sales'o",
+            name: 'mv\\daily\nload',
+            target_database: 'warehouse',
+            target_table: "target'name",
+          },
+        ],
+      });
       return;
     }
 
@@ -369,6 +404,7 @@ async function startFakeClickHouse(options = {}) {
     dashboardChartRequests,
     schemaRequests,
     schemaFormatRequests,
+    schemaCompatInsertRequests,
     waitForSubmissions(count) {
       if (submissions.length >= count) {
         return Promise.resolve(submissions.slice());
@@ -687,6 +723,112 @@ test.describe('query submission safety', () => {
     await expect.poll(() => fakeClickHouse.schemaRequests.some(request =>
       request.body.includes('LEFT JOIN') && request.body.includes('analytics.schema_mv_targets')
     )).toBe(true);
+  });
+
+  test('source connection generates reviewable schema compatibility inserts', async ({ page }) => {
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse();
+    await page.evaluate(() => window.localStorage.clear());
+    await openAppWithPassword(page, fakeClickHouse.url, 'secret');
+    await page.evaluate(() => {
+      const connections = getSavedConnections();
+      const production = {
+        ...createConnection('Production'),
+        id: 'production-connection',
+        name: 'Production',
+        url: connections[0].url,
+        user: 'production_user',
+        password: 'production_secret',
+      };
+      saveConnections([...connections, production]);
+      renderNavigatorTree();
+    });
+
+    const sourceMenu = page.locator('.navigator-connection.current .navigator-connection-menu');
+    await sourceMenu.click();
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('prompt');
+      expect(dialog.message()).toBe('Compatibility table database');
+      expect(dialog.defaultValue()).toBe('system');
+      await dialog.accept('ops_metadata');
+    });
+    await page.getByRole('button', { name: 'Generate schema compat inserts' }).click();
+
+    const expectedSql = [
+      'INSERT INTO ops_metadata.schema_mv_targets',
+      '    (database, name, target_database, target_table)',
+      'VALUES',
+      "    ('default', 'events_mv', 'default', 'events_summary'),",
+      "    ('sales\\'o', 'mv\\\\daily\\nload', 'warehouse', 'target\\'name');",
+    ].join('\n');
+    await expect(page.locator('#query')).toHaveValue(expectedSql);
+    await expect(page.locator('#run')).toHaveText('Run selected');
+    await expect(page.locator('#query_div')).toBeVisible();
+    await expect.poll(() => fakeClickHouse.schemaCompatInsertRequests.length).toBe(1);
+    expect(fakeClickHouse.schemaCompatInsertRequests[0]).toMatchObject({
+      user: 'default',
+      password: 'secret',
+    });
+    expect(fakeClickHouse.schemaCompatInsertRequests[0].body).toContain(
+      "database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')",
+    );
+    expect(fakeClickHouse.submissions).toEqual([]);
+
+    await sourceMenu.click();
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'Generate schema compat inserts' }).click();
+    await expect.poll(() => fakeClickHouse.schemaCompatInsertRequests.length).toBe(1);
+    await expect(page.locator('#query')).toHaveValue(expectedSql);
+
+    await page.locator('.navigator-connection-button').filter({ hasText: 'Production' }).click();
+    await expect(page.locator('#query')).toHaveValue(expectedSql);
+    await expect(page.locator('.navigator-connection.current')).toContainText('Production');
+  });
+
+  test('schema compatibility insert generation reports empty and unsupported sources', async ({ page }) => {
+    const originalSql = 'SELECT untouched';
+
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse({ schemaCompatInsertMode: 'empty' });
+    await page.evaluate(() => window.localStorage.clear());
+    await openApp(page, fakeClickHouse.url);
+    await setEditorText(page, originalSql);
+    let alertMessage = '';
+    const emptyDialogHandler = async dialog => {
+      if (dialog.type() === 'prompt') {
+        await dialog.accept('system');
+      } else {
+        alertMessage = dialog.message();
+        await dialog.accept();
+      }
+    };
+    page.on('dialog', emptyDialogHandler);
+    await page.locator('.navigator-connection-menu').click();
+    await page.getByRole('button', { name: 'Generate schema compat inserts' }).click();
+    await expect.poll(() => alertMessage).toContain('No native materialized-view target mappings');
+    await expect(page.locator('#query')).toHaveValue(originalSql);
+    page.off('dialog', emptyDialogHandler);
+
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse({ schemaCompatInsertMode: 'unsupported' });
+    await page.evaluate(() => window.localStorage.clear());
+    await openApp(page, fakeClickHouse.url);
+    await setEditorText(page, originalSql);
+    alertMessage = '';
+    const unsupportedDialogHandler = async dialog => {
+      if (dialog.type() === 'prompt') {
+        await dialog.accept('system');
+      } else {
+        alertMessage = dialog.message();
+        await dialog.accept();
+      }
+    };
+    page.on('dialog', unsupportedDialogHandler);
+    await page.locator('.navigator-connection-menu').click();
+    await page.getByRole('button', { name: 'Generate schema compat inserts' }).click();
+    await expect.poll(() => alertMessage).toContain('Could not generate schema compatibility inserts');
+    await expect(page.locator('#query')).toHaveValue(originalSql);
+    page.off('dialog', unsupportedDialogHandler);
   });
 
   test('server menu generates a compatibility table in a new database', async ({ page }) => {

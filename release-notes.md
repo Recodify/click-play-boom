@@ -1,5 +1,10 @@
 # Release Notes
 
+## client 2026.07.16.1
+
+- Added source-connection generation of batched Schema compatibility inserts from native materialized-view target metadata.
+- Added a compatibility-table database prompt and kept generated inserts selected for review and explicit execution on the older destination connection.
+
 ## client 2026.07.15.3
 
 - Added lazy, cached ClickHouse formatting for Schema CREATE statements with raw-query fallback.
