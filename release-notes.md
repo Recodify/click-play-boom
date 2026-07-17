@@ -1,5 +1,10 @@
 # Release Notes
 
+## client 2026.07.17.1
+
+- Fixed Ctrl/Cmd+Enter executing a stale cached query range when a selection drag ended outside the editor; focused execution now reads the exact live native selection.
+- Kept deliberate editor blur on full-script execution and preserved exact selected-text execution through Run-button clicks.
+
 ## client 2026.07.16.1
 
 - Added source-connection generation of batched Schema compatibility inserts from native materialized-view target metadata.

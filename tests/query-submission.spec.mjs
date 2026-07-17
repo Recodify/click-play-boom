@@ -550,6 +550,59 @@ test.describe('query submission safety', () => {
     await expect.poll(() => fakeClickHouse.submissions).toEqual(['SELECT 2;']);
   });
 
+  test('keyboard shortcut submits the live selection when a drag ends outside the editor', async ({ page }) => {
+    const statements = Array.from({ length: 10 }, (_, index) => `SELECT ${index + 1};`);
+    const script = statements.join('\n');
+    const editor = page.locator('#query');
+    await setEditorText(page, script);
+
+    // Seed the previous runnable snapshot, then model a boundary drag whose final
+    // native selection is not followed by another textarea-local selection event.
+    await selectEditorText(page, script, statements.at(-1));
+    await editor.evaluate(textarea => {
+      textarea.addEventListener('select', event => event.stopImmediatePropagation(), true);
+    });
+
+    const box = await editor.boundingBox();
+    expect(box).not.toBeNull();
+    const metrics = await editor.evaluate(textarea => {
+      const style = getComputedStyle(textarea);
+      return {
+        paddingLeft: parseFloat(style.paddingLeft),
+        paddingTop: parseFloat(style.paddingTop),
+        lineHeight: parseFloat(style.lineHeight),
+      };
+    });
+
+    await page.mouse.move(
+      box.x + metrics.paddingLeft + 1,
+      box.y + metrics.paddingTop + metrics.lineHeight / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width + 20, box.y + box.height + 20, { steps: 12 });
+    await page.mouse.up();
+
+    await expect.poll(() => editor.evaluate(textarea =>
+      textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)
+    )).toBe(script);
+
+    await page.keyboard.press('Control+Enter');
+
+    await expect.poll(() => fakeClickHouse.submissions).toEqual(statements);
+  });
+
+  test('keyboard shortcut runs all after focus deliberately leaves the editor', async ({ page }) => {
+    const script = 'SELECT 1;\nSELECT 2;';
+    await setEditorText(page, script);
+    await selectEditorText(page, script, 'SELECT 2;');
+
+    await page.locator('#schema-filter').focus();
+    await expect(page.locator('#run')).toHaveText('Run all');
+    await page.keyboard.press('Control+Enter');
+
+    await expect.poll(() => fakeClickHouse.submissions).toEqual(['SELECT 1;', 'SELECT 2;']);
+  });
+
   test('run button preserves selected text when focus moves to the button', async ({ page }) => {
     const script = 'SELECT 1;\nSELECT 2;\nSELECT 3;';
     await setEditorText(page, script);
