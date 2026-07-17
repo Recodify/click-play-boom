@@ -825,7 +825,6 @@ if (window.location.hash) {
     query_area.value = fromBase64(window.location.hash.substr(1));
 }
 
-let visible_query_selection = null;
 let armed_run_selection = null;
 
 function getQuerySelectionSnapshot() {
@@ -854,38 +853,31 @@ function selectionSnapshotStillMatches(selection) {
         && query_area.value.substring(selection.start, selection.end) == selection.text;
 }
 
-function hasVisibleQuerySelection() {
-    if (document.activeElement != query_area || !selectionSnapshotStillMatches(visible_query_selection)) {
-        visible_query_selection = null;
-        return false;
-    }
-
-    return true;
+function getFocusedQuerySelection() {
+    return document.activeElement == query_area ? getQuerySelectionSnapshot() : null;
 }
 
-function updateVisibleQuerySelection() {
+function refreshRunSelectionState() {
     armed_run_selection = null;
-    visible_query_selection = document.activeElement == query_area ? getQuerySelectionSnapshot() : null;
     updateRunButtonText();
 }
 
 function clearRunSelectionState() {
-    visible_query_selection = null;
     armed_run_selection = null;
     updateRunButtonText();
 }
 
-function getRunScript() {
-    if (selectionSnapshotStillMatches(armed_run_selection)) {
+function getRunScript(use_armed_selection = false) {
+    if (use_armed_selection && selectionSnapshotStillMatches(armed_run_selection)) {
         return armed_run_selection.text;
     }
 
     armed_run_selection = null;
-    return hasVisibleQuerySelection() ? visible_query_selection.text : query_area.value;
+    return getFocusedQuerySelection()?.text ?? query_area.value;
 }
 
 function updateRunButtonText() {
-    const has_selection = hasVisibleQuerySelection();
+    const has_selection = !!getFocusedQuerySelection();
     const text = in_flight ? 'Stop' : (has_selection ? 'Run selected' : 'Run all');
     const label = in_flight ? 'Stop running query' : `${text} (Ctrl/Cmd+Enter)`;
     run_button.innerText = text;
@@ -918,7 +910,7 @@ function setEditorCompact(compact, save = true) {
 }
 
 let in_flight = false;
-async function post()
+async function post(use_armed_selection = false)
 {
     stop_after_current = false;
     controller = null;
@@ -926,7 +918,7 @@ async function post()
     updateRunButtonText();
 
     try {
-        const script = getRunScript();
+        const script = getRunScript(use_armed_selection);
         const queries = await getQueriesToRun(script);
         if (!queries.length) {
             return;
@@ -966,7 +958,7 @@ document.getElementById('controls').addEventListener('submit', e =>
     if (in_flight) {
         cancel();
     } else {
-        post();
+        post(e.submitter == run_button);
 
         if (password_elem.value) {
             const cred = new PasswordCredential({
@@ -990,16 +982,17 @@ document.addEventListener('keydown', event => {
 });
 
 run_button.addEventListener('pointerdown', event => {
-    if (in_flight || (event.button !== undefined && event.button != 0) || !hasVisibleQuerySelection()) {
+    const selection = getFocusedQuerySelection();
+    if (in_flight || (event.button !== undefined && event.button != 0) || !selection) {
         return;
     }
 
-    armed_run_selection = visible_query_selection;
+    armed_run_selection = selection;
     event.preventDefault();
 });
 
 ['click', 'select', 'keyup', 'change', 'mouseup'].forEach(event_name =>
-    query_area.addEventListener(event_name, updateVisibleQuerySelection)
+    query_area.addEventListener(event_name, refreshRunSelectionState)
 );
 
 ['focus', 'blur', 'input'].forEach(event_name =>
