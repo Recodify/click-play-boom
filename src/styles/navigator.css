@@ -607,6 +607,11 @@
             gap: 0.2rem;
         }
 
+        .navigator-header-actions
+        {
+            margin-left: auto;
+        }
+
         .navigator-connection-action,
         .navigator-header-action,
         .navigator-connection-menu

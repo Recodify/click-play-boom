@@ -339,6 +339,18 @@ function buildDropDictionaryOnClusterStatement(database, table) {
     return `DROP DICTIONARY ${database}.${table} ON CLUSTER '{cluster}' SYNC;`;
 }
 
+function escapeClickHouseLikePattern(value) {
+    return String(value ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/%/g, '\\%')
+        .replace(/_/g, '\\_');
+}
+
+function buildDropDatabaseStatement(database, clustered) {
+    const cluster_clause = clustered ? ` ON CLUSTER '{cluster}'` : '';
+    return `DROP DATABASE ${formatClickHouseIdentifier(database)}${cluster_clause} SYNC;`;
+}
+
 function createNavigatorLabel(icon, text, icon_class = '') {
     const label = document.createElement('span');
     label.className = 'navigator-inline-label';

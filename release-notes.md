@@ -1,5 +1,10 @@
 # Release Notes
 
+## client 2026.07.17.2
+
+- Replaced database-row expand/collapse-all controls with a shared visible/right-click actions menu.
+- Added fail-closed DROP DATABASE generation that uses `ON CLUSTER '{cluster}' SYNC` when Keeper contains a matching database path.
+
 ## client 2026.07.17.1
 
 - Fixed Ctrl/Cmd+Enter executing a stale cached query range when a selection drag ended outside the editor; focused execution now reads the exact live native selection.

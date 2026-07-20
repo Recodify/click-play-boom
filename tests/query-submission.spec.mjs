@@ -68,6 +68,7 @@ function compactResponse(response, names, types, rows) {
 async function startFakeClickHouse(options = {}) {
   const schemaTargetMode = options.schemaTargetMode || 'native';
   const schemaCompatInsertMode = options.schemaCompatInsertMode || 'native';
+  const keeperDatabaseMode = options.keeperDatabaseMode || 'match';
   const schemaMvHasGroupBy = options.schemaMvHasGroupBy !== false;
   const schemaFormatFailureMatch = options.schemaFormatFailureMatch || '';
   const submissions = [];
@@ -76,6 +77,7 @@ async function startFakeClickHouse(options = {}) {
   const schemaRequests = [];
   const schemaFormatRequests = [];
   const schemaCompatInsertRequests = [];
+  const keeperDatabaseRequests = [];
   const waiters = [];
 
   const schemaMvCreateQuery = schemaMvHasGroupBy
@@ -167,8 +169,27 @@ async function startFakeClickHouse(options = {}) {
       jsonResponse(response, { data: [
         { database: 'default', current: 1 },
         { database: 'analytics', current: 0 },
+        { database: 'sales_100%', current: 0 },
         { database: 'system', current: 0 },
       ] });
+      return;
+    }
+
+    if (body.includes('FROM system.zookeeper')
+      && body.includes('allow_unrestricted_reads_from_keeper')) {
+      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
+      keeperDatabaseRequests.push({
+        body,
+        params: Object.fromEntries(requestUrl.searchParams.entries()),
+      });
+      if (keeperDatabaseMode === 'error') {
+        response.writeHead(403, { 'Content-Type': 'text/plain' });
+        response.end('Not enough privileges to read system.zookeeper');
+        return;
+      }
+      jsonResponse(response, {
+        data: keeperDatabaseMode === 'match' ? [{ found: 1 }] : [],
+      });
       return;
     }
 
@@ -405,6 +426,7 @@ async function startFakeClickHouse(options = {}) {
     schemaRequests,
     schemaFormatRequests,
     schemaCompatInsertRequests,
+    keeperDatabaseRequests,
     waitForSubmissions(count) {
       if (submissions.length >= count) {
         return Promise.resolve(submissions.slice());
@@ -882,6 +904,77 @@ test.describe('query submission safety', () => {
     await expect.poll(() => alertMessage).toContain('Could not generate schema compatibility inserts');
     await expect(page.locator('#query')).toHaveValue(originalSql);
     page.off('dialog', unsupportedDialogHandler);
+  });
+
+  test('database menu generates a Keeper-aware clustered drop', async ({ page }) => {
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse({ keeperDatabaseMode: 'match' });
+    await page.evaluate(() => window.localStorage.clear());
+    await openAppWithPassword(page, fakeClickHouse.url, 'secret');
+
+    await expect(page.locator('.navigator-connection.current .navigator-connection-action')).toHaveText(['+', '−']);
+    await expect(page.getByTitle('Expand all tables and views in this database')).toHaveCount(0);
+    await expect(page.getByTitle('Collapse all tables and views in this database')).toHaveCount(0);
+
+    const databaseHeader = page.locator('.database-header').filter({ hasText: 'sales_100%' });
+    await expect(databaseHeader.locator('.navigator-header-action')).toHaveText('⋯');
+    await databaseHeader.locator('.navigator-header-action').click();
+    await expect(page.getByRole('button', { name: 'Insert database name' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Generate DROP DATABASE' })).toBeVisible();
+    await page.getByRole('button', { name: 'Generate DROP DATABASE' }).click();
+
+    await expect(page.locator('#query')).toHaveValue(
+      "DROP DATABASE `sales_100%` ON CLUSTER '{cluster}' SYNC;",
+    );
+    await expect(page.locator('#run')).toHaveText('Run selected');
+    await expect.poll(() => fakeClickHouse.keeperDatabaseRequests.length).toBe(1);
+    expect(fakeClickHouse.keeperDatabaseRequests[0].params).toMatchObject({
+      user: 'default',
+      password: 'secret',
+      param_path_pattern: '%sales\\_100\\%%',
+    });
+    expect(fakeClickHouse.keeperDatabaseRequests[0].body).toContain('SELECT 1 AS found');
+    expect(fakeClickHouse.keeperDatabaseRequests[0].body).toContain('LIMIT 1');
+    expect(fakeClickHouse.keeperDatabaseRequests[0].body).toContain(
+      'SETTINGS allow_unrestricted_reads_from_keeper = true',
+    );
+    expect(fakeClickHouse.submissions).toEqual([]);
+
+    await databaseHeader.click({ button: 'right' });
+    await expect(page.getByRole('button', { name: 'Insert database name' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Generate DROP DATABASE' })).toBeVisible();
+  });
+
+  test('database drop generation handles no Keeper match and fails closed on errors', async ({ page }) => {
+    const originalSql = 'SELECT untouched';
+
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse({ keeperDatabaseMode: 'empty' });
+    await page.evaluate(() => window.localStorage.clear());
+    await openApp(page, fakeClickHouse.url);
+    await page.locator('.database-header').filter({ hasText: 'default' })
+      .locator('.navigator-header-action').click();
+    await page.getByRole('button', { name: 'Generate DROP DATABASE' }).click();
+    await expect(page.locator('#query')).toHaveValue('DROP DATABASE default SYNC;');
+    await expect(page.locator('#run')).toHaveText('Run selected');
+    expect(fakeClickHouse.submissions).toEqual([]);
+
+    await fakeClickHouse.close();
+    fakeClickHouse = await startFakeClickHouse({ keeperDatabaseMode: 'error' });
+    await page.evaluate(() => window.localStorage.clear());
+    await openApp(page, fakeClickHouse.url);
+    await setEditorText(page, originalSql);
+    let alertMessage = '';
+    page.once('dialog', async dialog => {
+      alertMessage = dialog.message();
+      await dialog.accept();
+    });
+    await page.locator('.database-header').filter({ hasText: 'default' })
+      .locator('.navigator-header-action').click();
+    await page.getByRole('button', { name: 'Generate DROP DATABASE' }).click();
+    await expect.poll(() => alertMessage).toContain('No DROP DATABASE statement was generated');
+    await expect(page.locator('#query')).toHaveValue(originalSql);
+    await expect.poll(() => fakeClickHouse.keeperDatabaseRequests.length).toBe(1);
   });
 
   test('server menu generates a compatibility table in a new database', async ({ page }) => {
