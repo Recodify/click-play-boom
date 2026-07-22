@@ -570,12 +570,58 @@ function openConnectionMenu(connection, anchor_rect) {
     showNavigatorContextMenu(items, anchor_rect.left, anchor_rect.bottom + 4);
 }
 
-function openDatabaseMenu(anchor_rect, database) {
+async function databaseHasKeeperPath(server_address, user, password, database) {
+    const path_pattern = `%${escapeClickHouseLikePattern(database)}%`;
+    const url = buildClickHouseUrl(server_address, user, password, 'JSON', {
+        param_path_pattern: path_pattern
+    });
+    const response = await fetch(url, {
+        method: 'POST',
+        body: `SELECT 1 AS found
+FROM system.zookeeper
+WHERE path LIKE {path_pattern:String}
+LIMIT 1
+SETTINGS allow_unrestricted_reads_from_keeper = true`,
+        headers: { 'Authorization': 'never' }
+    });
+    const response_text = await response.text();
+    if (!response.ok) {
+        throw new Error(response_text.trim() || 'The server rejected the Keeper lookup.');
+    }
+
+    let response_json;
+    try {
+        response_json = JSON.parse(response_text);
+    } catch (error) {
+        throw new Error('The server returned invalid Keeper lookup JSON.');
+    }
+    return Array.isArray(response_json.data) && response_json.data.length > 0;
+}
+
+async function generateDropDatabase(server_address, user, password, database) {
+    let clustered;
+    try {
+        clustered = await databaseHasKeeperPath(server_address, user, password, database);
+    } catch (error) {
+        alert(`Could not determine whether ${database} uses Keeper. No DROP DATABASE statement was generated.\n\n${error.message}`);
+        return;
+    }
+
+    setWorkspaceView('query');
+    insertTextIntoEditor(buildDropDatabaseStatement(database, clustered));
+}
+
+function openDatabaseMenu(anchor_rect, server_address, user, password, database) {
     const items = [
         {
             icon: '↪',
             label: 'Insert database name',
             onClick: () => insertIntoQueryEditor(formatClickHouseIdentifier(database), { mode: 'insert' })
+        },
+        {
+            icon: '✕',
+            label: 'Generate DROP DATABASE',
+            onClick: () => void generateDropDatabase(server_address, user, password, database)
         }
     ];
 
@@ -1135,7 +1181,12 @@ function createConnectionNavigatorNode(connection, filter) {
                 database_header.addEventListener('contextmenu', e => {
                     e.preventDefault();
                     e.stopPropagation();
-                    openDatabaseMenu({ left: e.clientX, bottom: e.clientY }, database_info.database);
+                    openDatabaseMenu(
+                        { left: e.clientX, bottom: e.clientY },
+                        connection.url,
+                        connection.user,
+                        connection.password,
+                        database_info.database);
                 });
 
                 let database_toggle = document.createElement('button');
@@ -1153,42 +1204,22 @@ function createConnectionNavigatorNode(connection, filter) {
                 const database_actions = document.createElement('div');
                 database_actions.className = 'navigator-header-actions';
 
-                const expand_database_button = document.createElement('button');
-                expand_database_button.type = 'button';
-                expand_database_button.className = 'navigator-header-action';
-                expand_database_button.innerText = '+';
-                expand_database_button.title = 'Expand all tables and views in this database';
-
-                const collapse_database_button = document.createElement('button');
-                collapse_database_button.type = 'button';
-                collapse_database_button.className = 'navigator-header-action';
-                collapse_database_button.innerText = '−';
-                collapse_database_button.title = 'Collapse all tables and views in this database';
-
-                const toggle_database_tables = async expanded => {
-                    let database_rows = schema_state.tables[database_info.database];
-                    if (!database_rows && !schema_state.loading_tables[database_info.database]) {
-                        database_rows = await loadTables(connection.url, connection.user, connection.password, database_info.database);
-                    }
-                    if (!database_rows || database_rows === false) {
-                        return;
-                    }
-
-                    setTablesExpanded(connection.id, database_info.database, database_rows.map(row => row.table), expanded);
-                    renderNavigatorTree();
-                };
-
-                expand_database_button.addEventListener('click', async e => {
+                const database_menu_button = document.createElement('button');
+                database_menu_button.type = 'button';
+                database_menu_button.className = 'navigator-header-action';
+                database_menu_button.innerText = '⋯';
+                database_menu_button.title = 'Database actions';
+                database_menu_button.addEventListener('click', e => {
                     e.stopPropagation();
-                    await toggle_database_tables(true);
-                });
-                collapse_database_button.addEventListener('click', async e => {
-                    e.stopPropagation();
-                    await toggle_database_tables(false);
+                    openDatabaseMenu(
+                        database_menu_button.getBoundingClientRect(),
+                        connection.url,
+                        connection.user,
+                        connection.password,
+                        database_info.database);
                 });
 
-                database_actions.appendChild(expand_database_button);
-                database_actions.appendChild(collapse_database_button);
+                database_actions.appendChild(database_menu_button);
 
                 let tables = document.createElement('div');
                 tables.className = 'tables';
