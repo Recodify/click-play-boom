@@ -4106,7 +4106,7 @@
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection
                                 status unavailable</span>●</span>
                         <span id="client-version" class="client-version" title="Client UI version">client
-                            2026.07.17.2</span>
+                            2026.07.22.1</span>
                     </div>
                 </div>
             </div>
@@ -12434,6 +12434,9 @@ query_area.addEventListener('scroll', () => {
     syncQueryBackdropScroll();
     positionAutocompleteMenu();
 });
+
+const query_backdrop_resize_observer = new ResizeObserver(syncQueryBackdropLayout);
+query_backdrop_resize_observer.observe(query_area);
 
 const dashboard_default_dashboard = 'Overview';
 const dashboard_default_params = {

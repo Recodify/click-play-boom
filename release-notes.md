@@ -1,5 +1,9 @@
 # Release Notes
 
+## client 2026.07.22.1
+
+- Kept the syntax-highlight backdrop aligned with the query editor when viewport, sidebar, or workspace changes resize the editor.
+
 ## client 2026.07.17.2
 
 - Replaced database-row expand/collapse-all controls with a shared visible/right-click actions menu.

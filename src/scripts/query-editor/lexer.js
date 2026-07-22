@@ -358,3 +358,6 @@ query_area.addEventListener('scroll', () => {
     syncQueryBackdropScroll();
     positionAutocompleteMenu();
 });
+
+const query_backdrop_resize_observer = new ResizeObserver(syncQueryBackdropLayout);
+query_backdrop_resize_observer.observe(query_area);

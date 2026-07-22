@@ -635,6 +635,28 @@ test.describe('query submission safety', () => {
     await expect.poll(() => fakeClickHouse.submissions).toEqual(['SELECT 2;']);
   });
 
+  test('syntax highlighting backdrop follows editor resizing across workspace switches', async ({ page }) => {
+    const editor = page.locator('#query');
+    const backdrop = page.locator('#query-backdrop');
+    await setEditorText(page, 'SELECT number, count() FROM system.numbers GROUP BY number');
+    await expect(backdrop).toBeVisible();
+
+    const initialEditorWidth = await editor.evaluate(element => element.getBoundingClientRect().width);
+    await page.locator('#app-view-schema').click();
+    await expect(page.locator('#query_div')).toBeHidden();
+    await page.setViewportSize({ width: 1800, height: 900 });
+    await page.locator('#app-view-query').click();
+
+    await expect(editor).toBeVisible();
+    await expect.poll(() => editor.evaluate(element => element.getBoundingClientRect().width))
+      .toBeGreaterThan(initialEditorWidth);
+    await expect.poll(async () => {
+      const editorWidth = await editor.evaluate(element => element.getBoundingClientRect().width);
+      const backdropWidth = await backdrop.evaluate(element => element.getBoundingClientRect().width);
+      return Math.abs(editorWidth - backdropWidth);
+    }).toBeLessThanOrEqual(1);
+  });
+
   test('selected statement inside maintenance script is the only submitted body', async ({ page }) => {
     const script = [
       'create table blah_new',
