@@ -1007,83 +1007,9 @@ toggle_editor_elem.addEventListener('click', () => {
     setEditorCompact(!document.getElementById('query_div').classList.contains('compact'));
 });
 
-/// Pressing Tab in textarea will increase indentation.
-/// But for accessibility reasons, we will fall back to tab navigation if the user already used Tab for that.
-
-let user_prefers_tab_navigation = false;
-
-[...document.querySelectorAll('input')].map(elem => {
-    elem.onkeydown = (e) => {
-        if (e.key == 'Tab') { user_prefers_tab_navigation = true; }
-    };
-});
-
 query_area.addEventListener('keydown', handleQueryAutocompleteKeyDown, true);
-
-query_area.onkeydown = (e) => {
-    if (e.key == 'Tab' && !e.shiftKey && !user_prefers_tab_navigation) {
-        e.preventDefault();
-        replaceQueryEditorRange('    ');
-        return false;
-    } else if (e.key === 'Enter' && !(e.metaKey || e.ctrlKey)) {
-        // If the user presses Enter, and the previous line starts with spaces,
-        // then we will insert the same number of spaces.
-        const elem = e.target;
-        if (elem.selectionStart !== elem.selectionEnd) {
-            // If there is a selection, then we will not insert spaces.
-            return;
-        }
-        const cursor_pos = elem.selectionStart;
-
-        const elem_value = elem.value;
-        const text_before_cursor = elem_value.substring(0, cursor_pos);
-        const prev_lines = text_before_cursor.split('\n');
-        const prev_line = prev_lines.pop();
-        const lead_spaces = prev_line.match(/^\s*/)[0];
-        if (!lead_spaces) {
-            return;
-        }
-
-        e.preventDefault();
-        replaceQueryEditorRange('\n' + lead_spaces, cursor_pos, cursor_pos);
-        return false;
-    } else if ((e.ctrlKey || e.metaKey) && e.key === '/' && !e.shiftKey) {
-        // Comment/uncomment selected lines on Ctrl+/ or Cmd+/
-        const elem = e.target;
-        const start = elem.selectionStart;
-        const end = elem.selectionEnd;
-        const value = elem.value;
-
-        let lineStart = value.lastIndexOf('\n', start - 1) + 1;
-        let lineEnd = value.indexOf('\n', end);
-        if (lineEnd === -1) lineEnd = value.length;
-
-        let selectedText = value.substring(lineStart, lineEnd);
-        let lines = selectedText.split('\n');
-
-        // Comment out each line, or uncomment if all lines are already commented
-        const allCommented = lines.every(line => /^\s*--/.test(line));
-
-        // If all lines are commented out, uncomment them
-        if (allCommented) {
-            lines = lines.map(line => line.replace(/^(\s*)-- ?/, '$1'));
-        } else {
-            lines = lines.map(line => {
-                if (/^\s*$/.test(line)) {
-                    return line;
-                }
-                return line.replace(/^(\s*)/, '$1-- ');
-            });
-        }
-
-        const replacedText = lines.join('\n');
-
-        e.preventDefault();
-        // Adjust selection to keep the user in flow and enable quick reversal
-        replaceQueryEditorRange(replacedText, lineStart, lineEnd, lineStart, lineStart + replacedText.length);
-        return false;
-    }
-};
+query_area.addEventListener('keydown', handleQueryEditorKeyDown);
+query_area.addEventListener('blur', clearQueryEditorTabExitArm);
 
 function clearElement(elem)
 {

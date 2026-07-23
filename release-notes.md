@@ -1,5 +1,10 @@
 # Release Notes
 
+## client 2026.07.22.2
+
+- Added four-space Tab indentation and Shift+Tab outdent for query-editor carets and multi-line selections.
+- Added Escape then Tab as an explicit keyboard path out of the query editor while preserving Tab acceptance for autocomplete suggestions.
+
 ## client 2026.07.22.1
 
 - Kept the syntax-highlight backdrop aligned with the query editor when viewport, sidebar, or workspace changes resize the editor.
