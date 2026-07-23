@@ -542,6 +542,15 @@ async function selectEditorText(page, fullText, selectedText) {
   await expect(page.locator('#run')).toHaveText('Run selected');
 }
 
+async function setEditorSelection(page, start, end = start) {
+  const editor = page.locator('#query');
+  await editor.evaluate((textarea, selection) => {
+    textarea.focus();
+    textarea.setSelectionRange(selection.start, selection.end);
+    textarea.dispatchEvent(new Event('select', { bubbles: true }));
+  }, { start, end });
+}
+
 test.describe('query submission safety', () => {
   let fakeClickHouse;
 
@@ -552,6 +561,100 @@ test.describe('query submission safety', () => {
 
   test.afterEach(async () => {
     await fakeClickHouse?.close();
+  });
+
+  test('Tab inserts four spaces after focus has traversed another input', async ({ page }) => {
+    const editor = page.locator('#query');
+    await setEditorText(page, 'SELECT');
+
+    await page.locator('#schema-filter').focus();
+    await page.keyboard.press('Tab');
+    await setEditorSelection(page, 6);
+    await page.keyboard.press('Tab');
+
+    await expect(editor).toHaveValue('SELECT    ');
+    await expect.poll(() => editor.evaluate(textarea => textarea.selectionStart)).toBe(10);
+  });
+
+  test('Tab indents selected lines without including a trailing boundary line', async ({ page }) => {
+    const editor = page.locator('#query');
+    const script = 'SELECT 1;\nSELECT 2;\nSELECT 3;';
+    const selectionEnd = script.indexOf('SELECT 3;');
+    await setEditorText(page, script);
+    await setEditorSelection(page, 0, selectionEnd);
+
+    await page.keyboard.press('Tab');
+
+    await expect(editor).toHaveValue('    SELECT 1;\n    SELECT 2;\nSELECT 3;');
+    await expect.poll(() => editor.evaluate(textarea => ({
+      start: textarea.selectionStart,
+      end: textarea.selectionEnd,
+    }))).toEqual({ start: 0, end: selectionEnd + 8 });
+  });
+
+  test('Shift+Tab outdents the caret line and mixed selected indentation', async ({ page }) => {
+    const editor = page.locator('#query');
+    await setEditorText(page, '    SELECT 1;');
+    await setEditorSelection(page, 13);
+
+    await page.keyboard.press('Shift+Tab');
+
+    await expect(editor).toHaveValue('SELECT 1;');
+    await expect.poll(() => editor.evaluate(textarea => textarea.selectionStart)).toBe(9);
+
+    const mixedIndentation = '    SELECT 1;\n  SELECT 2;\n\tSELECT 3;';
+    await setEditorText(page, mixedIndentation);
+    await setEditorSelection(page, 0, mixedIndentation.length);
+
+    await page.keyboard.press('Shift+Tab');
+
+    await expect(editor).toHaveValue('SELECT 1;\nSELECT 2;\nSELECT 3;');
+  });
+
+  test('Tab accepts autocomplete before editor indentation', async ({ page }) => {
+    const editor = page.locator('#query');
+    await setEditorText(page, 'ana');
+    await setEditorSelection(page, 3);
+    await page.evaluate(() => {
+      autocomplete_state = {
+        open: true,
+        replace_start: 0,
+        scope_key: '',
+        statement_key: '',
+        items: [{
+          kind: 'database',
+          label: 'analytics',
+          insert_text: 'analytics',
+          detail: 'database',
+          rank: 10,
+          search_text: 'analytics database',
+        }],
+        all_items: [],
+        active_index: 0,
+        prefix: 'ana',
+        loading: false,
+        schema_revision: autocomplete_schema_revision,
+      };
+      renderAutocompleteMenu();
+    });
+    await expect(page.locator('#autocomplete-menu')).toHaveClass(/open/);
+
+    await page.keyboard.press('Tab');
+
+    await expect(editor).toHaveValue('analytics');
+    await expect(page.locator('#autocomplete-menu')).not.toHaveClass(/open/);
+  });
+
+  test('Escape then Tab leaves the editor without changing SQL', async ({ page }) => {
+    const editor = page.locator('#query');
+    await setEditorText(page, 'SELECT 1;');
+    await setEditorSelection(page, 9);
+
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Tab');
+
+    await expect(editor).toHaveValue('SELECT 1;');
+    await expect(page.locator('#toggle-editor')).toBeFocused();
   });
 
   test('run all submits every statement in order', async ({ page }) => {
@@ -633,6 +736,28 @@ test.describe('query submission safety', () => {
     await page.locator('#run').click();
 
     await expect.poll(() => fakeClickHouse.submissions).toEqual(['SELECT 2;']);
+  });
+
+  test('syntax highlighting backdrop follows editor resizing across workspace switches', async ({ page }) => {
+    const editor = page.locator('#query');
+    const backdrop = page.locator('#query-backdrop');
+    await setEditorText(page, 'SELECT number, count() FROM system.numbers GROUP BY number');
+    await expect(backdrop).toBeVisible();
+
+    const initialEditorWidth = await editor.evaluate(element => element.getBoundingClientRect().width);
+    await page.locator('#app-view-schema').click();
+    await expect(page.locator('#query_div')).toBeHidden();
+    await page.setViewportSize({ width: 1800, height: 900 });
+    await page.locator('#app-view-query').click();
+
+    await expect(editor).toBeVisible();
+    await expect.poll(() => editor.evaluate(element => element.getBoundingClientRect().width))
+      .toBeGreaterThan(initialEditorWidth);
+    await expect.poll(async () => {
+      const editorWidth = await editor.evaluate(element => element.getBoundingClientRect().width);
+      const backdropWidth = await backdrop.evaluate(element => element.getBoundingClientRect().width);
+      return Math.abs(editorWidth - backdropWidth);
+    }).toBeLessThanOrEqual(1);
   });
 
   test('selected statement inside maintenance script is the only submitted body', async ({ page }) => {

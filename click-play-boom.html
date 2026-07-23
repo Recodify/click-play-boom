@@ -4106,7 +4106,7 @@
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection
                                 status unavailable</span>●</span>
                         <span id="client-version" class="client-version" title="Client UI version">client
-                            2026.07.17.2</span>
+                            2026.07.22.2</span>
                     </div>
                 </div>
             </div>
@@ -6448,6 +6448,201 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
     updateRunButtonText();
     scheduleQueryHighlighting(String(text || '').length > large_editor_insert_threshold || options.defer_highlighting);
     refreshAutocompleteFromEditor();
+}
+
+const query_editor_indent = '    ';
+let query_editor_tab_exit_armed = false;
+
+function getQueryEditorLineRange(value, selection_start, selection_end) {
+    const line_start = value.lastIndexOf('\n', selection_start - 1) + 1;
+    const ends_at_next_line_start = selection_end > selection_start && value[selection_end - 1] == '\n';
+    const line_end_search_start = ends_at_next_line_start ? selection_end - 1 : selection_end;
+    const next_line_break = value.indexOf('\n', line_end_search_start);
+
+    return {
+        start: line_start,
+        end: next_line_break == -1 ? value.length : next_line_break
+    };
+}
+
+function mapQueryEditorOffsetAfterPrefixChanges(offset, changes) {
+    let delta = 0;
+
+    for (const change of changes) {
+        if (offset <= change.start) {
+            break;
+        }
+
+        if (change.remove > 0 && offset < change.start + change.remove) {
+            return change.start + delta + change.insert;
+        }
+
+        delta += change.insert - change.remove;
+    }
+
+    return offset + delta;
+}
+
+function indentSelectedQueryEditorLines() {
+    const value = query_area.value;
+    const selection_start = query_area.selectionStart ?? 0;
+    const selection_end = query_area.selectionEnd ?? selection_start;
+    const range = getQueryEditorLineRange(value, selection_start, selection_end);
+    const lines = value.substring(range.start, range.end).split('\n');
+    const changes = [];
+    let line_start = range.start;
+
+    const replacement = lines.map(line => {
+        changes.push({ start: line_start, remove: 0, insert: query_editor_indent.length });
+        line_start += line.length + 1;
+        return query_editor_indent + line;
+    }).join('\n');
+
+    replaceQueryEditorRange(
+        replacement,
+        range.start,
+        range.end,
+        mapQueryEditorOffsetAfterPrefixChanges(selection_start, changes),
+        mapQueryEditorOffsetAfterPrefixChanges(selection_end, changes));
+}
+
+function getQueryEditorOutdentLength(line) {
+    if (line.startsWith('\t')) {
+        return 1;
+    }
+
+    return line.match(/^ {0,4}/)[0].length;
+}
+
+function outdentQueryEditorLines() {
+    const value = query_area.value;
+    const selection_start = query_area.selectionStart ?? 0;
+    const selection_end = query_area.selectionEnd ?? selection_start;
+    const range = getQueryEditorLineRange(value, selection_start, selection_end);
+    const lines = value.substring(range.start, range.end).split('\n');
+    const changes = [];
+    let line_start = range.start;
+
+    const replacement = lines.map(line => {
+        const remove = getQueryEditorOutdentLength(line);
+        changes.push({ start: line_start, remove, insert: 0 });
+        line_start += line.length + 1;
+        return line.substring(remove);
+    }).join('\n');
+
+    if (replacement == value.substring(range.start, range.end)) {
+        return;
+    }
+
+    replaceQueryEditorRange(
+        replacement,
+        range.start,
+        range.end,
+        mapQueryEditorOffsetAfterPrefixChanges(selection_start, changes),
+        mapQueryEditorOffsetAfterPrefixChanges(selection_end, changes));
+}
+
+function isQueryEditorModifierKey(key) {
+    return ['Alt', 'Control', 'Meta', 'Shift'].includes(key);
+}
+
+function clearQueryEditorTabExitArm() {
+    query_editor_tab_exit_armed = false;
+}
+
+function handleQueryEditorKeyDown(e) {
+    if (e.defaultPrevented) {
+        return;
+    }
+
+    if (e.key == 'Escape' && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        query_editor_tab_exit_armed = true;
+        return;
+    }
+
+    if (e.key == 'Tab') {
+        if (query_editor_tab_exit_armed) {
+            query_editor_tab_exit_armed = false;
+            return;
+        }
+
+        if (e.altKey || e.ctrlKey || e.metaKey) {
+            return;
+        }
+
+        e.preventDefault();
+        if (e.shiftKey) {
+            outdentQueryEditorLines();
+        } else if (query_area.selectionStart !== query_area.selectionEnd) {
+            indentSelectedQueryEditorLines();
+        } else {
+            replaceQueryEditorRange(query_editor_indent);
+        }
+        return false;
+    }
+
+    if (!isQueryEditorModifierKey(e.key)) {
+        query_editor_tab_exit_armed = false;
+    }
+
+    if (e.key === 'Enter' && !(e.metaKey || e.ctrlKey)) {
+        // If the user presses Enter, and the previous line starts with spaces,
+        // then we will insert the same number of spaces.
+        const elem = e.target;
+        if (elem.selectionStart !== elem.selectionEnd) {
+            // If there is a selection, then we will not insert spaces.
+            return;
+        }
+        const cursor_pos = elem.selectionStart;
+
+        const elem_value = elem.value;
+        const text_before_cursor = elem_value.substring(0, cursor_pos);
+        const prev_lines = text_before_cursor.split('\n');
+        const prev_line = prev_lines.pop();
+        const lead_spaces = prev_line.match(/^\s*/)[0];
+        if (!lead_spaces) {
+            return;
+        }
+
+        e.preventDefault();
+        replaceQueryEditorRange('\n' + lead_spaces, cursor_pos, cursor_pos);
+        return false;
+    } else if ((e.ctrlKey || e.metaKey) && e.key === '/' && !e.shiftKey) {
+        // Comment/uncomment selected lines on Ctrl+/ or Cmd+/
+        const elem = e.target;
+        const start = elem.selectionStart;
+        const end = elem.selectionEnd;
+        const value = elem.value;
+
+        let lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        let lineEnd = value.indexOf('\n', end);
+        if (lineEnd === -1) lineEnd = value.length;
+
+        let selectedText = value.substring(lineStart, lineEnd);
+        let lines = selectedText.split('\n');
+
+        // Comment out each line, or uncomment if all lines are already commented
+        const allCommented = lines.every(line => /^\s*--/.test(line));
+
+        // If all lines are commented out, uncomment them
+        if (allCommented) {
+            lines = lines.map(line => line.replace(/^(\s*)-- ?/, '$1'));
+        } else {
+            lines = lines.map(line => {
+                if (/^\s*$/.test(line)) {
+                    return line;
+                }
+                return line.replace(/^(\s*)/, '$1-- ');
+            });
+        }
+
+        const replacedText = lines.join('\n');
+
+        e.preventDefault();
+        // Adjust selection to keep the user in flow and enable quick reversal
+        replaceQueryEditorRange(replacedText, lineStart, lineEnd, lineStart, lineStart + replacedText.length);
+        return false;
+    }
 }
 
 function insertIntoQueryEditor(text, options = {}) {
@@ -11135,83 +11330,9 @@ toggle_editor_elem.addEventListener('click', () => {
     setEditorCompact(!document.getElementById('query_div').classList.contains('compact'));
 });
 
-/// Pressing Tab in textarea will increase indentation.
-/// But for accessibility reasons, we will fall back to tab navigation if the user already used Tab for that.
-
-let user_prefers_tab_navigation = false;
-
-[...document.querySelectorAll('input')].map(elem => {
-    elem.onkeydown = (e) => {
-        if (e.key == 'Tab') { user_prefers_tab_navigation = true; }
-    };
-});
-
 query_area.addEventListener('keydown', handleQueryAutocompleteKeyDown, true);
-
-query_area.onkeydown = (e) => {
-    if (e.key == 'Tab' && !e.shiftKey && !user_prefers_tab_navigation) {
-        e.preventDefault();
-        replaceQueryEditorRange('    ');
-        return false;
-    } else if (e.key === 'Enter' && !(e.metaKey || e.ctrlKey)) {
-        // If the user presses Enter, and the previous line starts with spaces,
-        // then we will insert the same number of spaces.
-        const elem = e.target;
-        if (elem.selectionStart !== elem.selectionEnd) {
-            // If there is a selection, then we will not insert spaces.
-            return;
-        }
-        const cursor_pos = elem.selectionStart;
-
-        const elem_value = elem.value;
-        const text_before_cursor = elem_value.substring(0, cursor_pos);
-        const prev_lines = text_before_cursor.split('\n');
-        const prev_line = prev_lines.pop();
-        const lead_spaces = prev_line.match(/^\s*/)[0];
-        if (!lead_spaces) {
-            return;
-        }
-
-        e.preventDefault();
-        replaceQueryEditorRange('\n' + lead_spaces, cursor_pos, cursor_pos);
-        return false;
-    } else if ((e.ctrlKey || e.metaKey) && e.key === '/' && !e.shiftKey) {
-        // Comment/uncomment selected lines on Ctrl+/ or Cmd+/
-        const elem = e.target;
-        const start = elem.selectionStart;
-        const end = elem.selectionEnd;
-        const value = elem.value;
-
-        let lineStart = value.lastIndexOf('\n', start - 1) + 1;
-        let lineEnd = value.indexOf('\n', end);
-        if (lineEnd === -1) lineEnd = value.length;
-
-        let selectedText = value.substring(lineStart, lineEnd);
-        let lines = selectedText.split('\n');
-
-        // Comment out each line, or uncomment if all lines are already commented
-        const allCommented = lines.every(line => /^\s*--/.test(line));
-
-        // If all lines are commented out, uncomment them
-        if (allCommented) {
-            lines = lines.map(line => line.replace(/^(\s*)-- ?/, '$1'));
-        } else {
-            lines = lines.map(line => {
-                if (/^\s*$/.test(line)) {
-                    return line;
-                }
-                return line.replace(/^(\s*)/, '$1-- ');
-            });
-        }
-
-        const replacedText = lines.join('\n');
-
-        e.preventDefault();
-        // Adjust selection to keep the user in flow and enable quick reversal
-        replaceQueryEditorRange(replacedText, lineStart, lineEnd, lineStart, lineStart + replacedText.length);
-        return false;
-    }
-};
+query_area.addEventListener('keydown', handleQueryEditorKeyDown);
+query_area.addEventListener('blur', clearQueryEditorTabExitArm);
 
 function clearElement(elem)
 {
@@ -12434,6 +12555,9 @@ query_area.addEventListener('scroll', () => {
     syncQueryBackdropScroll();
     positionAutocompleteMenu();
 });
+
+const query_backdrop_resize_observer = new ResizeObserver(syncQueryBackdropLayout);
+query_backdrop_resize_observer.observe(query_area);
 
 const dashboard_default_dashboard = 'Overview';
 const dashboard_default_params = {
