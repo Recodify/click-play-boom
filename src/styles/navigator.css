@@ -935,6 +935,12 @@
             text-align: center;
         }
 
+        .table-menu:disabled
+        {
+            cursor: default;
+            opacity: 0.45;
+        }
+
         .columns
         {
             display: none;

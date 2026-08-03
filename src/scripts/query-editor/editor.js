@@ -33,7 +33,7 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
 
     let inserted = false;
     const value_before_insert = query_area.value;
-    if (typeof document.execCommand == 'function') {
+    if (document.activeElement == query_area && typeof document.execCommand == 'function') {
         try {
             suppress_programmatic_query_input = true;
             inserted = document.execCommand('insertText', false, text);
@@ -315,6 +315,9 @@ function setSnippetInsertionMode(mode, save = true) {
     snippet_insertion_mode_elem.value = insertion_manager.snippet_mode;
     if (save) {
         window.localStorage.setItem(snippet_insertion_mode_key, insertion_manager.snippet_mode);
+    }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
     }
 }
 

@@ -55,6 +55,7 @@ let active_connection_meta_elem = document.getElementById('active-connection-met
 let app_view_query_elem = document.getElementById('app-view-query');
 let app_view_dashboard_elem = document.getElementById('app-view-dashboard');
 let app_view_schema_elem = document.getElementById('app-view-schema');
+let app_view_settings_elem = document.getElementById('app-view-settings');
 let navigator_footer_primary_elem = document.getElementById('navigator-footer-primary');
 let results_workspace_elem = document.getElementById('results_workspace');
 let dashboard_workspace_elem = document.getElementById('dashboard_workspace');
@@ -74,6 +75,7 @@ let dashboard_mass_editor_cancel_elem = document.getElementById('dashboard-mass-
 let dashboard_mass_editor_confirm_elem = document.getElementById('dashboard-mass-editor-confirm');
 let dashboard_charts_elem = document.getElementById('dashboard-charts');
 let schema_workspace_elem = document.getElementById('schema_workspace');
+let settings_workspace_elem = document.getElementById('settings_workspace');
 let schema_controls_elem = document.getElementById('schema-controls');
 let schema_search_elem = document.getElementById('schema-search');
 let schema_db_filter_elem = document.getElementById('schema-db-filter');
@@ -131,11 +133,14 @@ const query_editor_compact_key = 'play-reborn.query-editor-compact.v1';
 const sidebar_active_tab_key = 'play-reborn.sidebar-active-tab.v1';
 const query_snippets_key = 'play-reborn.query-snippets.v2';
 const snippet_insertion_mode_key = 'play-reborn.snippet-insertion-mode.v1';
+const query_defaults_key = 'play-reborn.query-defaults.v2';
+const session_settings_key = 'play-reborn.session-settings.v1';
+const theme_key = 'theme';
 
 let action_history = [];
 let result_history = [];
 let active_result_id = null;
-let current_workspace_view = ['dashboard', 'schema'].includes(current_url.searchParams.get('view')) ? current_url.searchParams.get('view') : 'query';
+let current_workspace_view = ['dashboard', 'schema', 'settings'].includes(current_url.searchParams.get('view')) ? current_url.searchParams.get('view') : 'query';
 let current_result_elements = null;
 let current_result_meta = null;
 let render_result_elements = null;
@@ -185,6 +190,7 @@ let schema_state = {
     message: 'Loading navigator...'
 };
 let navigator_state = loadNavigatorState();
+let query_defaults_state = null;
 
 function getRenderResultElements() { return render_result_elements || current_result_elements; }
 function getRenderResultMeta() { return render_result_meta || current_result_meta; }
@@ -222,10 +228,30 @@ function buildClickHouseUrl(server_address, user, password, default_format = 'JS
         .join('&');
 }
 
+function formatClickHouseStringLiteral(value) {
+    const escapes = {
+        '\0': '\\0',
+        '\b': '\\b',
+        '\f': '\\f',
+        '\n': '\\n',
+        '\r': '\\r',
+        '\t': '\\t',
+        '\v': '\\v',
+        "'": "\\'"
+    };
+    const escaped = String(value ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/[\0\b\f\n\r\t\v']/g, character => escapes[character]);
+    return `'${escaped}'`;
+}
+
 function setDownloadQueryCachePreference(enabled, persist = true) {
     download_use_cache_elem.checked = enabled;
     if (persist) {
         window.localStorage.setItem(download_query_cache_key, enabled ? '1' : '0');
+    }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
     }
 }
 
@@ -235,12 +261,18 @@ function setNavigatorTypesVisible(enabled, persist = true) {
     if (persist) {
         window.localStorage.setItem(navigator_show_types_key, enabled ? '1' : '0');
     }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
+    }
 }
 
 function setAbortPreviewLimit(enabled, persist = true) {
     abort_preview_limit_elem.checked = enabled;
     if (persist) {
         window.localStorage.setItem(abort_preview_limit_key, enabled ? '1' : '0');
+    }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
     }
 }
 

@@ -86,23 +86,6 @@ FROM ${qualified_table}
 ORDER BY database, name;`;
 }
 
-function formatClickHouseStringLiteral(value) {
-    const escapes = {
-        '\0': '\\0',
-        '\b': '\\b',
-        '\f': '\\f',
-        '\n': '\\n',
-        '\r': '\\r',
-        '\t': '\\t',
-        '\v': '\\v',
-        "'": "\\'"
-    };
-    const escaped = String(value ?? '')
-        .replace(/\\/g, '\\\\')
-        .replace(/[\0\b\f\n\r\t\v']/g, character => escapes[character]);
-    return `'${escaped}'`;
-}
-
 async function fetchSchemaCompatMappings(connection) {
     const url = buildClickHouseUrl(
         connection.url,
@@ -272,6 +255,7 @@ function deleteConnectionById(connection_id) {
     if (!saved_store) {
         return;
     }
+    tombstoneQueryDefaultsForConnection(connection_id, now);
 
     const visible_connections = saved_store.connections.filter(candidate => !isDeletedStorageRecord(candidate));
 
@@ -611,7 +595,31 @@ async function generateDropDatabase(server_address, user, password, database) {
     insertTextIntoEditor(buildDropDatabaseStatement(database, clustered));
 }
 
+function canUseNavigatorSchemaActions() {
+    return current_workspace_view == 'query';
+}
+
+function updateNavigatorSchemaActionAvailability() {
+    const enabled = canUseNavigatorSchemaActions();
+    for (const element of document.querySelectorAll('[data-navigator-schema-action]')) {
+        if (element instanceof HTMLButtonElement) {
+            element.disabled = !enabled;
+        }
+        if (element.dataset.queryWorkspaceTitle) {
+            element.title = enabled
+                ? element.dataset.queryWorkspaceTitle
+                : 'Available in the Query workspace';
+        }
+    }
+    if (!enabled) {
+        hideNavigatorContextMenu();
+    }
+}
+
 function openDatabaseMenu(anchor_rect, server_address, user, password, database) {
+    if (!canUseNavigatorSchemaActions()) {
+        return;
+    }
     const items = [
         {
             icon: '↪',
@@ -629,6 +637,9 @@ function openDatabaseMenu(anchor_rect, server_address, user, password, database)
 }
 
 function openTableMenu(anchor_rect, server_address, user, password, database, table, engine) {
+    if (!canUseNavigatorSchemaActions()) {
+        return;
+    }
     const is_view = isViewEngine(engine);
     const is_materialized_view = isMaterializedViewEngine(engine);
     const is_dictionary = isDictionaryEngine(engine);
@@ -709,6 +720,9 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
 }
 
 function openColumnMenu(anchor_rect, database, table, column) {
+    if (!canUseNavigatorSchemaActions()) {
+        return;
+    }
     const items = [
         {
             icon: '∑',
@@ -1181,6 +1195,9 @@ function createConnectionNavigatorNode(connection, filter) {
                 database_header.addEventListener('contextmenu', e => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (!canUseNavigatorSchemaActions()) {
+                        return;
+                    }
                     openDatabaseMenu(
                         { left: e.clientX, bottom: e.clientY },
                         connection.url,
@@ -1208,7 +1225,9 @@ function createConnectionNavigatorNode(connection, filter) {
                 database_menu_button.type = 'button';
                 database_menu_button.className = 'navigator-header-action';
                 database_menu_button.innerText = '⋯';
-                database_menu_button.title = 'Database actions';
+                database_menu_button.dataset.navigatorSchemaAction = '';
+                database_menu_button.dataset.queryWorkspaceTitle = 'Database actions';
+                database_menu_button.title = database_menu_button.dataset.queryWorkspaceTitle;
                 database_menu_button.addEventListener('click', e => {
                     e.stopPropagation();
                     openDatabaseMenu(
@@ -1396,6 +1415,7 @@ function renderNavigatorTree() {
     if (!schema_browser_elem.firstChild) {
         schema_browser_empty_elem.innerText = 'No navigator items matched the current filter.';
     }
+    updateNavigatorSchemaActionAvailability();
 }
 
 function renderTableGroups(connection_id, server_address, user, password, database, tables_elem, table_rows) {
@@ -1457,6 +1477,9 @@ function renderTableGroups(connection_id, server_address, user, password, databa
             table_row.className = 'table-row';
             table_row.addEventListener('contextmenu', e => {
                 e.preventDefault();
+                if (!canUseNavigatorSchemaActions()) {
+                    return;
+                }
                 openTableMenu({ left: e.clientX, bottom: e.clientY }, server_address, user, password, database, elem.table, elem.engine);
             });
 
@@ -1483,7 +1506,9 @@ function renderTableGroups(connection_id, server_address, user, password, databa
             table_menu_button.type = 'button';
             table_menu_button.className = 'table-menu';
             table_menu_button.innerText = '⋯';
-            table_menu_button.title = item_kind == 'dictionary' ? 'Dictionary actions' : 'Table actions';
+            table_menu_button.dataset.navigatorSchemaAction = '';
+            table_menu_button.dataset.queryWorkspaceTitle = item_kind == 'dictionary' ? 'Dictionary actions' : 'Table actions';
+            table_menu_button.title = table_menu_button.dataset.queryWorkspaceTitle;
             table_menu_button.addEventListener('click', e => {
                 e.stopPropagation();
                 const rect = table_menu_button.getBoundingClientRect();
@@ -1555,6 +1580,7 @@ function applyConnection(connection) {
     loadDatabases(connection.url, connection.user, connection.password);
     handleDashboardConnectionChanged(connection);
     handleSchemaConnectionChanged(connection);
+    handleSettingsConnectionChanged(connection);
 }
 
 function saveCurrentConnection(newConnection) {

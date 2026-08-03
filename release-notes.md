@@ -1,5 +1,24 @@
 # Release Notes
 
+## client 2026.07.28.2
+
+- Replaced the native ClickHouse setting-name list with a shared, ranked, viewport-aware combobox for Session Settings
+  and Query Defaults, including keyboard navigation and complete metadata on hover.
+- Deferred unavailable-setting warnings while users search, then validate names on selection, blur, save, test, or apply.
+- Disabled database, table, and column editor actions outside the Query workspace while retaining connection actions.
+- Prevented programmatic query insertion from sending text to a focused non-query input.
+
+## client 2026.07.28.1
+
+- Added a dedicated Settings workspace for global user preferences, per-connection Session Settings, and scoped Query
+  Defaults.
+- Added global and per-connection Query Defaults as editor-only HTTP parameters, including per-connection overrides and
+  inherited-value suppression without rewriting SQL.
+- Added per-tab, per-connection ClickHouse HTTP sessions with managed `SET` replay, 30-minute inactivity timeouts,
+  one-time expiry recovery, explicit lock handling, and new sessions after reload.
+- Kept dashboard, Schema, navigator, autocomplete, download, and query-log traffic stateless and independent of editor
+  Query Defaults.
+
 ## client 2026.07.22.2
 
 - Added four-space Tab indentation and Shift+Tab outdent for query-editor carets and multi-line selections.

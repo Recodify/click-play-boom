@@ -7,6 +7,11 @@ function handleLocalStorageChanged(e) {
         handleQuerySnippetsChanged();
     } else if (e.key == saved_connections_key) {
         handleSavedConnectionsChanged();
+    } else if (e.key == query_defaults_key) {
+        handleQueryDefaultsChanged();
+    } else if ([theme_key, download_query_cache_key, navigator_show_types_key,
+        abort_preview_limit_key, query_editor_compact_key, snippet_insertion_mode_key].includes(e.key)) {
+        handleSettingsPreferenceStorageChanged(e.key);
     }
 }
 

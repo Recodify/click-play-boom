@@ -190,6 +190,9 @@ function renderColumns(container, columns, database, table) {
             row.addEventListener('contextmenu', e => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!canUseNavigatorSchemaActions()) {
+                    return;
+                }
                 openColumnMenu({ left: e.clientX, bottom: e.clientY }, database, table, column);
             });
         }
@@ -197,11 +200,16 @@ function renderColumns(container, columns, database, table) {
         let name = document.createElement('span');
         name.className = 'column-name monospace';
         name.innerText = column.name;
-        name.title = is_numeric_column
+        name.dataset.navigatorSchemaAction = '';
+        name.dataset.queryWorkspaceTitle = is_numeric_column
             ? 'Double-click to insert column name at cursor. Right-click to generate stats'
             : 'Double-click to insert column name at cursor';
+        name.title = name.dataset.queryWorkspaceTitle;
         name.addEventListener('dblclick', e => {
             e.stopPropagation();
+            if (!canUseNavigatorSchemaActions()) {
+                return;
+            }
             insertIntoQueryEditor(formatClickHouseIdentifier(column.name), { mode: 'insert' });
         });
 
@@ -213,6 +221,7 @@ function renderColumns(container, columns, database, table) {
         row.appendChild(type);
         container.appendChild(row);
     }
+    updateNavigatorSchemaActionAvailability();
 }
 
 async function loadColumns(server_address, user, password, database, table, container) {

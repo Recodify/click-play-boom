@@ -25,6 +25,154 @@ function getStorageTimestamp() {
     return new Date().toISOString();
 }
 
+function createQueryDefaultId() {
+    return `query-default-${Date.now()}-${crypto.randomUUID?.() || Math.random().toString(16).slice(2)}`;
+}
+
+function emptyQueryDefaultsStore() {
+    return createVersionedStorageEnvelope({ records: [] });
+}
+
+function getQueryDefaultScopeKey(record) {
+    const connection_id = record.scope == 'connection' ? record.connection_id : '';
+    return `${record.scope}:${connection_id}:${record.name}`;
+}
+
+function normalizeQueryDefaultsStore(stored) {
+    const store_updated_at = String(stored?.updated_at || '');
+    const raw_records = Array.isArray(stored?.records) ? stored.records : [];
+    const records_by_id = new Map();
+
+    for (const raw_record of raw_records) {
+        const scope = raw_record?.scope == 'global' ? 'global' : raw_record?.scope == 'connection' ? 'connection' : '';
+        const connection_id = scope == 'connection' ? String(raw_record?.connection_id || '') : '';
+        const name = String(raw_record?.name || '').trim();
+        const mode = raw_record?.mode == 'suppress' && scope == 'connection' ? 'suppress' : 'set';
+        if (!raw_record?.id || !scope || !name || (scope == 'connection' && !connection_id)) {
+            continue;
+        }
+
+        const record = {
+            id: String(raw_record.id),
+            scope,
+            connection_id,
+            name,
+            value: mode == 'suppress' ? '' : String(raw_record.value ?? ''),
+            mode,
+            updated_at: String(raw_record.updated_at || raw_record.deleted_at || store_updated_at),
+            deleted_at: String(raw_record.deleted_at || '')
+        };
+        const existing = records_by_id.get(record.id);
+        if (!existing || getStorageRecordRevision(record) >= getStorageRecordRevision(existing)) {
+            records_by_id.set(record.id, record);
+        }
+    }
+
+    const active_scope_records = new Map();
+    const normalized_records = [];
+    for (const record of records_by_id.values()) {
+        if (isDeletedStorageRecord(record)) {
+            normalized_records.push(record);
+            continue;
+        }
+        const key = getQueryDefaultScopeKey(record);
+        const existing = active_scope_records.get(key);
+        if (!existing || getStorageRecordRevision(record) >= getStorageRecordRevision(existing)) {
+            active_scope_records.set(key, record);
+        }
+    }
+    normalized_records.push(...active_scope_records.values());
+
+    return {
+        schema_version: storage_schema_version,
+        updated_at: store_updated_at,
+        records: normalized_records
+    };
+}
+
+function loadQueryDefaults() {
+    const result = readVersionedStorage(query_defaults_key, emptyQueryDefaultsStore);
+    if (result.unsupported_schema) {
+        return {
+            ...emptyQueryDefaultsStore(),
+            unsupported_schema: true,
+            unsupported_schema_version: result.schema_version
+        };
+    }
+    return normalizeQueryDefaultsStore(result.store);
+}
+
+function saveQueryDefaultsStore(local_store = query_defaults_state) {
+    const latest_result = readVersionedStorage(query_defaults_key, emptyQueryDefaultsStore);
+    if (latest_result.unsupported_schema) {
+        alertUnsupportedStorageSchema('Query defaults', latest_result.schema_version);
+        return false;
+    }
+
+    const latest_store = normalizeQueryDefaultsStore(latest_result.store);
+    const normalized_local_store = normalizeQueryDefaultsStore(local_store || emptyQueryDefaultsStore());
+    const merged_store = normalizeQueryDefaultsStore(createVersionedStorageEnvelope({
+        records: mergeStorageRecords(latest_store.records, normalized_local_store.records)
+    }));
+    window.localStorage.setItem(query_defaults_key, JSON.stringify(merged_store));
+    query_defaults_state = merged_store;
+    return true;
+}
+
+function replaceQueryDefaultsScope(scope, connection_id, desired_rows) {
+    const now = getStorageTimestamp();
+    const target_connection_id = scope == 'connection' ? String(connection_id || '') : '';
+    const target_key_prefix = `${scope}:${target_connection_id}:`;
+    const current_store = normalizeQueryDefaultsStore(query_defaults_state || loadQueryDefaults());
+    const desired_by_name = new Map(desired_rows.map(row => [row.name, row]));
+
+    for (const record of current_store.records) {
+        if (isDeletedStorageRecord(record) || !getQueryDefaultScopeKey(record).startsWith(target_key_prefix)) {
+            continue;
+        }
+        const desired = desired_by_name.get(record.name);
+        if (!desired) {
+            record.updated_at = now;
+            record.deleted_at = now;
+            continue;
+        }
+        record.value = desired.mode == 'suppress' ? '' : String(desired.value ?? '');
+        record.mode = desired.mode == 'suppress' && scope == 'connection' ? 'suppress' : 'set';
+        record.updated_at = now;
+        record.deleted_at = '';
+        desired_by_name.delete(record.name);
+    }
+
+    for (const desired of desired_by_name.values()) {
+        current_store.records.push({
+            id: createQueryDefaultId(),
+            scope,
+            connection_id: target_connection_id,
+            name: desired.name,
+            value: desired.mode == 'suppress' ? '' : String(desired.value ?? ''),
+            mode: desired.mode == 'suppress' && scope == 'connection' ? 'suppress' : 'set',
+            updated_at: now,
+            deleted_at: ''
+        });
+    }
+
+    return saveQueryDefaultsStore(current_store);
+}
+
+function tombstoneQueryDefaultsForConnection(connection_id, deleted_at = getStorageTimestamp()) {
+    const current_store = normalizeQueryDefaultsStore(query_defaults_state || loadQueryDefaults());
+    let changed = false;
+    for (const record of current_store.records) {
+        if (record.scope != 'connection' || record.connection_id != connection_id || isDeletedStorageRecord(record)) {
+            continue;
+        }
+        record.updated_at = deleted_at;
+        record.deleted_at = deleted_at;
+        changed = true;
+    }
+    return !changed || saveQueryDefaultsStore(current_store);
+}
+
 function isDeletedStorageRecord(record) {
     return !!record?.deleted_at;
 }

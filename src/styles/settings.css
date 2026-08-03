@@ -1,0 +1,448 @@
+        .settings-workspace
+        {
+            min-width: 0;
+            min-height: 0;
+            overflow: auto;
+            padding-right: 0.25rem;
+        }
+
+        .settings-workspace[hidden]
+        {
+            display: none !important;
+        }
+
+        .settings-header
+        {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+        }
+
+        .settings-header h1,
+        .settings-card h2
+        {
+            font-size: 1rem;
+            line-height: 1.25;
+        }
+
+        .settings-header p,
+        .settings-card-heading p
+        {
+            margin-top: 0.25rem;
+            color: var(--misc-text-color);
+            font-size: 0.83rem;
+            line-height: 1.4;
+        }
+
+        .settings-catalog-actions,
+        .settings-actions,
+        .settings-session-meta,
+        .settings-query-toolbar
+        {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .settings-catalog-actions
+        {
+            justify-content: flex-end;
+        }
+
+        .settings-sections
+        {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        .settings-card
+        {
+            min-width: 0;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+        }
+
+        .settings-card-wide
+        {
+            grid-column: 1 / -1;
+        }
+
+        .settings-card-heading
+        {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .settings-preference-grid
+        {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem 1rem;
+        }
+
+        .settings-field
+        {
+            display: grid;
+            gap: 0.25rem;
+            min-width: 0;
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .settings-field input,
+        .settings-field select,
+        .settings-editor-row input,
+        .settings-editor-row select,
+        .settings-actions button,
+        .settings-catalog-actions button
+        {
+            min-height: 2rem;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            padding: 0.3rem 0.45rem;
+            font: inherit;
+        }
+
+        .settings-actions button,
+        .settings-catalog-actions button
+        {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .settings-actions button:hover:not(:disabled),
+        .settings-actions button:focus:not(:disabled),
+        .settings-catalog-actions button:hover:not(:disabled),
+        .settings-catalog-actions button:focus:not(:disabled),
+        .settings-primary-action
+        {
+            color: var(--button-active-text-color);
+            background: var(--button-active-color);
+        }
+
+        .settings-actions button:disabled,
+        .settings-catalog-actions button:disabled,
+        .settings-editor-row input:disabled,
+        .settings-editor-row select:disabled
+        {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .settings-check
+        {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.45rem;
+            min-width: 0;
+            font-size: 0.85rem;
+            line-height: 1.35;
+        }
+
+        .settings-check input
+        {
+            flex: 0 0 auto;
+            margin-top: 0.15rem;
+        }
+
+        .settings-status-badge,
+        .settings-source-badge
+        {
+            flex: 0 0 auto;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+            padding: 0.2rem 0.45rem;
+            color: var(--misc-text-color);
+            font-size: 0.72rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .settings-status-badge.active
+        {
+            border-color: var(--progress-color);
+            color: var(--text-color);
+        }
+
+        .settings-status-badge.error,
+        .settings-status-badge.busy
+        {
+            border-color: var(--element-color-fail);
+            color: var(--element-color-fail);
+        }
+
+        .settings-session-meta
+        {
+            justify-content: space-between;
+            margin-bottom: 0.65rem;
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+        }
+
+        .settings-editor-rows
+        {
+            display: grid;
+            gap: 0.45rem;
+            min-width: 0;
+            margin-bottom: 0.65rem;
+        }
+
+        .settings-editor-row
+        {
+            display: grid;
+            grid-template-columns: minmax(11rem, 1.15fr) minmax(9rem, 1fr) auto auto;
+            gap: 0.45rem;
+            align-items: start;
+            min-width: 0;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+        }
+
+        .settings-editor-row.inherited
+        {
+            border-style: dashed;
+        }
+
+        .settings-editor-row.invalid
+        {
+            border-color: var(--element-color-fail);
+        }
+
+        .settings-editor-row-main
+        {
+            display: grid;
+            gap: 0.25rem;
+            min-width: 0;
+        }
+
+        .settings-editor-row input,
+        .settings-editor-row select
+        {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .settings-editor-row button
+        {
+            min-height: 2rem;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .settings-setting-help,
+        .settings-setting-warning
+        {
+            color: var(--misc-text-color);
+            font-size: 0.72rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .settings-catalog-combobox
+        {
+            position: fixed;
+            z-index: 2500;
+            display: grid;
+            overflow-x: hidden;
+            overflow-y: auto;
+            border: 1px solid var(--border-color-selected);
+            background: var(--element-background-color);
+            box-shadow: 0 0.4rem 1.2rem var(--shadow-color);
+        }
+
+        .settings-catalog-combobox[hidden]
+        {
+            display: none !important;
+        }
+
+        .settings-catalog-option
+        {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.15rem 0.6rem;
+            width: 100%;
+            min-width: 0;
+            padding: 0.45rem 0.55rem;
+            border: 0;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            cursor: pointer;
+            font: inherit;
+            text-align: left;
+        }
+
+        .settings-catalog-option:last-child
+        {
+            border-bottom: 0;
+        }
+
+        .settings-catalog-option:hover,
+        .settings-catalog-option.active
+        {
+            background: var(--button-active-color);
+            color: var(--button-active-text-color);
+        }
+
+        .settings-catalog-option-name,
+        .settings-catalog-option-type,
+        .settings-catalog-option-description
+        {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .settings-catalog-option-name
+        {
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+            font-weight: 700;
+        }
+
+        .settings-catalog-option-type
+        {
+            color: var(--misc-text-color);
+            font-size: 0.72rem;
+        }
+
+        .settings-catalog-option:hover .settings-catalog-option-type,
+        .settings-catalog-option.active .settings-catalog-option-type
+        {
+            color: inherit;
+        }
+
+        .settings-catalog-option-description
+        {
+            grid-column: 1 / -1;
+            color: var(--misc-text-color);
+            font-size: 0.75rem;
+        }
+
+        .settings-catalog-option:hover .settings-catalog-option-description,
+        .settings-catalog-option.active .settings-catalog-option-description
+        {
+            color: inherit;
+        }
+
+        .settings-catalog-combobox-empty
+        {
+            padding: 0.6rem;
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+        }
+
+        .settings-setting-warning
+        {
+            color: var(--element-color-fail);
+        }
+
+        .settings-actions
+        {
+            min-height: 2rem;
+        }
+
+        .settings-action-spacer
+        {
+            flex: 1 1 auto;
+        }
+
+        .settings-message
+        {
+            min-height: 1.1rem;
+            margin-top: 0.5rem;
+            color: var(--misc-text-color);
+            font-size: 0.8rem;
+            line-height: 1.35;
+        }
+
+        .settings-message.error
+        {
+            color: var(--element-color-fail);
+        }
+
+        .settings-message.success
+        {
+            color: var(--element-color-ok);
+        }
+
+        .settings-inline-status
+        {
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+        }
+
+        .settings-query-toolbar
+        {
+            align-items: end;
+            margin-bottom: 0.65rem;
+        }
+
+        .settings-scope-field
+        {
+            flex: 0 1 15rem;
+        }
+
+        .settings-search-field
+        {
+            flex: 1 1 18rem;
+        }
+
+        .settings-empty
+        {
+            padding: 0.75rem;
+            border: 1px dashed var(--border-color);
+            color: var(--misc-text-color);
+            font-size: 0.82rem;
+        }
+
+        @media (max-width: 72rem)
+        {
+            .settings-sections,
+            .settings-preference-grid
+            {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .settings-card-wide
+            {
+                grid-column: auto;
+            }
+        }
+
+        @media (max-width: 52rem)
+        {
+            .settings-header
+            {
+                display: grid;
+            }
+
+            .settings-catalog-actions
+            {
+                justify-content: flex-start;
+            }
+
+            .settings-editor-row
+            {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
