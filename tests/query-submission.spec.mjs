@@ -1332,7 +1332,7 @@ test.describe('query submission safety', () => {
     expect(await page.evaluate(() => window.localStorage.getItem(query_defaults_key))).toBeNull();
   });
 
-  test('settings catalog combobox caps, ranks, titles, and selects results by keyboard', async ({ page }) => {
+  test('settings catalog combobox virtualizes every ranked result and supports pointer and keyboard selection', async ({ page }) => {
     await openSettings(page);
     await page.locator('#settings-query-default-add').click();
     const row = page.locator('#settings-query-default-rows .settings-editor-row')
@@ -1343,7 +1343,13 @@ test.describe('query submission safety', () => {
 
     await nameInput.fill('format');
     await expect(combobox).toBeVisible();
-    await expect(combobox.getByRole('option')).toHaveCount(10);
+    await expect(combobox.getByRole('option').first()).toHaveAttribute('aria-setsize', '15');
+    expect(await combobox.getByRole('option').count()).toBeLessThan(15);
+    const scrollMetrics = await combobox.evaluate(element => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight);
     await expect(combobox.getByRole('option').first().locator('.settings-catalog-option-name'))
       .toHaveText('format_csv_delimiter');
     await expect(combobox.getByRole('option').first().locator('.settings-catalog-option-name'))
@@ -1353,18 +1359,40 @@ test.describe('query submission safety', () => {
     await expect(combobox.getByRole('option').first().locator('.settings-catalog-option-description'))
       .toHaveAttribute('title', /complete catalog metadata remains available on hover/);
     await expect(row.locator('.settings-setting-warning')).toHaveCount(0);
+
+    await combobox.evaluate(element => {
+      element.scrollTop = element.scrollHeight;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    const finalFormatOption = combobox.getByRole('option')
+      .filter({ hasText: 'format_test_setting_14' });
+    await expect(finalFormatOption).toBeVisible();
+    await finalFormatOption.click();
+    await expect(nameInput).toHaveValue('format_test_setting_14');
+
+    await nameInput.fill('format');
     await page.keyboard.press('End');
-    await expect(combobox.getByRole('option').last()).toHaveAttribute('aria-selected', 'true');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_test_setting_14' }))
+      .toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Home');
-    await expect(combobox.getByRole('option').first()).toHaveAttribute('aria-selected', 'true');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_csv_delimiter' }))
+      .toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowDown');
-    await expect(combobox.getByRole('option').nth(1)).toHaveAttribute('aria-selected', 'true');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_test_setting_01' }))
+      .toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowUp');
-    await expect(combobox.getByRole('option').first()).toHaveAttribute('aria-selected', 'true');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_csv_delimiter' }))
+      .toHaveAttribute('aria-selected', 'true');
 
     await page.keyboard.press('Escape');
     await expect(combobox).toBeHidden();
     await expect(row.locator('.settings-setting-warning')).toHaveCount(0);
+    await nameInput.fill('format');
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await expect(nameInput).toHaveValue('format_test_setting_14');
+    await expect(combobox).toBeHidden();
+
     await nameInput.fill('MaxThreads');
     await expect(combobox.getByRole('option')).toHaveCount(1);
     await page.keyboard.press('Enter');

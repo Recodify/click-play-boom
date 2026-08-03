@@ -40,7 +40,8 @@ const settings_query_default_message_elem = document.getElementById('settings-qu
 
 const settings_catalog_cache = new Map();
 const settings_query_default_drafts = new Map();
-const settings_catalog_combobox_result_limit = 10;
+const settings_catalog_combobox_option_height = 58;
+const settings_catalog_combobox_overscan = 3;
 let settings_active_catalog = null;
 let settings_session_store = loadSessionSettingsStoreForDocument();
 let settings_session_draft = { connection_id: '', rows: [] };
@@ -49,7 +50,11 @@ let settings_catalog_combobox_state = {
     input: null,
     callbacks: null,
     results: [],
-    active_index: -1
+    active_index: -1,
+    surface: null,
+    rendered_start: -1,
+    rendered_end: -1,
+    rendered_active_index: -1
 };
 
 class ClickHouseSessionError extends Error {
@@ -107,7 +112,6 @@ function findSettingsCatalogMatches(query) {
         .map(setting => ({ setting, score: getSettingsCatalogMatchScore(setting, query) }))
         .filter(entry => Number.isFinite(entry.score))
         .sort((a, b) => a.score - b.score || a.setting.name.localeCompare(b.setting.name))
-        .slice(0, settings_catalog_combobox_result_limit)
         .map(entry => entry.setting);
 }
 
@@ -146,24 +150,131 @@ function positionSettingsCatalogCombobox() {
     settings_catalog_combobox_elem.style.left = `${left}px`;
     settings_catalog_combobox_elem.style.top = `${top}px`;
     settings_catalog_combobox_elem.dataset.placement = place_below ? 'below' : 'above';
+    renderSettingsCatalogComboboxVirtualWindow();
 }
 
-function updateSettingsCatalogComboboxActiveOption(next_index) {
-    const { input, results } = settings_catalog_combobox_state;
-    if (!input || !results.length) {
+function createSettingsCatalogComboboxOption(index, setting) {
+    const active = index == settings_catalog_combobox_state.active_index;
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.id = `settings-catalog-option-${index}`;
+    option.className = `settings-catalog-option${active ? ' active' : ''}`;
+    option.style.top = `${index * settings_catalog_combobox_option_height}px`;
+    option.style.height = `${settings_catalog_combobox_option_height}px`;
+    option.dataset.resultIndex = String(index);
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-posinset', String(index + 1));
+    option.setAttribute('aria-setsize', String(settings_catalog_combobox_state.results.length));
+    option.setAttribute('aria-selected', active ? 'true' : 'false');
+    option.tabIndex = -1;
+
+    const name = document.createElement('span');
+    name.className = 'settings-catalog-option-name';
+    name.textContent = setting.name;
+    name.title = setting.name;
+    const type = document.createElement('span');
+    type.className = 'settings-catalog-option-type';
+    type.textContent = setting.type;
+    type.title = setting.type;
+    const description = document.createElement('span');
+    description.className = 'settings-catalog-option-description';
+    description.textContent = setting.description || 'No description available.';
+    description.title = setting.description || 'No description available.';
+    option.append(name, type, description);
+    option.addEventListener('pointermove', () => updateSettingsCatalogComboboxActiveOption(index, false));
+    option.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        chooseSettingsCatalogComboboxOption(index);
+    });
+    return option;
+}
+
+function renderSettingsCatalogComboboxVirtualWindow(force = false) {
+    const state = settings_catalog_combobox_state;
+    if (!state.input || !state.surface || !state.results.length || settings_catalog_combobox_elem.hidden) {
         return;
     }
-    const active_index = Math.max(0, Math.min(next_index, results.length - 1));
-    settings_catalog_combobox_state.active_index = active_index;
-    const options = [...settings_catalog_combobox_elem.querySelectorAll('[role="option"]')];
-    for (const [index, option] of options.entries()) {
-        const active = index == active_index;
+
+    const viewport_height = settings_catalog_combobox_elem.clientHeight;
+    if (!viewport_height) {
+        return;
+    }
+    const first_visible = Math.floor(settings_catalog_combobox_elem.scrollTop / settings_catalog_combobox_option_height);
+    const visible_count = Math.ceil(viewport_height / settings_catalog_combobox_option_height);
+    const start = Math.max(0, first_visible - settings_catalog_combobox_overscan);
+    const end = Math.min(state.results.length,
+        first_visible + visible_count + settings_catalog_combobox_overscan);
+    if (!force
+        && start == state.rendered_start
+        && end == state.rendered_end
+        && state.active_index == state.rendered_active_index) {
+        return;
+    }
+
+    const indexes = [];
+    for (let index = start; index < end; ++index) {
+        indexes.push(index);
+    }
+    if (state.active_index >= 0 && (state.active_index < start || state.active_index >= end)) {
+        indexes.push(state.active_index);
+        indexes.sort((a, b) => a - b);
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const index of indexes) {
+        fragment.appendChild(createSettingsCatalogComboboxOption(index, state.results[index]));
+    }
+    state.surface.replaceChildren(fragment);
+    state.rendered_start = start;
+    state.rendered_end = end;
+    state.rendered_active_index = state.active_index;
+    state.input.setAttribute('aria-activedescendant', `settings-catalog-option-${state.active_index}`);
+}
+
+function syncSettingsCatalogComboboxRenderedOptions() {
+    const state = settings_catalog_combobox_state;
+    for (const option of settings_catalog_combobox_elem.querySelectorAll('[role="option"]')) {
+        const index = Number(option.dataset.resultIndex);
+        const active = index == state.active_index;
         option.classList.toggle('active', active);
         option.setAttribute('aria-selected', active ? 'true' : 'false');
+        if (!active && (index < state.rendered_start || index >= state.rendered_end)) {
+            option.remove();
+        }
     }
-    const active_option = options[active_index];
-    input.setAttribute('aria-activedescendant', active_option.id);
-    active_option.scrollIntoView({ block: 'nearest' });
+    state.rendered_active_index = state.active_index;
+    state.input?.setAttribute('aria-activedescendant', `settings-catalog-option-${state.active_index}`);
+}
+
+function updateSettingsCatalogComboboxActiveOption(next_index, ensure_visible = true) {
+    const state = settings_catalog_combobox_state;
+    if (!state.input || !state.results.length) {
+        return;
+    }
+    const active_index = Math.max(0, Math.min(next_index, state.results.length - 1));
+    state.active_index = active_index;
+    if (!ensure_visible) {
+        syncSettingsCatalogComboboxRenderedOptions();
+        return;
+    }
+    const option_top = active_index * settings_catalog_combobox_option_height;
+    const option_bottom = option_top + settings_catalog_combobox_option_height;
+    const viewport_top = settings_catalog_combobox_elem.scrollTop;
+    const viewport_bottom = viewport_top + settings_catalog_combobox_elem.clientHeight;
+    let next_scroll_top = viewport_top;
+    if (option_top < viewport_top) {
+        next_scroll_top = option_top;
+    } else if (option_bottom > viewport_bottom) {
+        next_scroll_top = option_bottom - settings_catalog_combobox_elem.clientHeight;
+    }
+    if (next_scroll_top != viewport_top) {
+        settings_catalog_combobox_elem.scrollTop = next_scroll_top;
+        renderSettingsCatalogComboboxVirtualWindow(true);
+    } else if (state.surface.querySelector(`[data-result-index="${active_index}"]`)) {
+        syncSettingsCatalogComboboxRenderedOptions();
+    } else {
+        renderSettingsCatalogComboboxVirtualWindow(true);
+    }
 }
 
 function chooseSettingsCatalogComboboxOption(index) {
@@ -186,7 +297,12 @@ function renderSettingsCatalogCombobox() {
     const results = findSettingsCatalogMatches(input.value);
     settings_catalog_combobox_state.results = results;
     settings_catalog_combobox_state.active_index = results.length ? 0 : -1;
+    settings_catalog_combobox_state.surface = null;
+    settings_catalog_combobox_state.rendered_start = -1;
+    settings_catalog_combobox_state.rendered_end = -1;
+    settings_catalog_combobox_state.rendered_active_index = -1;
     settings_catalog_combobox_elem.replaceChildren();
+    settings_catalog_combobox_elem.scrollTop = 0;
 
     if (!results.length) {
         const empty = document.createElement('div');
@@ -195,38 +311,11 @@ function renderSettingsCatalogCombobox() {
         settings_catalog_combobox_elem.appendChild(empty);
         input.removeAttribute('aria-activedescendant');
     } else {
-        const fragment = document.createDocumentFragment();
-        for (const [index, setting] of results.entries()) {
-            const option = document.createElement('button');
-            option.type = 'button';
-            option.id = `settings-catalog-option-${index}`;
-            option.className = `settings-catalog-option${index == 0 ? ' active' : ''}`;
-            option.setAttribute('role', 'option');
-            option.setAttribute('aria-selected', index == 0 ? 'true' : 'false');
-            option.tabIndex = -1;
-
-            const name = document.createElement('span');
-            name.className = 'settings-catalog-option-name';
-            name.textContent = setting.name;
-            name.title = setting.name;
-            const type = document.createElement('span');
-            type.className = 'settings-catalog-option-type';
-            type.textContent = setting.type;
-            type.title = setting.type;
-            const description = document.createElement('span');
-            description.className = 'settings-catalog-option-description';
-            description.textContent = setting.description || 'No description available.';
-            description.title = setting.description || 'No description available.';
-            option.append(name, type, description);
-            option.addEventListener('pointerenter', () => updateSettingsCatalogComboboxActiveOption(index));
-            option.addEventListener('pointerdown', event => {
-                event.preventDefault();
-                chooseSettingsCatalogComboboxOption(index);
-            });
-            fragment.appendChild(option);
-        }
-        settings_catalog_combobox_elem.appendChild(fragment);
-        input.setAttribute('aria-activedescendant', 'settings-catalog-option-0');
+        const surface = document.createElement('div');
+        surface.className = 'settings-catalog-virtual-surface';
+        surface.style.height = `${results.length * settings_catalog_combobox_option_height}px`;
+        settings_catalog_combobox_state.surface = surface;
+        settings_catalog_combobox_elem.appendChild(surface);
     }
 
     settings_catalog_combobox_elem.hidden = false;
@@ -256,7 +345,16 @@ function closeSettingsCatalogCombobox(reason = '') {
     settings_catalog_combobox_elem.replaceChildren();
     input.setAttribute('aria-expanded', 'false');
     input.removeAttribute('aria-activedescendant');
-    settings_catalog_combobox_state = { input: null, callbacks: null, results: [], active_index: -1 };
+    settings_catalog_combobox_state = {
+        input: null,
+        callbacks: null,
+        results: [],
+        active_index: -1,
+        surface: null,
+        rendered_start: -1,
+        rendered_end: -1,
+        rendered_active_index: -1
+    };
     if (reason == 'blur' || reason == 'tab') {
         callbacks?.onBlur?.();
     }
@@ -1484,6 +1582,8 @@ function initializeSettingsWorkspace() {
     });
     settings_query_default_save_elem.addEventListener('click', saveCurrentQueryDefaultDraft);
     settings_query_default_test_elem.addEventListener('click', () => void testEffectiveQueryDefaults());
+    settings_catalog_combobox_elem.addEventListener('scroll', () => renderSettingsCatalogComboboxVirtualWindow(),
+        { passive: true });
     settings_workspace_elem.addEventListener('scroll', positionSettingsCatalogCombobox, { passive: true });
     window.addEventListener('resize', positionSettingsCatalogCombobox, { passive: true });
     if (typeof ResizeObserver == 'function') {

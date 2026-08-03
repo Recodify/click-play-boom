@@ -261,7 +261,7 @@
         {
             position: fixed;
             z-index: 2500;
-            display: grid;
+            display: block;
             overflow-x: hidden;
             overflow-y: auto;
             border: 1px solid var(--border-color-selected);
@@ -274,13 +274,23 @@
             display: none !important;
         }
 
+        .settings-catalog-virtual-surface
+        {
+            position: relative;
+            width: 100%;
+        }
+
         .settings-catalog-option
         {
+            position: absolute;
+            left: 0;
+            right: 0;
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 0.15rem 0.6rem;
             width: 100%;
             min-width: 0;
+            box-sizing: border-box;
             padding: 0.45rem 0.55rem;
             border: 0;
             border-bottom: 1px solid var(--border-color);
@@ -289,11 +299,6 @@
             cursor: pointer;
             font: inherit;
             text-align: left;
-        }
-
-        .settings-catalog-option:last-child
-        {
-            border-bottom: 0;
         }
 
         .settings-catalog-option:hover,

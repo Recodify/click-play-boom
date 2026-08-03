@@ -1,5 +1,11 @@
 # Release Notes
 
+## client 2026.08.03.1
+
+- Made every matching ClickHouse setting browseable through the catalog combobox while keeping DOM rendering bounded
+  to a virtualized visible window.
+- Extended pointer and keyboard navigation across the complete ranked result set without additional catalog requests.
+
 ## client 2026.07.28.2
 
 - Replaced the native ClickHouse setting-name list with a shared, ranked, viewport-aware combobox for Session Settings
