@@ -376,20 +376,22 @@ async function postImplForRenderTarget(posted_request_num, query)
     const password = password_elem.value;
     const server_address = url_elem.value;
     const explicit_format = getExplicitFormatName(query);
-    let url = server_address +
-        (server_address.indexOf('?') >= 0 ? '&' : '?') +
-        /// Ask server to allow cross-domain requests.
-        'add_http_cors_header=1';
-    if (user) url += '&user=' + encodeURIComponent(user);
-    if (password) url += '&password=' + encodeURIComponent(password);
-    url += '&default_format=' + default_format + '&enable_http_compression=1';
+    const interactive_params = {
+        enable_http_compression: '1'
+    };
     /// Optional: write the interactive result into query cache so a later download can reuse it.
     if (shouldUseQueryCacheForDownload()) {
-        url += '&use_query_cache=1&enable_reads_from_query_cache=0&enable_writes_to_query_cache=1&query_cache_ttl=600&query_cache_nondeterministic_function_handling=save';
+        Object.assign(interactive_params, {
+            use_query_cache: '1',
+            enable_reads_from_query_cache: '0',
+            enable_writes_to_query_cache: '1',
+            query_cache_ttl: '600',
+            query_cache_nondeterministic_function_handling: 'save'
+        });
     }
 
     /// Extremes only if the format is likely to be unchanged. This is imprecise.
-    if (!explicit_format) url += '&extremes=1';
+    if (!explicit_format) interactive_params.extremes = '1';
 
     last_query_start = performance.now();
 
@@ -408,8 +410,7 @@ async function postImplForRenderTarget(posted_request_num, query)
     reply = '';
     try {
         controller = new AbortController();
-        response = await fetch(url, { method: "POST", body: query, signal: controller.signal,
-            headers: { 'Authorization': 'never' } });
+        response = await fetchInteractiveQuery(query, interactive_params, controller.signal);
 
         format = response.headers.get('X-ClickHouse-Format') ?? default_format;
         query_id = response.headers.get('X-ClickHouse-Query-Id') || '';
@@ -579,7 +580,9 @@ async function postImplForRenderTarget(posted_request_num, query)
     } catch (e) {
         if (posted_request_num != request_num) { return; }
 
-        console.log(e);
+        if (!(e instanceof ClickHouseSessionError)) {
+            console.log(e);
+        }
         if (e instanceof TypeError) {
             reply = "Network error";
         } else if (e.name === 'AbortError') {
@@ -907,6 +910,9 @@ function setEditorCompact(compact, save = true) {
     if (save) {
         window.localStorage.setItem(query_editor_compact_key, compact ? '1' : '0');
     }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
+    }
 }
 
 let in_flight = false;
@@ -916,6 +922,7 @@ async function post(use_armed_selection = false)
     controller = null;
     in_flight = true;
     updateRunButtonText();
+    updateSessionSettingsBusyState();
 
     try {
         const script = getRunScript(use_armed_selection);
@@ -941,6 +948,7 @@ async function post(use_armed_selection = false)
         run_button.blur();
         in_flight = false;
         updateRunButtonText();
+        updateSessionSettingsBusyState();
     }
 }
 
@@ -948,8 +956,6 @@ async function cancel()
 {
     stop_after_current = true;
     if (controller) controller.abort();
-    in_flight = false;
-    updateRunButtonText();
 }
 
 document.getElementById('controls').addEventListener('submit', e =>

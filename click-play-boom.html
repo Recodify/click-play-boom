@@ -1218,6 +1218,12 @@
             text-align: center;
         }
 
+        .table-menu:disabled
+        {
+            cursor: default;
+            opacity: 0.45;
+        }
+
         .columns
         {
             display: none;
@@ -1472,6 +1478,8 @@
             min-width: 0;
             flex: 0 0 auto;
             margin-left: auto;
+            max-width: 100%;
+            overflow-x: auto;
         }
 
         .app-view-tab
@@ -1769,19 +1777,24 @@
         body.workspace-dashboard #results_workspace,
         body.workspace-schema #query_div,
         body.workspace-schema #run_div,
-        body.workspace-schema #results_workspace
+        body.workspace-schema #results_workspace,
+        body.workspace-settings #query_div,
+        body.workspace-settings #run_div,
+        body.workspace-settings #results_workspace
         {
             display: none;
         }
 
         body.workspace-query #dashboard_workspace,
-        body.workspace-query #schema_workspace
+        body.workspace-query #schema_workspace,
+        body.workspace-query #settings_workspace
         {
             display: none;
         }
 
         body.workspace-dashboard #controls,
-        body.workspace-schema #controls
+        body.workspace-schema #controls,
+        body.workspace-settings #controls
         {
             margin-bottom: 0;
         }
@@ -3992,6 +4005,460 @@
             }
         }
 
+        .settings-workspace
+        {
+            min-width: 0;
+            min-height: 0;
+            overflow: auto;
+            padding-right: 0.25rem;
+        }
+
+        .settings-workspace[hidden]
+        {
+            display: none !important;
+        }
+
+        .settings-header
+        {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+        }
+
+        .settings-header h1,
+        .settings-card h2
+        {
+            font-size: 1rem;
+            line-height: 1.25;
+        }
+
+        .settings-header p,
+        .settings-card-heading p
+        {
+            margin-top: 0.25rem;
+            color: var(--misc-text-color);
+            font-size: 0.83rem;
+            line-height: 1.4;
+        }
+
+        .settings-catalog-actions,
+        .settings-actions,
+        .settings-session-meta,
+        .settings-query-toolbar
+        {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .settings-catalog-actions
+        {
+            justify-content: flex-end;
+        }
+
+        .settings-sections
+        {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        .settings-card
+        {
+            min-width: 0;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+        }
+
+        .settings-card-wide
+        {
+            grid-column: 1 / -1;
+        }
+
+        .settings-card-heading
+        {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .settings-preference-grid
+        {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem 1rem;
+        }
+
+        .settings-field
+        {
+            display: grid;
+            gap: 0.25rem;
+            min-width: 0;
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .settings-field input,
+        .settings-field select,
+        .settings-editor-row input,
+        .settings-editor-row select,
+        .settings-actions button,
+        .settings-catalog-actions button
+        {
+            min-height: 2rem;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            padding: 0.3rem 0.45rem;
+            font: inherit;
+        }
+
+        .settings-actions button,
+        .settings-catalog-actions button
+        {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .settings-actions button:hover:not(:disabled),
+        .settings-actions button:focus:not(:disabled),
+        .settings-catalog-actions button:hover:not(:disabled),
+        .settings-catalog-actions button:focus:not(:disabled),
+        .settings-primary-action
+        {
+            color: var(--button-active-text-color);
+            background: var(--button-active-color);
+        }
+
+        .settings-actions button:disabled,
+        .settings-catalog-actions button:disabled,
+        .settings-editor-row input:disabled,
+        .settings-editor-row select:disabled
+        {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .settings-check
+        {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.45rem;
+            min-width: 0;
+            font-size: 0.85rem;
+            line-height: 1.35;
+        }
+
+        .settings-check input
+        {
+            flex: 0 0 auto;
+            margin-top: 0.15rem;
+        }
+
+        .settings-status-badge,
+        .settings-source-badge
+        {
+            flex: 0 0 auto;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+            padding: 0.2rem 0.45rem;
+            color: var(--misc-text-color);
+            font-size: 0.72rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .settings-status-badge.active
+        {
+            border-color: var(--progress-color);
+            color: var(--text-color);
+        }
+
+        .settings-status-badge.error,
+        .settings-status-badge.busy
+        {
+            border-color: var(--element-color-fail);
+            color: var(--element-color-fail);
+        }
+
+        .settings-session-meta
+        {
+            justify-content: space-between;
+            margin-bottom: 0.65rem;
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+        }
+
+        .settings-editor-rows
+        {
+            display: grid;
+            gap: 0.45rem;
+            min-width: 0;
+            margin-bottom: 0.65rem;
+        }
+
+        .settings-editor-row
+        {
+            display: grid;
+            grid-template-columns: minmax(11rem, 1.15fr) minmax(9rem, 1fr) auto auto;
+            gap: 0.45rem;
+            align-items: start;
+            min-width: 0;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--table-header-color);
+        }
+
+        .settings-editor-row.inherited
+        {
+            border-style: dashed;
+        }
+
+        .settings-editor-row.invalid
+        {
+            border-color: var(--element-color-fail);
+        }
+
+        .settings-editor-row-main
+        {
+            display: grid;
+            gap: 0.25rem;
+            min-width: 0;
+        }
+
+        .settings-editor-row input,
+        .settings-editor-row select
+        {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .settings-editor-row button
+        {
+            min-height: 2rem;
+            border: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .settings-setting-help,
+        .settings-setting-warning
+        {
+            color: var(--misc-text-color);
+            font-size: 0.72rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .settings-catalog-combobox
+        {
+            position: fixed;
+            z-index: 2500;
+            display: block;
+            overflow-x: hidden;
+            overflow-y: auto;
+            border: 1px solid var(--border-color-selected);
+            background: var(--element-background-color);
+            box-shadow: 0 0.4rem 1.2rem var(--shadow-color);
+        }
+
+        .settings-catalog-combobox[hidden]
+        {
+            display: none !important;
+        }
+
+        .settings-catalog-virtual-surface
+        {
+            position: relative;
+            width: 100%;
+        }
+
+        .settings-catalog-option
+        {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.15rem 0.6rem;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 0.45rem 0.55rem;
+            border: 0;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--element-background-color);
+            color: var(--text-color);
+            cursor: pointer;
+            font: inherit;
+            text-align: left;
+        }
+
+        .settings-catalog-option:hover,
+        .settings-catalog-option.active
+        {
+            background: var(--button-active-color);
+            color: var(--button-active-text-color);
+        }
+
+        .settings-catalog-option-name,
+        .settings-catalog-option-type,
+        .settings-catalog-option-description
+        {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .settings-catalog-option-name
+        {
+            font-family: DejaVu Sans Mono, Liberation Mono, MonoLisa, Consolas, monospace;
+            font-weight: 700;
+        }
+
+        .settings-catalog-option-type
+        {
+            color: var(--misc-text-color);
+            font-size: 0.72rem;
+        }
+
+        .settings-catalog-option:hover .settings-catalog-option-type,
+        .settings-catalog-option.active .settings-catalog-option-type
+        {
+            color: inherit;
+        }
+
+        .settings-catalog-option-description
+        {
+            grid-column: 1 / -1;
+            color: var(--misc-text-color);
+            font-size: 0.75rem;
+        }
+
+        .settings-catalog-option:hover .settings-catalog-option-description,
+        .settings-catalog-option.active .settings-catalog-option-description
+        {
+            color: inherit;
+        }
+
+        .settings-catalog-combobox-empty
+        {
+            padding: 0.6rem;
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+        }
+
+        .settings-setting-warning
+        {
+            color: var(--element-color-fail);
+        }
+
+        .settings-actions
+        {
+            min-height: 2rem;
+        }
+
+        .settings-action-spacer
+        {
+            flex: 1 1 auto;
+        }
+
+        .settings-message
+        {
+            min-height: 1.1rem;
+            margin-top: 0.5rem;
+            color: var(--misc-text-color);
+            font-size: 0.8rem;
+            line-height: 1.35;
+        }
+
+        .settings-message.error
+        {
+            color: var(--element-color-fail);
+        }
+
+        .settings-message.success
+        {
+            color: var(--element-color-ok);
+        }
+
+        .settings-inline-status
+        {
+            color: var(--misc-text-color);
+            font-size: 0.78rem;
+        }
+
+        .settings-query-toolbar
+        {
+            align-items: end;
+            margin-bottom: 0.65rem;
+        }
+
+        .settings-scope-field
+        {
+            flex: 0 1 15rem;
+        }
+
+        .settings-search-field
+        {
+            flex: 1 1 18rem;
+        }
+
+        .settings-empty
+        {
+            padding: 0.75rem;
+            border: 1px dashed var(--border-color);
+            color: var(--misc-text-color);
+            font-size: 0.82rem;
+        }
+
+        @media (max-width: 72rem)
+        {
+            .settings-sections,
+            .settings-preference-grid
+            {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .settings-card-wide
+            {
+                grid-column: auto;
+            }
+        }
+
+        @media (max-width: 52rem)
+        {
+            .settings-header
+            {
+                display: grid;
+            }
+
+            .settings-catalog-actions
+            {
+                justify-content: flex-start;
+            }
+
+            .settings-editor-row
+            {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+
         /* This is for charts (uPlot), Copyright (c) 2022 Leon Sorokin, MIT License, https://github.com/leeoniya/uPlot/ */
         .u-wrap {position: relative;user-select: none;}
         .u-over, .u-under, .u-axis {position: absolute;}
@@ -4106,7 +4573,7 @@
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection
                                 status unavailable</span>●</span>
                         <span id="client-version" class="client-version" title="Client UI version">client
-                            2026.07.22.2</span>
+                            2026.08.03.1</span>
                     </div>
                 </div>
             </div>
@@ -4218,6 +4685,8 @@
                         aria-selected="false">Dashboard</button>
                     <button id="app-view-schema" class="app-view-tab" type="button" role="tab"
                         aria-selected="false">Schema</button>
+                    <button id="app-view-settings" class="app-view-tab" type="button" role="tab"
+                        aria-selected="false">Settings</button>
                 </div>
                 <div id="theme"><span id="toggle-dark" title="Switch to dark theme">🌘</span><span id="toggle-light"
                         title="Switch to light theme">☀️</span></div>
@@ -4447,6 +4916,119 @@
                 </div>
             </div>
         </section>
+        <section id="settings_workspace" class="settings-workspace" hidden>
+            <header class="settings-header">
+                <div>
+                    <h1>Settings</h1>
+                    <p>Preferences are global. Session Settings and connection-scoped Query Defaults apply to
+                        <strong id="settings-connection-name">the active connection</strong>.</p>
+                </div>
+                <div class="settings-catalog-actions">
+                    <span id="settings-catalog-status" class="settings-inline-status" role="status"
+                        aria-live="polite">Setting catalog not loaded</span>
+                    <button id="settings-catalog-refresh" type="button">Refresh setting catalog</button>
+                </div>
+            </header>
+
+            <div class="settings-sections">
+                <section class="settings-card" aria-labelledby="settings-preferences-title">
+                    <div class="settings-card-heading">
+                        <div>
+                            <h2 id="settings-preferences-title">User Preferences</h2>
+                            <p>Browser-wide display and editor behavior.</p>
+                        </div>
+                    </div>
+                    <div class="settings-preference-grid">
+                        <label class="settings-field">
+                            <span>Theme</span>
+                            <select id="settings-theme">
+                                <option value="system">System</option>
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </label>
+                        <label class="settings-field">
+                            <span>Snippet insertion</span>
+                            <select id="settings-snippet-mode">
+                                <option value="append">Append</option>
+                                <option value="insert">Insert at cursor</option>
+                                <option value="overwrite">Replace query</option>
+                            </select>
+                        </label>
+                        <label class="settings-check"><input id="settings-abort-preview" type="checkbox">
+                            <span>Abort at preview limit</span></label>
+                        <label class="settings-check"><input id="settings-query-cache" type="checkbox">
+                            <span>Reuse cached results for download and copy</span></label>
+                        <label class="settings-check"><input id="settings-navigator-types" type="checkbox">
+                            <span>Show navigator engine and type metadata</span></label>
+                        <label class="settings-check"><input id="settings-compact-editor" type="checkbox">
+                            <span>Compact query editor</span></label>
+                    </div>
+                    <div id="settings-preferences-message" class="settings-message" role="status"
+                        aria-live="polite"></div>
+                </section>
+
+                <section class="settings-card" aria-labelledby="settings-session-title">
+                    <div class="settings-card-heading">
+                        <div>
+                            <h2 id="settings-session-title">Session Settings</h2>
+                            <p>Managed values are replayed in this tab. Reload starts a new HTTP session; temporary
+                                tables, <code>USE</code>, and manually entered <code>SET</code> state are discarded.</p>
+                        </div>
+                        <span id="settings-session-status" class="settings-status-badge">Not started</span>
+                    </div>
+                    <div class="settings-session-meta">
+                        <span>Connection: <strong id="settings-session-connection">None</strong></span>
+                        <span>Inactivity timeout: <strong>30 minutes</strong></span>
+                    </div>
+                    <div id="settings-session-rows" class="settings-editor-rows"></div>
+                    <div class="settings-actions">
+                        <button id="settings-session-add" type="button">Add setting</button>
+                        <span class="settings-action-spacer"></span>
+                        <button id="settings-session-restart" type="button">Restart session</button>
+                        <button id="settings-session-apply" class="settings-primary-action" type="button">Apply</button>
+                    </div>
+                    <div id="settings-session-message" class="settings-message" role="status"
+                        aria-live="polite"></div>
+                </section>
+
+                <section class="settings-card settings-card-wide" aria-labelledby="settings-query-defaults-title">
+                    <div class="settings-card-heading">
+                        <div>
+                            <h2 id="settings-query-defaults-title">Query Defaults</h2>
+                            <p>Sent as HTTP parameters only for queries submitted from the editor. SQL is never
+                                rewritten, and background requests remain stateless.</p>
+                        </div>
+                    </div>
+                    <div class="settings-query-toolbar">
+                        <label class="settings-field settings-scope-field">
+                            <span>View and edit</span>
+                            <select id="settings-query-default-scope">
+                                <option value="connection" selected>Current connection</option>
+                                <option value="global">Global</option>
+                                <option value="effective">Effective</option>
+                            </select>
+                        </label>
+                        <label class="settings-field settings-search-field">
+                            <span>Filter</span>
+                            <input id="settings-query-default-filter" type="search"
+                                placeholder="Setting name or description" spellcheck="false">
+                        </label>
+                    </div>
+                    <div id="settings-query-default-rows" class="settings-editor-rows"></div>
+                    <div class="settings-actions">
+                        <button id="settings-query-default-add" type="button">Add setting</button>
+                        <span class="settings-action-spacer"></span>
+                        <button id="settings-query-default-test" type="button">Test effective settings</button>
+                        <button id="settings-query-default-save" class="settings-primary-action" type="button">Save</button>
+                    </div>
+                    <div id="settings-query-default-message" class="settings-message" role="status"
+                        aria-live="polite"></div>
+                </section>
+            </div>
+            <div id="settings-catalog-combobox" class="settings-catalog-combobox" role="listbox"
+                aria-label="ClickHouse settings" hidden></div>
+        </section>
         <div id="download-dropdown">
             <div>
                 <div class="download-option">
@@ -4607,6 +5189,7 @@ let active_connection_meta_elem = document.getElementById('active-connection-met
 let app_view_query_elem = document.getElementById('app-view-query');
 let app_view_dashboard_elem = document.getElementById('app-view-dashboard');
 let app_view_schema_elem = document.getElementById('app-view-schema');
+let app_view_settings_elem = document.getElementById('app-view-settings');
 let navigator_footer_primary_elem = document.getElementById('navigator-footer-primary');
 let results_workspace_elem = document.getElementById('results_workspace');
 let dashboard_workspace_elem = document.getElementById('dashboard_workspace');
@@ -4626,6 +5209,7 @@ let dashboard_mass_editor_cancel_elem = document.getElementById('dashboard-mass-
 let dashboard_mass_editor_confirm_elem = document.getElementById('dashboard-mass-editor-confirm');
 let dashboard_charts_elem = document.getElementById('dashboard-charts');
 let schema_workspace_elem = document.getElementById('schema_workspace');
+let settings_workspace_elem = document.getElementById('settings_workspace');
 let schema_controls_elem = document.getElementById('schema-controls');
 let schema_search_elem = document.getElementById('schema-search');
 let schema_db_filter_elem = document.getElementById('schema-db-filter');
@@ -4683,11 +5267,14 @@ const query_editor_compact_key = 'play-reborn.query-editor-compact.v1';
 const sidebar_active_tab_key = 'play-reborn.sidebar-active-tab.v1';
 const query_snippets_key = 'play-reborn.query-snippets.v2';
 const snippet_insertion_mode_key = 'play-reborn.snippet-insertion-mode.v1';
+const query_defaults_key = 'play-reborn.query-defaults.v2';
+const session_settings_key = 'play-reborn.session-settings.v1';
+const theme_key = 'theme';
 
 let action_history = [];
 let result_history = [];
 let active_result_id = null;
-let current_workspace_view = ['dashboard', 'schema'].includes(current_url.searchParams.get('view')) ? current_url.searchParams.get('view') : 'query';
+let current_workspace_view = ['dashboard', 'schema', 'settings'].includes(current_url.searchParams.get('view')) ? current_url.searchParams.get('view') : 'query';
 let current_result_elements = null;
 let current_result_meta = null;
 let render_result_elements = null;
@@ -4737,6 +5324,7 @@ let schema_state = {
     message: 'Loading navigator...'
 };
 let navigator_state = loadNavigatorState();
+let query_defaults_state = null;
 
 function getRenderResultElements() { return render_result_elements || current_result_elements; }
 function getRenderResultMeta() { return render_result_meta || current_result_meta; }
@@ -4774,10 +5362,30 @@ function buildClickHouseUrl(server_address, user, password, default_format = 'JS
         .join('&');
 }
 
+function formatClickHouseStringLiteral(value) {
+    const escapes = {
+        '\0': '\\0',
+        '\b': '\\b',
+        '\f': '\\f',
+        '\n': '\\n',
+        '\r': '\\r',
+        '\t': '\\t',
+        '\v': '\\v',
+        "'": "\\'"
+    };
+    const escaped = String(value ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/[\0\b\f\n\r\t\v']/g, character => escapes[character]);
+    return `'${escaped}'`;
+}
+
 function setDownloadQueryCachePreference(enabled, persist = true) {
     download_use_cache_elem.checked = enabled;
     if (persist) {
         window.localStorage.setItem(download_query_cache_key, enabled ? '1' : '0');
+    }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
     }
 }
 
@@ -4787,12 +5395,18 @@ function setNavigatorTypesVisible(enabled, persist = true) {
     if (persist) {
         window.localStorage.setItem(navigator_show_types_key, enabled ? '1' : '0');
     }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
+    }
 }
 
 function setAbortPreviewLimit(enabled, persist = true) {
     abort_preview_limit_elem.checked = enabled;
     if (persist) {
         window.localStorage.setItem(abort_preview_limit_key, enabled ? '1' : '0');
+    }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
     }
 }
 
@@ -4860,6 +5474,154 @@ function createConnection(name) {
 
 function getStorageTimestamp() {
     return new Date().toISOString();
+}
+
+function createQueryDefaultId() {
+    return `query-default-${Date.now()}-${crypto.randomUUID?.() || Math.random().toString(16).slice(2)}`;
+}
+
+function emptyQueryDefaultsStore() {
+    return createVersionedStorageEnvelope({ records: [] });
+}
+
+function getQueryDefaultScopeKey(record) {
+    const connection_id = record.scope == 'connection' ? record.connection_id : '';
+    return `${record.scope}:${connection_id}:${record.name}`;
+}
+
+function normalizeQueryDefaultsStore(stored) {
+    const store_updated_at = String(stored?.updated_at || '');
+    const raw_records = Array.isArray(stored?.records) ? stored.records : [];
+    const records_by_id = new Map();
+
+    for (const raw_record of raw_records) {
+        const scope = raw_record?.scope == 'global' ? 'global' : raw_record?.scope == 'connection' ? 'connection' : '';
+        const connection_id = scope == 'connection' ? String(raw_record?.connection_id || '') : '';
+        const name = String(raw_record?.name || '').trim();
+        const mode = raw_record?.mode == 'suppress' && scope == 'connection' ? 'suppress' : 'set';
+        if (!raw_record?.id || !scope || !name || (scope == 'connection' && !connection_id)) {
+            continue;
+        }
+
+        const record = {
+            id: String(raw_record.id),
+            scope,
+            connection_id,
+            name,
+            value: mode == 'suppress' ? '' : String(raw_record.value ?? ''),
+            mode,
+            updated_at: String(raw_record.updated_at || raw_record.deleted_at || store_updated_at),
+            deleted_at: String(raw_record.deleted_at || '')
+        };
+        const existing = records_by_id.get(record.id);
+        if (!existing || getStorageRecordRevision(record) >= getStorageRecordRevision(existing)) {
+            records_by_id.set(record.id, record);
+        }
+    }
+
+    const active_scope_records = new Map();
+    const normalized_records = [];
+    for (const record of records_by_id.values()) {
+        if (isDeletedStorageRecord(record)) {
+            normalized_records.push(record);
+            continue;
+        }
+        const key = getQueryDefaultScopeKey(record);
+        const existing = active_scope_records.get(key);
+        if (!existing || getStorageRecordRevision(record) >= getStorageRecordRevision(existing)) {
+            active_scope_records.set(key, record);
+        }
+    }
+    normalized_records.push(...active_scope_records.values());
+
+    return {
+        schema_version: storage_schema_version,
+        updated_at: store_updated_at,
+        records: normalized_records
+    };
+}
+
+function loadQueryDefaults() {
+    const result = readVersionedStorage(query_defaults_key, emptyQueryDefaultsStore);
+    if (result.unsupported_schema) {
+        return {
+            ...emptyQueryDefaultsStore(),
+            unsupported_schema: true,
+            unsupported_schema_version: result.schema_version
+        };
+    }
+    return normalizeQueryDefaultsStore(result.store);
+}
+
+function saveQueryDefaultsStore(local_store = query_defaults_state) {
+    const latest_result = readVersionedStorage(query_defaults_key, emptyQueryDefaultsStore);
+    if (latest_result.unsupported_schema) {
+        alertUnsupportedStorageSchema('Query defaults', latest_result.schema_version);
+        return false;
+    }
+
+    const latest_store = normalizeQueryDefaultsStore(latest_result.store);
+    const normalized_local_store = normalizeQueryDefaultsStore(local_store || emptyQueryDefaultsStore());
+    const merged_store = normalizeQueryDefaultsStore(createVersionedStorageEnvelope({
+        records: mergeStorageRecords(latest_store.records, normalized_local_store.records)
+    }));
+    window.localStorage.setItem(query_defaults_key, JSON.stringify(merged_store));
+    query_defaults_state = merged_store;
+    return true;
+}
+
+function replaceQueryDefaultsScope(scope, connection_id, desired_rows) {
+    const now = getStorageTimestamp();
+    const target_connection_id = scope == 'connection' ? String(connection_id || '') : '';
+    const target_key_prefix = `${scope}:${target_connection_id}:`;
+    const current_store = normalizeQueryDefaultsStore(query_defaults_state || loadQueryDefaults());
+    const desired_by_name = new Map(desired_rows.map(row => [row.name, row]));
+
+    for (const record of current_store.records) {
+        if (isDeletedStorageRecord(record) || !getQueryDefaultScopeKey(record).startsWith(target_key_prefix)) {
+            continue;
+        }
+        const desired = desired_by_name.get(record.name);
+        if (!desired) {
+            record.updated_at = now;
+            record.deleted_at = now;
+            continue;
+        }
+        record.value = desired.mode == 'suppress' ? '' : String(desired.value ?? '');
+        record.mode = desired.mode == 'suppress' && scope == 'connection' ? 'suppress' : 'set';
+        record.updated_at = now;
+        record.deleted_at = '';
+        desired_by_name.delete(record.name);
+    }
+
+    for (const desired of desired_by_name.values()) {
+        current_store.records.push({
+            id: createQueryDefaultId(),
+            scope,
+            connection_id: target_connection_id,
+            name: desired.name,
+            value: desired.mode == 'suppress' ? '' : String(desired.value ?? ''),
+            mode: desired.mode == 'suppress' && scope == 'connection' ? 'suppress' : 'set',
+            updated_at: now,
+            deleted_at: ''
+        });
+    }
+
+    return saveQueryDefaultsStore(current_store);
+}
+
+function tombstoneQueryDefaultsForConnection(connection_id, deleted_at = getStorageTimestamp()) {
+    const current_store = normalizeQueryDefaultsStore(query_defaults_state || loadQueryDefaults());
+    let changed = false;
+    for (const record of current_store.records) {
+        if (record.scope != 'connection' || record.connection_id != connection_id || isDeletedStorageRecord(record)) {
+            continue;
+        }
+        record.updated_at = deleted_at;
+        record.deleted_at = deleted_at;
+        changed = true;
+    }
+    return !changed || saveQueryDefaultsStore(current_store);
 }
 
 function isDeletedStorageRecord(record) {
@@ -6421,7 +7183,7 @@ function replaceQueryEditorRange(text, start = query_area.selectionStart ?? quer
 
     let inserted = false;
     const value_before_insert = query_area.value;
-    if (typeof document.execCommand == 'function') {
+    if (document.activeElement == query_area && typeof document.execCommand == 'function') {
         try {
             suppress_programmatic_query_input = true;
             inserted = document.execCommand('insertText', false, text);
@@ -6703,6 +7465,9 @@ function setSnippetInsertionMode(mode, save = true) {
     snippet_insertion_mode_elem.value = insertion_manager.snippet_mode;
     if (save) {
         window.localStorage.setItem(snippet_insertion_mode_key, insertion_manager.snippet_mode);
+    }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
     }
 }
 
@@ -7846,23 +8611,6 @@ FROM ${qualified_table}
 ORDER BY database, name;`;
 }
 
-function formatClickHouseStringLiteral(value) {
-    const escapes = {
-        '\0': '\\0',
-        '\b': '\\b',
-        '\f': '\\f',
-        '\n': '\\n',
-        '\r': '\\r',
-        '\t': '\\t',
-        '\v': '\\v',
-        "'": "\\'"
-    };
-    const escaped = String(value ?? '')
-        .replace(/\\/g, '\\\\')
-        .replace(/[\0\b\f\n\r\t\v']/g, character => escapes[character]);
-    return `'${escaped}'`;
-}
-
 async function fetchSchemaCompatMappings(connection) {
     const url = buildClickHouseUrl(
         connection.url,
@@ -8032,6 +8780,7 @@ function deleteConnectionById(connection_id) {
     if (!saved_store) {
         return;
     }
+    tombstoneQueryDefaultsForConnection(connection_id, now);
 
     const visible_connections = saved_store.connections.filter(candidate => !isDeletedStorageRecord(candidate));
 
@@ -8371,7 +9120,31 @@ async function generateDropDatabase(server_address, user, password, database) {
     insertTextIntoEditor(buildDropDatabaseStatement(database, clustered));
 }
 
+function canUseNavigatorSchemaActions() {
+    return current_workspace_view == 'query';
+}
+
+function updateNavigatorSchemaActionAvailability() {
+    const enabled = canUseNavigatorSchemaActions();
+    for (const element of document.querySelectorAll('[data-navigator-schema-action]')) {
+        if (element instanceof HTMLButtonElement) {
+            element.disabled = !enabled;
+        }
+        if (element.dataset.queryWorkspaceTitle) {
+            element.title = enabled
+                ? element.dataset.queryWorkspaceTitle
+                : 'Available in the Query workspace';
+        }
+    }
+    if (!enabled) {
+        hideNavigatorContextMenu();
+    }
+}
+
 function openDatabaseMenu(anchor_rect, server_address, user, password, database) {
+    if (!canUseNavigatorSchemaActions()) {
+        return;
+    }
     const items = [
         {
             icon: '↪',
@@ -8389,6 +9162,9 @@ function openDatabaseMenu(anchor_rect, server_address, user, password, database)
 }
 
 function openTableMenu(anchor_rect, server_address, user, password, database, table, engine) {
+    if (!canUseNavigatorSchemaActions()) {
+        return;
+    }
     const is_view = isViewEngine(engine);
     const is_materialized_view = isMaterializedViewEngine(engine);
     const is_dictionary = isDictionaryEngine(engine);
@@ -8469,6 +9245,9 @@ function openTableMenu(anchor_rect, server_address, user, password, database, ta
 }
 
 function openColumnMenu(anchor_rect, database, table, column) {
+    if (!canUseNavigatorSchemaActions()) {
+        return;
+    }
     const items = [
         {
             icon: '∑',
@@ -8941,6 +9720,9 @@ function createConnectionNavigatorNode(connection, filter) {
                 database_header.addEventListener('contextmenu', e => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (!canUseNavigatorSchemaActions()) {
+                        return;
+                    }
                     openDatabaseMenu(
                         { left: e.clientX, bottom: e.clientY },
                         connection.url,
@@ -8968,7 +9750,9 @@ function createConnectionNavigatorNode(connection, filter) {
                 database_menu_button.type = 'button';
                 database_menu_button.className = 'navigator-header-action';
                 database_menu_button.innerText = '⋯';
-                database_menu_button.title = 'Database actions';
+                database_menu_button.dataset.navigatorSchemaAction = '';
+                database_menu_button.dataset.queryWorkspaceTitle = 'Database actions';
+                database_menu_button.title = database_menu_button.dataset.queryWorkspaceTitle;
                 database_menu_button.addEventListener('click', e => {
                     e.stopPropagation();
                     openDatabaseMenu(
@@ -9156,6 +9940,7 @@ function renderNavigatorTree() {
     if (!schema_browser_elem.firstChild) {
         schema_browser_empty_elem.innerText = 'No navigator items matched the current filter.';
     }
+    updateNavigatorSchemaActionAvailability();
 }
 
 function renderTableGroups(connection_id, server_address, user, password, database, tables_elem, table_rows) {
@@ -9217,6 +10002,9 @@ function renderTableGroups(connection_id, server_address, user, password, databa
             table_row.className = 'table-row';
             table_row.addEventListener('contextmenu', e => {
                 e.preventDefault();
+                if (!canUseNavigatorSchemaActions()) {
+                    return;
+                }
                 openTableMenu({ left: e.clientX, bottom: e.clientY }, server_address, user, password, database, elem.table, elem.engine);
             });
 
@@ -9243,7 +10031,9 @@ function renderTableGroups(connection_id, server_address, user, password, databa
             table_menu_button.type = 'button';
             table_menu_button.className = 'table-menu';
             table_menu_button.innerText = '⋯';
-            table_menu_button.title = item_kind == 'dictionary' ? 'Dictionary actions' : 'Table actions';
+            table_menu_button.dataset.navigatorSchemaAction = '';
+            table_menu_button.dataset.queryWorkspaceTitle = item_kind == 'dictionary' ? 'Dictionary actions' : 'Table actions';
+            table_menu_button.title = table_menu_button.dataset.queryWorkspaceTitle;
             table_menu_button.addEventListener('click', e => {
                 e.stopPropagation();
                 const rect = table_menu_button.getBoundingClientRect();
@@ -9315,6 +10105,7 @@ function applyConnection(connection) {
     loadDatabases(connection.url, connection.user, connection.password);
     handleDashboardConnectionChanged(connection);
     handleSchemaConnectionChanged(connection);
+    handleSettingsConnectionChanged(connection);
 }
 
 function saveCurrentConnection(newConnection) {
@@ -9388,6 +10179,11 @@ function handleLocalStorageChanged(e) {
         handleQuerySnippetsChanged();
     } else if (e.key == saved_connections_key) {
         handleSavedConnectionsChanged();
+    } else if (e.key == query_defaults_key) {
+        handleQueryDefaultsChanged();
+    } else if ([theme_key, download_query_cache_key, navigator_show_types_key,
+        abort_preview_limit_key, query_editor_compact_key, snippet_insertion_mode_key].includes(e.key)) {
+        handleSettingsPreferenceStorageChanged(e.key);
     }
 }
 
@@ -10146,6 +10942,9 @@ function renderColumns(container, columns, database, table) {
             row.addEventListener('contextmenu', e => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!canUseNavigatorSchemaActions()) {
+                    return;
+                }
                 openColumnMenu({ left: e.clientX, bottom: e.clientY }, database, table, column);
             });
         }
@@ -10153,11 +10952,16 @@ function renderColumns(container, columns, database, table) {
         let name = document.createElement('span');
         name.className = 'column-name monospace';
         name.innerText = column.name;
-        name.title = is_numeric_column
+        name.dataset.navigatorSchemaAction = '';
+        name.dataset.queryWorkspaceTitle = is_numeric_column
             ? 'Double-click to insert column name at cursor. Right-click to generate stats'
             : 'Double-click to insert column name at cursor';
+        name.title = name.dataset.queryWorkspaceTitle;
         name.addEventListener('dblclick', e => {
             e.stopPropagation();
+            if (!canUseNavigatorSchemaActions()) {
+                return;
+            }
             insertIntoQueryEditor(formatClickHouseIdentifier(column.name), { mode: 'insert' });
         });
 
@@ -10169,6 +10973,7 @@ function renderColumns(container, columns, database, table) {
         row.appendChild(type);
         container.appendChild(row);
     }
+    updateNavigatorSchemaActionAvailability();
 }
 
 async function loadColumns(server_address, user, password, database, table, container) {
@@ -10699,20 +11504,22 @@ async function postImplForRenderTarget(posted_request_num, query)
     const password = password_elem.value;
     const server_address = url_elem.value;
     const explicit_format = getExplicitFormatName(query);
-    let url = server_address +
-        (server_address.indexOf('?') >= 0 ? '&' : '?') +
-        /// Ask server to allow cross-domain requests.
-        'add_http_cors_header=1';
-    if (user) url += '&user=' + encodeURIComponent(user);
-    if (password) url += '&password=' + encodeURIComponent(password);
-    url += '&default_format=' + default_format + '&enable_http_compression=1';
+    const interactive_params = {
+        enable_http_compression: '1'
+    };
     /// Optional: write the interactive result into query cache so a later download can reuse it.
     if (shouldUseQueryCacheForDownload()) {
-        url += '&use_query_cache=1&enable_reads_from_query_cache=0&enable_writes_to_query_cache=1&query_cache_ttl=600&query_cache_nondeterministic_function_handling=save';
+        Object.assign(interactive_params, {
+            use_query_cache: '1',
+            enable_reads_from_query_cache: '0',
+            enable_writes_to_query_cache: '1',
+            query_cache_ttl: '600',
+            query_cache_nondeterministic_function_handling: 'save'
+        });
     }
 
     /// Extremes only if the format is likely to be unchanged. This is imprecise.
-    if (!explicit_format) url += '&extremes=1';
+    if (!explicit_format) interactive_params.extremes = '1';
 
     last_query_start = performance.now();
 
@@ -10731,8 +11538,7 @@ async function postImplForRenderTarget(posted_request_num, query)
     reply = '';
     try {
         controller = new AbortController();
-        response = await fetch(url, { method: "POST", body: query, signal: controller.signal,
-            headers: { 'Authorization': 'never' } });
+        response = await fetchInteractiveQuery(query, interactive_params, controller.signal);
 
         format = response.headers.get('X-ClickHouse-Format') ?? default_format;
         query_id = response.headers.get('X-ClickHouse-Query-Id') || '';
@@ -10902,7 +11708,9 @@ async function postImplForRenderTarget(posted_request_num, query)
     } catch (e) {
         if (posted_request_num != request_num) { return; }
 
-        console.log(e);
+        if (!(e instanceof ClickHouseSessionError)) {
+            console.log(e);
+        }
         if (e instanceof TypeError) {
             reply = "Network error";
         } else if (e.name === 'AbortError') {
@@ -11230,6 +12038,9 @@ function setEditorCompact(compact, save = true) {
     if (save) {
         window.localStorage.setItem(query_editor_compact_key, compact ? '1' : '0');
     }
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
+    }
 }
 
 let in_flight = false;
@@ -11239,6 +12050,7 @@ async function post(use_armed_selection = false)
     controller = null;
     in_flight = true;
     updateRunButtonText();
+    updateSessionSettingsBusyState();
 
     try {
         const script = getRunScript(use_armed_selection);
@@ -11264,6 +12076,7 @@ async function post(use_armed_selection = false)
         run_button.blur();
         in_flight = false;
         updateRunButtonText();
+        updateSessionSettingsBusyState();
     }
 }
 
@@ -11271,8 +12084,6 @@ async function cancel()
 {
     stop_after_current = true;
     if (controller) controller.abort();
-    in_flight = false;
-    updateRunButtonText();
 }
 
 document.getElementById('controls').addEventListener('submit', e =>
@@ -12559,6 +13370,91 @@ query_area.addEventListener('scroll', () => {
 const query_backdrop_resize_observer = new ResizeObserver(syncQueryBackdropLayout);
 query_backdrop_resize_observer.observe(query_area);
 
+function getWorkspaceTabEntries() {
+    return [
+        { name: 'query', tab: app_view_query_elem, workspace: results_workspace_elem },
+        { name: 'dashboard', tab: app_view_dashboard_elem, workspace: dashboard_workspace_elem },
+        { name: 'schema', tab: app_view_schema_elem, workspace: schema_workspace_elem },
+        { name: 'settings', tab: app_view_settings_elem, workspace: settings_workspace_elem }
+    ];
+}
+
+function updateWorkspaceTabs() {
+    for (const entry of getWorkspaceTabEntries()) {
+        const active = current_workspace_view == entry.name;
+        document.body.classList.toggle(`workspace-${entry.name}`, active);
+        entry.tab.classList.toggle('active', active);
+        entry.tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        entry.tab.tabIndex = active ? 0 : -1;
+        entry.workspace.hidden = !active;
+    }
+    if (current_workspace_view != 'settings' && typeof closeSettingsCatalogCombobox == 'function') {
+        closeSettingsCatalogCombobox('workspace');
+    }
+    if (typeof updateNavigatorSchemaActionAvailability == 'function') {
+        updateNavigatorSchemaActionAvailability();
+    }
+}
+
+function updateWorkspaceUrl(view) {
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('view', view);
+        window.history.replaceState(window.history.state, '', url);
+    } catch (e) {
+        // Some file:// contexts do not allow history mutation.
+    }
+}
+
+function setWorkspaceView(view, options = {}) {
+    current_workspace_view = ['dashboard', 'schema', 'settings'].includes(view) ? view : 'query';
+    updateWorkspaceTabs();
+    if (options.update_url !== false) {
+        updateWorkspaceUrl(current_workspace_view);
+    }
+
+    if (current_workspace_view == 'dashboard') {
+        void ensureDashboardLoaded(options);
+    } else if (current_workspace_view == 'schema') {
+        void ensureSchemaLoaded(options);
+    } else if (current_workspace_view == 'settings') {
+        void ensureSettingsLoaded(options);
+    } else {
+        resizeChart();
+        query_area.focus();
+    }
+}
+
+function handleWorkspaceTabKeyDown(event) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+        return;
+    }
+
+    const entries = getWorkspaceTabEntries();
+    const current_index = entries.findIndex(entry => entry.tab == event.currentTarget);
+    let next_index = current_index;
+    if (event.key == 'Home') {
+        next_index = 0;
+    } else if (event.key == 'End') {
+        next_index = entries.length - 1;
+    } else {
+        const direction = event.key == 'ArrowRight' ? 1 : -1;
+        next_index = (current_index + direction + entries.length) % entries.length;
+    }
+
+    event.preventDefault();
+    setWorkspaceView(entries[next_index].name);
+    entries[next_index].tab.focus();
+}
+
+function initializeWorkspaceViews() {
+    for (const entry of getWorkspaceTabEntries()) {
+        entry.tab.addEventListener('click', () => setWorkspaceView(entry.name));
+        entry.tab.addEventListener('keydown', handleWorkspaceTabKeyDown);
+    }
+    updateWorkspaceTabs();
+}
+
 const dashboard_default_dashboard = 'Overview';
 const dashboard_default_params = {
     rounding: '60',
@@ -12645,58 +13541,6 @@ function getCurrentDashboardConnection() {
         user: user_elem.value || 'default',
         password: password_elem.value || ''
     };
-}
-
-function updateWorkspaceTabs() {
-    const is_query = current_workspace_view == 'query';
-    const is_dashboard = current_workspace_view == 'dashboard';
-    const is_schema = current_workspace_view == 'schema';
-    document.body.classList.toggle('workspace-query', is_query);
-    document.body.classList.toggle('workspace-dashboard', is_dashboard);
-    document.body.classList.toggle('workspace-schema', is_schema);
-    app_view_query_elem.classList.toggle('active', is_query);
-    app_view_dashboard_elem.classList.toggle('active', is_dashboard);
-    app_view_schema_elem.classList.toggle('active', is_schema);
-    app_view_query_elem.setAttribute('aria-selected', is_query ? 'true' : 'false');
-    app_view_dashboard_elem.setAttribute('aria-selected', is_dashboard ? 'true' : 'false');
-    app_view_schema_elem.setAttribute('aria-selected', is_schema ? 'true' : 'false');
-    dashboard_workspace_elem.hidden = !is_dashboard;
-    schema_workspace_elem.hidden = !is_schema;
-    results_workspace_elem.hidden = !is_query;
-}
-
-function updateWorkspaceUrl(view) {
-    try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('view', view);
-        window.history.replaceState(window.history.state, '', url);
-    } catch (e) {
-        // Some file:// contexts do not allow history mutation.
-    }
-}
-
-function setWorkspaceView(view, options = {}) {
-    current_workspace_view = ['dashboard', 'schema'].includes(view) ? view : 'query';
-    updateWorkspaceTabs();
-    if (options.update_url !== false) {
-        updateWorkspaceUrl(current_workspace_view);
-    }
-
-    if (current_workspace_view == 'dashboard') {
-        void ensureDashboardLoaded(options);
-    } else if (current_workspace_view == 'schema') {
-        void ensureSchemaLoaded(options);
-    } else {
-        resizeChart();
-        query_area.focus();
-    }
-}
-
-function initializeWorkspaceViews() {
-    app_view_query_elem.addEventListener('click', () => setWorkspaceView('query'));
-    app_view_dashboard_elem.addEventListener('click', () => setWorkspaceView('dashboard'));
-    app_view_schema_elem.addEventListener('click', () => setWorkspaceView('schema'));
-    updateWorkspaceTabs();
 }
 
 function initializeDashboardView() {
@@ -15460,6 +16304,1606 @@ function redrawSchemaGraph() {
     }
 }
 
+const settings_session_timeout_seconds = 1800;
+const clickhouse_setting_identifier_pattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const reserved_query_default_names = new Set([
+    'add_http_cors_header',
+    'default_format',
+    'enable_http_compression',
+    'password',
+    'query_id',
+    'session_check',
+    'session_id',
+    'session_timeout',
+    'user'
+]);
+
+const settings_connection_name_elem = document.getElementById('settings-connection-name');
+const settings_catalog_status_elem = document.getElementById('settings-catalog-status');
+const settings_catalog_refresh_elem = document.getElementById('settings-catalog-refresh');
+const settings_catalog_combobox_elem = document.getElementById('settings-catalog-combobox');
+const settings_theme_elem = document.getElementById('settings-theme');
+const settings_snippet_mode_elem = document.getElementById('settings-snippet-mode');
+const settings_abort_preview_elem = document.getElementById('settings-abort-preview');
+const settings_query_cache_elem = document.getElementById('settings-query-cache');
+const settings_navigator_types_elem = document.getElementById('settings-navigator-types');
+const settings_compact_editor_elem = document.getElementById('settings-compact-editor');
+const settings_preferences_message_elem = document.getElementById('settings-preferences-message');
+const settings_session_status_elem = document.getElementById('settings-session-status');
+const settings_session_connection_elem = document.getElementById('settings-session-connection');
+const settings_session_rows_elem = document.getElementById('settings-session-rows');
+const settings_session_add_elem = document.getElementById('settings-session-add');
+const settings_session_restart_elem = document.getElementById('settings-session-restart');
+const settings_session_apply_elem = document.getElementById('settings-session-apply');
+const settings_session_message_elem = document.getElementById('settings-session-message');
+const settings_query_default_scope_elem = document.getElementById('settings-query-default-scope');
+const settings_query_default_filter_elem = document.getElementById('settings-query-default-filter');
+const settings_query_default_rows_elem = document.getElementById('settings-query-default-rows');
+const settings_query_default_add_elem = document.getElementById('settings-query-default-add');
+const settings_query_default_test_elem = document.getElementById('settings-query-default-test');
+const settings_query_default_save_elem = document.getElementById('settings-query-default-save');
+const settings_query_default_message_elem = document.getElementById('settings-query-default-message');
+
+const settings_catalog_cache = new Map();
+const settings_query_default_drafts = new Map();
+const settings_catalog_combobox_option_height = 58;
+const settings_catalog_combobox_overscan = 3;
+let settings_active_catalog = null;
+let settings_session_store = loadSessionSettingsStoreForDocument();
+let settings_session_draft = { connection_id: '', rows: [] };
+let settings_initialized = false;
+let settings_catalog_combobox_state = {
+    input: null,
+    callbacks: null,
+    results: [],
+    active_index: -1,
+    surface: null,
+    rendered_start: -1,
+    rendered_end: -1,
+    rendered_active_index: -1
+};
+
+class ClickHouseSessionError extends Error {
+    constructor(message, code = 0) {
+        super(message);
+        this.name = 'ClickHouseSessionError';
+        this.code = Number(code || 0);
+    }
+}
+
+function isSelectableSettingsCatalogEntry(setting) {
+    return !setting.readonly && !setting.is_obsolete && !isReservedQueryDefaultName(setting.name);
+}
+
+function getSettingsCatalogMatchScore(setting, raw_query) {
+    const query = raw_query.trim().toLowerCase();
+    if (!query) {
+        return 50;
+    }
+
+    const name = setting.search_name;
+    const type = setting.search_type;
+    const description = setting.search_description;
+    const terms = query.split(/\s+/).filter(Boolean);
+    if (!terms.every(term => setting.search_text.includes(term))) {
+        return Number.POSITIVE_INFINITY;
+    }
+    if (name == query) {
+        return 0;
+    }
+    if (name.startsWith(query)) {
+        return 1;
+    }
+    if (setting.search_name_parts.some(part => part.startsWith(query))) {
+        return 2;
+    }
+    if (name.includes(query)) {
+        return 3;
+    }
+    if (type == query) {
+        return 4;
+    }
+    if (type.includes(query)) {
+        return 5;
+    }
+    if (description.includes(query)) {
+        return 6;
+    }
+    return 7;
+}
+
+function findSettingsCatalogMatches(query) {
+    return (settings_active_catalog?.rows || [])
+        .filter(isSelectableSettingsCatalogEntry)
+        .map(setting => ({ setting, score: getSettingsCatalogMatchScore(setting, query) }))
+        .filter(entry => Number.isFinite(entry.score))
+        .sort((a, b) => a.score - b.score || a.setting.name.localeCompare(b.setting.name))
+        .map(entry => entry.setting);
+}
+
+function positionSettingsCatalogCombobox() {
+    const input = settings_catalog_combobox_state.input;
+    if (!input || !input.isConnected || settings_catalog_combobox_elem.hidden) {
+        return;
+    }
+
+    const input_rect = input.getBoundingClientRect();
+    if (!input_rect.width || !input_rect.height) {
+        closeSettingsCatalogCombobox('workspace');
+        return;
+    }
+
+    const viewport_margin = 8;
+    const popup_gap = 4;
+    const viewport_width = document.documentElement.clientWidth;
+    const viewport_height = document.documentElement.clientHeight;
+    const width = Math.min(Math.max(input_rect.width, 320), Math.min(640, viewport_width - 2 * viewport_margin));
+    const left = Math.max(viewport_margin, Math.min(input_rect.left, viewport_width - width - viewport_margin));
+    const space_below = Math.max(0, viewport_height - input_rect.bottom - popup_gap - viewport_margin);
+    const space_above = Math.max(0, input_rect.top - popup_gap - viewport_margin);
+    const desired_height = Math.min(settings_catalog_combobox_elem.scrollHeight, 320);
+    const place_below = space_below >= Math.min(desired_height, 180) || space_below >= space_above;
+    const available_height = place_below ? space_below : space_above;
+    const max_height = Math.max(48, Math.min(320, available_height));
+
+    settings_catalog_combobox_elem.style.width = `${width}px`;
+    settings_catalog_combobox_elem.style.maxHeight = `${max_height}px`;
+    const popup_height = Math.min(settings_catalog_combobox_elem.scrollHeight, max_height);
+    const requested_top = place_below
+        ? input_rect.bottom + popup_gap
+        : input_rect.top - popup_gap - popup_height;
+    const top = Math.max(viewport_margin, Math.min(requested_top, viewport_height - popup_height - viewport_margin));
+    settings_catalog_combobox_elem.style.left = `${left}px`;
+    settings_catalog_combobox_elem.style.top = `${top}px`;
+    settings_catalog_combobox_elem.dataset.placement = place_below ? 'below' : 'above';
+    renderSettingsCatalogComboboxVirtualWindow();
+}
+
+function createSettingsCatalogComboboxOption(index, setting) {
+    const active = index == settings_catalog_combobox_state.active_index;
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.id = `settings-catalog-option-${index}`;
+    option.className = `settings-catalog-option${active ? ' active' : ''}`;
+    option.style.top = `${index * settings_catalog_combobox_option_height}px`;
+    option.style.height = `${settings_catalog_combobox_option_height}px`;
+    option.dataset.resultIndex = String(index);
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-posinset', String(index + 1));
+    option.setAttribute('aria-setsize', String(settings_catalog_combobox_state.results.length));
+    option.setAttribute('aria-selected', active ? 'true' : 'false');
+    option.tabIndex = -1;
+
+    const name = document.createElement('span');
+    name.className = 'settings-catalog-option-name';
+    name.textContent = setting.name;
+    name.title = setting.name;
+    const type = document.createElement('span');
+    type.className = 'settings-catalog-option-type';
+    type.textContent = setting.type;
+    type.title = setting.type;
+    const description = document.createElement('span');
+    description.className = 'settings-catalog-option-description';
+    description.textContent = setting.description || 'No description available.';
+    description.title = setting.description || 'No description available.';
+    option.append(name, type, description);
+    option.addEventListener('pointermove', () => updateSettingsCatalogComboboxActiveOption(index, false));
+    option.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        chooseSettingsCatalogComboboxOption(index);
+    });
+    return option;
+}
+
+function renderSettingsCatalogComboboxVirtualWindow(force = false) {
+    const state = settings_catalog_combobox_state;
+    if (!state.input || !state.surface || !state.results.length || settings_catalog_combobox_elem.hidden) {
+        return;
+    }
+
+    const viewport_height = settings_catalog_combobox_elem.clientHeight;
+    if (!viewport_height) {
+        return;
+    }
+    const first_visible = Math.floor(settings_catalog_combobox_elem.scrollTop / settings_catalog_combobox_option_height);
+    const visible_count = Math.ceil(viewport_height / settings_catalog_combobox_option_height);
+    const start = Math.max(0, first_visible - settings_catalog_combobox_overscan);
+    const end = Math.min(state.results.length,
+        first_visible + visible_count + settings_catalog_combobox_overscan);
+    if (!force
+        && start == state.rendered_start
+        && end == state.rendered_end
+        && state.active_index == state.rendered_active_index) {
+        return;
+    }
+
+    const indexes = [];
+    for (let index = start; index < end; ++index) {
+        indexes.push(index);
+    }
+    if (state.active_index >= 0 && (state.active_index < start || state.active_index >= end)) {
+        indexes.push(state.active_index);
+        indexes.sort((a, b) => a - b);
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const index of indexes) {
+        fragment.appendChild(createSettingsCatalogComboboxOption(index, state.results[index]));
+    }
+    state.surface.replaceChildren(fragment);
+    state.rendered_start = start;
+    state.rendered_end = end;
+    state.rendered_active_index = state.active_index;
+    state.input.setAttribute('aria-activedescendant', `settings-catalog-option-${state.active_index}`);
+}
+
+function syncSettingsCatalogComboboxRenderedOptions() {
+    const state = settings_catalog_combobox_state;
+    for (const option of settings_catalog_combobox_elem.querySelectorAll('[role="option"]')) {
+        const index = Number(option.dataset.resultIndex);
+        const active = index == state.active_index;
+        option.classList.toggle('active', active);
+        option.setAttribute('aria-selected', active ? 'true' : 'false');
+        if (!active && (index < state.rendered_start || index >= state.rendered_end)) {
+            option.remove();
+        }
+    }
+    state.rendered_active_index = state.active_index;
+    state.input?.setAttribute('aria-activedescendant', `settings-catalog-option-${state.active_index}`);
+}
+
+function updateSettingsCatalogComboboxActiveOption(next_index, ensure_visible = true) {
+    const state = settings_catalog_combobox_state;
+    if (!state.input || !state.results.length) {
+        return;
+    }
+    const active_index = Math.max(0, Math.min(next_index, state.results.length - 1));
+    state.active_index = active_index;
+    if (!ensure_visible) {
+        syncSettingsCatalogComboboxRenderedOptions();
+        return;
+    }
+    const option_top = active_index * settings_catalog_combobox_option_height;
+    const option_bottom = option_top + settings_catalog_combobox_option_height;
+    const viewport_top = settings_catalog_combobox_elem.scrollTop;
+    const viewport_bottom = viewport_top + settings_catalog_combobox_elem.clientHeight;
+    let next_scroll_top = viewport_top;
+    if (option_top < viewport_top) {
+        next_scroll_top = option_top;
+    } else if (option_bottom > viewport_bottom) {
+        next_scroll_top = option_bottom - settings_catalog_combobox_elem.clientHeight;
+    }
+    if (next_scroll_top != viewport_top) {
+        settings_catalog_combobox_elem.scrollTop = next_scroll_top;
+        renderSettingsCatalogComboboxVirtualWindow(true);
+    } else if (state.surface.querySelector(`[data-result-index="${active_index}"]`)) {
+        syncSettingsCatalogComboboxRenderedOptions();
+    } else {
+        renderSettingsCatalogComboboxVirtualWindow(true);
+    }
+}
+
+function chooseSettingsCatalogComboboxOption(index) {
+    const { input, callbacks, results } = settings_catalog_combobox_state;
+    const setting = results[index];
+    if (!input || !setting) {
+        return;
+    }
+    input.value = setting.name;
+    callbacks?.onSelect?.(setting);
+    closeSettingsCatalogCombobox('select');
+    input.focus();
+}
+
+function renderSettingsCatalogCombobox() {
+    const input = settings_catalog_combobox_state.input;
+    if (!input) {
+        return;
+    }
+    const results = findSettingsCatalogMatches(input.value);
+    settings_catalog_combobox_state.results = results;
+    settings_catalog_combobox_state.active_index = results.length ? 0 : -1;
+    settings_catalog_combobox_state.surface = null;
+    settings_catalog_combobox_state.rendered_start = -1;
+    settings_catalog_combobox_state.rendered_end = -1;
+    settings_catalog_combobox_state.rendered_active_index = -1;
+    settings_catalog_combobox_elem.replaceChildren();
+    settings_catalog_combobox_elem.scrollTop = 0;
+
+    if (!results.length) {
+        const empty = document.createElement('div');
+        empty.className = 'settings-catalog-combobox-empty';
+        empty.textContent = settings_active_catalog ? 'No matching settings.' : 'Setting catalog not loaded.';
+        settings_catalog_combobox_elem.appendChild(empty);
+        input.removeAttribute('aria-activedescendant');
+    } else {
+        const surface = document.createElement('div');
+        surface.className = 'settings-catalog-virtual-surface';
+        surface.style.height = `${results.length * settings_catalog_combobox_option_height}px`;
+        settings_catalog_combobox_state.surface = surface;
+        settings_catalog_combobox_elem.appendChild(surface);
+    }
+
+    settings_catalog_combobox_elem.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    positionSettingsCatalogCombobox();
+}
+
+function openSettingsCatalogCombobox(input, callbacks) {
+    if (input.disabled) {
+        return;
+    }
+    if (settings_catalog_combobox_state.input && settings_catalog_combobox_state.input != input) {
+        closeSettingsCatalogCombobox('switch');
+    }
+    settings_catalog_combobox_state.input = input;
+    settings_catalog_combobox_state.callbacks = callbacks;
+    callbacks?.onOpen?.();
+    renderSettingsCatalogCombobox();
+}
+
+function closeSettingsCatalogCombobox(reason = '') {
+    const { input, callbacks } = settings_catalog_combobox_state;
+    if (!input) {
+        return;
+    }
+    settings_catalog_combobox_elem.hidden = true;
+    settings_catalog_combobox_elem.replaceChildren();
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+    settings_catalog_combobox_state = {
+        input: null,
+        callbacks: null,
+        results: [],
+        active_index: -1,
+        surface: null,
+        rendered_start: -1,
+        rendered_end: -1,
+        rendered_active_index: -1
+    };
+    if (reason == 'blur' || reason == 'tab') {
+        callbacks?.onBlur?.();
+    }
+}
+
+function handleSettingsCatalogComboboxKeyDown(event) {
+    const state = settings_catalog_combobox_state;
+    if (state.input != event.currentTarget) {
+        if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
+            event.preventDefault();
+            openSettingsCatalogCombobox(event.currentTarget, event.currentTarget.settings_catalog_callbacks);
+            if (event.key == 'ArrowUp' && settings_catalog_combobox_state.results.length) {
+                updateSettingsCatalogComboboxActiveOption(settings_catalog_combobox_state.results.length - 1);
+            }
+        }
+        return;
+    }
+
+    if (event.key == 'ArrowDown' || event.key == 'ArrowUp') {
+        event.preventDefault();
+        if (state.results.length) {
+            const direction = event.key == 'ArrowDown' ? 1 : -1;
+            updateSettingsCatalogComboboxActiveOption(
+                (state.active_index + direction + state.results.length) % state.results.length);
+        }
+    } else if (event.key == 'Home' && state.results.length) {
+        event.preventDefault();
+        updateSettingsCatalogComboboxActiveOption(0);
+    } else if (event.key == 'End' && state.results.length) {
+        event.preventDefault();
+        updateSettingsCatalogComboboxActiveOption(state.results.length - 1);
+    } else if (event.key == 'Enter' && state.active_index >= 0) {
+        event.preventDefault();
+        chooseSettingsCatalogComboboxOption(state.active_index);
+    } else if (event.key == 'Escape') {
+        event.preventDefault();
+        closeSettingsCatalogCombobox('escape');
+    } else if (event.key == 'Tab') {
+        closeSettingsCatalogCombobox('tab');
+    }
+}
+
+function registerSettingsCatalogComboboxInput(input, callbacks) {
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-haspopup', 'listbox');
+    input.setAttribute('aria-controls', 'settings-catalog-combobox');
+    input.setAttribute('aria-expanded', 'false');
+    input.autocomplete = 'off';
+    input.settings_catalog_callbacks = callbacks;
+    input.addEventListener('focus', () => openSettingsCatalogCombobox(input, callbacks));
+    input.addEventListener('input', () => {
+        if (settings_catalog_combobox_state.input != input) {
+            openSettingsCatalogCombobox(input, callbacks);
+        } else {
+            renderSettingsCatalogCombobox();
+        }
+    });
+    input.addEventListener('keydown', handleSettingsCatalogComboboxKeyDown);
+    input.addEventListener('blur', () => {
+        if (settings_catalog_combobox_state.input == input) {
+            closeSettingsCatalogCombobox('blur');
+        } else {
+            callbacks?.onBlur?.();
+        }
+    });
+}
+
+function createTransportSessionId() {
+    return `click-play-boom-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+}
+
+function emptySessionSettingsStore() {
+    return { schema_version: 1, connections: {} };
+}
+
+function normalizeSessionManagedSettings(managed) {
+    const result = {};
+    for (const [name, value] of Object.entries(managed || {})) {
+        if (clickhouse_setting_identifier_pattern.test(name) && !isReservedQueryDefaultName(name)) {
+            result[name] = String(value ?? '');
+        }
+    }
+    return result;
+}
+
+function loadSessionSettingsStoreForDocument() {
+    let store = emptySessionSettingsStore();
+    try {
+        const parsed = JSON.parse(window.sessionStorage.getItem(session_settings_key) || 'null');
+        if (parsed?.schema_version == 1 && parsed.connections && typeof parsed.connections == 'object') {
+            store = parsed;
+        }
+    } catch (e) {
+        store = emptySessionSettingsStore();
+    }
+
+    const connections = {};
+    for (const [connection_id, raw_record] of Object.entries(store.connections || {})) {
+        if (!connection_id) {
+            continue;
+        }
+        connections[connection_id] = {
+            managed: normalizeSessionManagedSettings(raw_record?.managed),
+            transport_id: '',
+            applied_names: [],
+            active: false,
+            status: 'not-started',
+            message: '',
+            connection_revision: String(raw_record?.connection_revision || '')
+        };
+    }
+
+    const rotated_store = { schema_version: 1, connections };
+    try {
+        window.sessionStorage.setItem(session_settings_key, JSON.stringify(rotated_store));
+    } catch (e) {
+        // Session support still works in memory when storage is unavailable.
+    }
+    return rotated_store;
+}
+
+function persistSessionSettingsStore() {
+    try {
+        window.sessionStorage.setItem(session_settings_key, JSON.stringify(settings_session_store));
+    } catch (e) {
+        // Keep the current document functional when storage is unavailable.
+    }
+}
+
+function getCurrentSettingsConnection() {
+    return {
+        id: current_connection_id || '__current__',
+        name: current_connection_name || 'Connection',
+        url: url_elem.value || 'http://localhost:8123/',
+        user: user_elem.value || 'default',
+        password: password_elem.value || '',
+        revision: String(getSavedConnections().find(connection => connection.id == current_connection_id)?.updated_at || '')
+    };
+}
+
+function getSessionRecord(create = true) {
+    const connection = getCurrentSettingsConnection();
+    let record = settings_session_store.connections[connection.id];
+    if (!record && create) {
+        record = {
+            managed: {},
+            transport_id: '',
+            applied_names: [],
+            active: false,
+            status: 'not-started',
+            message: '',
+            connection_revision: connection.revision
+        };
+        settings_session_store.connections[connection.id] = record;
+        persistSessionSettingsStore();
+    }
+    return record || null;
+}
+
+function setSettingsMessage(element, message = '', kind = '') {
+    if (!element) {
+        return;
+    }
+    element.textContent = message;
+    element.classList.toggle('error', kind == 'error');
+    element.classList.toggle('success', kind == 'success');
+}
+
+function renderSessionStatus() {
+    const record = getSessionRecord(false);
+    const status = record?.status || 'not-started';
+    const labels = {
+        'not-started': 'Not started',
+        active: 'Active',
+        recovering: 'Recovering',
+        busy: 'Busy',
+        error: 'Error'
+    };
+    settings_session_status_elem.textContent = labels[status] || 'Not started';
+    settings_session_status_elem.className = `settings-status-badge ${status}`;
+    if (record?.message) {
+        setSettingsMessage(settings_session_message_elem, record.message, status == 'error' || status == 'busy' ? 'error' : '');
+    }
+    updateSessionSettingsBusyState();
+}
+
+function isReservedQueryDefaultName(name) {
+    const normalized_name = String(name || '').toLowerCase();
+    return reserved_query_default_names.has(normalized_name) || normalized_name.startsWith('param_');
+}
+
+function getCatalogIdentity(connection) {
+    return JSON.stringify([connection.url, connection.user, connection.password]);
+}
+
+function normalizeSettingsCatalogRow(row) {
+    const name = String(row?.name || '');
+    const type = String(row?.type || '');
+    const description = String(row?.description || '');
+    const search_name = name.toLowerCase();
+    const search_type = type.toLowerCase();
+    const search_description = description.toLowerCase();
+    return {
+        name,
+        value: String(row?.value ?? ''),
+        default: String(row?.default ?? ''),
+        description,
+        type,
+        min: row?.min === null || row?.min === undefined ? '' : String(row.min),
+        max: row?.max === null || row?.max === undefined ? '' : String(row.max),
+        disallowed_values: Array.isArray(row?.disallowed_values) ? row.disallowed_values.map(String) : [],
+        readonly: Number(row?.readonly || 0) != 0,
+        alias_for: String(row?.alias_for || ''),
+        is_obsolete: Number(row?.is_obsolete || 0) != 0,
+        tier: String(row?.tier || ''),
+        search_name,
+        search_name_parts: search_name.split('_'),
+        search_type,
+        search_description,
+        search_text: `${search_name} ${search_type} ${search_description}`
+    };
+}
+
+async function loadSettingsCatalog(force = false) {
+    const connection = getCurrentSettingsConnection();
+    const identity = getCatalogIdentity(connection);
+    const cached = settings_catalog_cache.get(connection.id);
+    if (!force && cached?.identity == identity && cached.catalog) {
+        settings_active_catalog = cached.catalog;
+        renderSettingsCatalog();
+        return cached.catalog;
+    }
+    if (!force && cached?.identity == identity && cached.promise) {
+        return cached.promise;
+    }
+
+    settings_catalog_status_elem.textContent = 'Loading setting catalog…';
+    settings_catalog_refresh_elem.disabled = true;
+    const promise = (async () => {
+        const url = buildClickHouseUrl(connection.url, connection.user, connection.password, 'JSONEachRow');
+        const response = await fetch(url, {
+            method: 'POST',
+            body: `SELECT
+    name,
+    value,
+    default,
+    description,
+    type,
+    min,
+    max,
+    disallowed_values,
+    readonly,
+    alias_for,
+    is_obsolete,
+    toString(tier) AS tier
+FROM system.settings
+ORDER BY name`
+        });
+        const text = await response.text();
+        if (!response.ok) {
+            throw new Error(text || `Setting catalog request failed (${response.status}).`);
+        }
+
+        const rows = text.split('\n')
+            .filter(line => line.trim())
+            .map(line => normalizeSettingsCatalogRow(JSON.parse(line)))
+            .filter(row => row.name);
+        const catalog = { rows, by_name: new Map(rows.map(row => [row.name, row])) };
+        settings_catalog_cache.set(connection.id, { identity, catalog, promise: null });
+        if (getCurrentSettingsConnection().id == connection.id && getCatalogIdentity(getCurrentSettingsConnection()) == identity) {
+            settings_active_catalog = catalog;
+            renderSettingsCatalog();
+        }
+        return catalog;
+    })();
+    settings_catalog_cache.set(connection.id, { identity, catalog: null, promise });
+
+    try {
+        return await promise;
+    } catch (error) {
+        const latest = settings_catalog_cache.get(connection.id);
+        if (latest?.identity == identity) {
+            settings_catalog_cache.delete(connection.id);
+        }
+        if (getCurrentSettingsConnection().id == connection.id) {
+            settings_active_catalog = null;
+            settings_catalog_status_elem.textContent = 'Setting catalog unavailable';
+            setSettingsMessage(settings_query_default_message_elem, error.message, 'error');
+        }
+        throw error;
+    } finally {
+        settings_catalog_refresh_elem.disabled = false;
+    }
+}
+
+function renderSettingsCatalog() {
+    const rows = settings_active_catalog?.rows || [];
+    settings_catalog_status_elem.textContent = settings_active_catalog
+        ? `${rows.length.toLocaleString()} settings loaded`
+        : 'Setting catalog not loaded';
+    renderSessionSettingsEditor();
+    renderQueryDefaultsEditor();
+}
+
+function getSettingCatalogEntry(name) {
+    return settings_active_catalog?.by_name.get(String(name || '').trim()) || null;
+}
+
+function formatSettingHelp(setting) {
+    if (!setting) {
+        return '';
+    }
+    const details = [setting.type, `default ${setting.default}`];
+    if (setting.min || setting.max) {
+        details.push(`range ${setting.min || '−∞'}…${setting.max || '∞'}`);
+    }
+    if (setting.disallowed_values.length) {
+        details.push(`disallows ${setting.disallowed_values.join(', ')}`);
+    }
+    if (setting.tier) {
+        details.push(setting.tier);
+    }
+    if (setting.alias_for) {
+        details.push(`alias for ${setting.alias_for}`);
+    }
+    return `${details.join(' · ')}${setting.description ? ` — ${setting.description}` : ''}`;
+}
+
+function validateSettingRow(row, options = {}) {
+    const name = String(row?.name || '').trim();
+    const mode = row?.mode == 'suppress' ? 'suppress' : 'set';
+    if (!name) {
+        return 'Choose a setting.';
+    }
+    if (!clickhouse_setting_identifier_pattern.test(name)) {
+        return 'Setting name is not a valid ClickHouse identifier.';
+    }
+    if (isReservedQueryDefaultName(name)) {
+        return 'This HTTP protocol parameter is managed by the application.';
+    }
+    if (mode == 'suppress' && options.allow_suppress) {
+        return '';
+    }
+    if (!settings_active_catalog) {
+        return 'Load the active connection setting catalog first.';
+    }
+    const setting = getSettingCatalogEntry(name);
+    if (!setting) {
+        return options.allow_unavailable ? '' : 'Setting is unavailable on the active connection.';
+    }
+    if (setting.readonly) {
+        return 'Setting is readonly for the active connection.';
+    }
+    if (setting.is_obsolete) {
+        return 'Setting is obsolete on the active connection.';
+    }
+    const value = String(row?.value ?? '');
+    if (setting.disallowed_values.includes(value)) {
+        return 'Value is disallowed by the active connection.';
+    }
+    const numeric_value = Number(value);
+    const numeric_min = Number(setting.min);
+    const numeric_max = Number(setting.max);
+    if (value !== '' && Number.isFinite(numeric_value)) {
+        if (setting.min !== '' && Number.isFinite(numeric_min) && numeric_value < numeric_min) {
+            return `Value is below the minimum ${setting.min}.`;
+        }
+        if (setting.max !== '' && Number.isFinite(numeric_max) && numeric_value > numeric_max) {
+            return `Value is above the maximum ${setting.max}.`;
+        }
+    }
+    return '';
+}
+
+function createSettingsEmpty(message) {
+    const empty = document.createElement('div');
+    empty.className = 'settings-empty';
+    empty.textContent = message;
+    return empty;
+}
+
+function getStoredThemePreference() {
+    const stored = window.localStorage.getItem(theme_key);
+    return ['dark', 'light'].includes(stored) ? stored : 'system';
+}
+
+function applyThemePreference(preference) {
+    const normalized = ['dark', 'light'].includes(preference) ? preference : 'system';
+    if (normalized == 'system') {
+        window.localStorage.removeItem(theme_key);
+    } else {
+        window.localStorage.setItem(theme_key, normalized);
+    }
+
+    if (!['dark', 'light'].includes(current_url.searchParams.get('theme'))) {
+        const next_theme = normalized == 'system'
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : normalized;
+        setColorTheme(next_theme, false);
+    }
+    syncSettingsPreferenceControls();
+}
+
+function syncSettingsPreferenceControls() {
+    if (!settings_theme_elem) {
+        return;
+    }
+    settings_theme_elem.value = getStoredThemePreference();
+    settings_snippet_mode_elem.value = getSnippetInsertionMode();
+    settings_abort_preview_elem.checked = shouldAbortAtPreviewLimit();
+    settings_query_cache_elem.checked = shouldUseQueryCacheForDownload();
+    settings_navigator_types_elem.checked = shouldShowNavigatorTypes();
+    settings_compact_editor_elem.checked = document.getElementById('query_div').classList.contains('compact');
+    const url_theme = current_url.searchParams.get('theme');
+    setSettingsMessage(settings_preferences_message_elem,
+        ['dark', 'light'].includes(url_theme) ? `The URL theme=${url_theme} override is currently active.` : '');
+}
+
+function getScopeQueryDefaultRecords(scope, connection_id = '') {
+    return (query_defaults_state?.records || [])
+        .filter(record => !isDeletedStorageRecord(record)
+            && record.scope == scope
+            && (scope != 'connection' || record.connection_id == connection_id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function resolveEffectiveQueryDefaults(connection_id = current_connection_id, candidate = null) {
+    const global_records = candidate?.scope == 'global'
+        ? candidate.rows.map(row => ({ ...row, scope: 'global', connection_id: '' }))
+        : getScopeQueryDefaultRecords('global');
+    const connection_records = candidate?.scope == 'connection' && candidate.connection_id == connection_id
+        ? candidate.rows.map(row => ({ ...row, scope: 'connection', connection_id }))
+        : getScopeQueryDefaultRecords('connection', connection_id);
+    const effective = new Map();
+    for (const record of global_records) {
+        if (record.mode != 'suppress' && clickhouse_setting_identifier_pattern.test(record.name)
+            && !isReservedQueryDefaultName(record.name)) {
+            effective.set(record.name, { name: record.name, value: String(record.value ?? ''), source: 'Global' });
+        }
+    }
+    for (const record of connection_records) {
+        if (record.mode == 'suppress') {
+            effective.delete(record.name);
+        } else if (clickhouse_setting_identifier_pattern.test(record.name) && !isReservedQueryDefaultName(record.name)) {
+            effective.set(record.name, { name: record.name, value: String(record.value ?? ''), source: 'Connection' });
+        }
+    }
+    return effective;
+}
+
+function getEffectiveQueryDefaultParams() {
+    return Object.fromEntries([...resolveEffectiveQueryDefaults().values()].map(row => [row.name, row.value]));
+}
+
+function getQueryDefaultDraftKey(scope, connection_id) {
+    return scope == 'global' ? 'global' : `connection:${connection_id || ''}`;
+}
+
+function getQueryDefaultDraft(scope) {
+    const connection_id = scope == 'connection' ? String(current_connection_id || '') : '';
+    const key = getQueryDefaultDraftKey(scope, connection_id);
+    let draft = settings_query_default_drafts.get(key);
+    if (!draft) {
+        draft = {
+            scope,
+            connection_id,
+            dirty: false,
+            rows: getScopeQueryDefaultRecords(scope, connection_id).map(record => ({
+                name: record.name,
+                value: record.value,
+                mode: record.mode,
+                persisted: true
+            }))
+        };
+        settings_query_default_drafts.set(key, draft);
+    }
+    return draft;
+}
+
+function markQueryDefaultDraftChanged(draft) {
+    draft.dirty = true;
+    setSettingsMessage(settings_query_default_message_elem, 'Unsaved changes.');
+}
+
+function getQueryDefaultRowWarning(row, allow_suppress) {
+    const validation = validateSettingRow(row, { allow_suppress, allow_unavailable: row.persisted });
+    if (validation) {
+        return validation;
+    }
+    const setting = getSettingCatalogEntry(row.name);
+    return setting ? '' : 'Unknown on the active connection; the saved value is retained.';
+}
+
+function createQueryDefaultEditorRow(row, draft, options = {}) {
+    const container = document.createElement('div');
+    container.className = `settings-editor-row${options.inherited ? ' inherited' : ''}`;
+
+    const name_main = document.createElement('div');
+    name_main.className = 'settings-editor-row-main';
+    const name_input = document.createElement('input');
+    name_input.type = 'text';
+    name_input.placeholder = 'Setting name';
+    name_input.spellcheck = false;
+    name_input.value = row.name;
+    name_input.disabled = options.readonly;
+    const help = document.createElement('div');
+    help.className = 'settings-setting-help';
+    let defer_name_validation = false;
+    const render_help = () => {
+        const setting = getSettingCatalogEntry(row.name);
+        if (defer_name_validation && !setting) {
+            help.className = 'settings-setting-help';
+            help.textContent = 'Search by setting name, description, or type.';
+            help.title = help.textContent;
+            container.classList.remove('invalid');
+            return;
+        }
+        const warning = getQueryDefaultRowWarning(row, draft?.scope == 'connection');
+        help.className = warning ? 'settings-setting-warning' : 'settings-setting-help';
+        help.textContent = warning || formatSettingHelp(setting);
+        help.title = help.textContent;
+        container.classList.toggle('invalid', !!warning && !options.readonly);
+    };
+    name_main.append(name_input, help);
+
+    const value_input = document.createElement('input');
+    value_input.type = 'text';
+    value_input.className = 'monospace';
+    value_input.placeholder = 'Raw value';
+    value_input.spellcheck = false;
+    value_input.value = row.value;
+    value_input.disabled = options.readonly || row.mode == 'suppress';
+
+    const mode_select = document.createElement('select');
+    const set_option = document.createElement('option');
+    set_option.value = 'set';
+    set_option.textContent = 'Set';
+    mode_select.appendChild(set_option);
+    if (draft?.scope == 'connection') {
+        const suppress_option = document.createElement('option');
+        suppress_option.value = 'suppress';
+        suppress_option.textContent = 'Suppress global';
+        mode_select.appendChild(suppress_option);
+    }
+    mode_select.value = row.mode || 'set';
+    mode_select.disabled = options.readonly;
+
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.textContent = options.inherited ? 'Suppress' : 'Remove';
+
+    if (options.inherited) {
+        name_input.disabled = true;
+        value_input.disabled = true;
+        mode_select.disabled = true;
+        const source = document.createElement('span');
+        source.className = 'settings-source-badge';
+        source.textContent = 'Inherited global';
+        mode_select.replaceWith(source);
+        action.addEventListener('click', () => {
+            draft.rows.push({ name: row.name, value: '', mode: 'suppress' });
+            markQueryDefaultDraftChanged(draft);
+            renderQueryDefaultsEditor();
+        });
+        container.append(name_main, value_input, source, action);
+    } else {
+        name_input.addEventListener('input', () => {
+            row.name = name_input.value.trim();
+            row.persisted = false;
+            defer_name_validation = true;
+            markQueryDefaultDraftChanged(draft);
+            render_help();
+        });
+        value_input.addEventListener('input', () => {
+            row.value = value_input.value;
+            row.persisted = false;
+            markQueryDefaultDraftChanged(draft);
+            render_help();
+        });
+        mode_select.addEventListener('change', () => {
+            row.mode = mode_select.value;
+            row.persisted = false;
+            value_input.disabled = row.mode == 'suppress';
+            markQueryDefaultDraftChanged(draft);
+            render_help();
+        });
+        action.addEventListener('click', () => {
+            draft.rows.splice(draft.rows.indexOf(row), 1);
+            markQueryDefaultDraftChanged(draft);
+            renderQueryDefaultsEditor();
+        });
+        registerSettingsCatalogComboboxInput(name_input, {
+            onSelect: setting => {
+                row.name = setting.name;
+                row.persisted = false;
+                defer_name_validation = false;
+                markQueryDefaultDraftChanged(draft);
+                render_help();
+            },
+            onBlur: () => {
+                defer_name_validation = false;
+                render_help();
+            }
+        });
+        container.append(name_main, value_input, mode_select, action);
+    }
+    render_help();
+    return container;
+}
+
+function createEffectiveQueryDefaultRow(row) {
+    const container = document.createElement('div');
+    container.className = 'settings-editor-row';
+    const name_main = document.createElement('div');
+    name_main.className = 'settings-editor-row-main';
+    const name = document.createElement('strong');
+    name.className = 'monospace';
+    name.textContent = row.name;
+    name.title = row.name;
+    const setting = getSettingCatalogEntry(row.name);
+    const help = document.createElement('div');
+    const warning = !setting
+        ? 'Unknown on the active connection; the saved value will still be sent.'
+        : validateSettingRow(row, { allow_unavailable: true });
+    help.className = warning ? 'settings-setting-warning' : 'settings-setting-help';
+    help.textContent = warning || formatSettingHelp(setting);
+    help.title = help.textContent;
+    name_main.append(name, help);
+    const value = document.createElement('code');
+    value.textContent = row.value;
+    const source = document.createElement('span');
+    source.className = 'settings-source-badge';
+    source.textContent = row.source;
+    container.append(name_main, value, source, document.createElement('span'));
+    return container;
+}
+
+function renderQueryDefaultsEditor() {
+    if (!settings_query_default_rows_elem) {
+        return;
+    }
+    closeSettingsCatalogCombobox('rerender');
+    const scope = settings_query_default_scope_elem.value;
+    const filter = settings_query_default_filter_elem.value.trim().toLowerCase();
+    settings_query_default_rows_elem.replaceChildren();
+    settings_query_default_add_elem.disabled = scope == 'effective' || !current_connection_id;
+    settings_query_default_save_elem.disabled = scope == 'effective' || !current_connection_id;
+
+    if (scope == 'effective') {
+        const rows = [...resolveEffectiveQueryDefaults().values()].filter(row => {
+            const setting = getSettingCatalogEntry(row.name);
+            return !filter || row.name.toLowerCase().includes(filter) || setting?.description.toLowerCase().includes(filter);
+        });
+        for (const row of rows) {
+            settings_query_default_rows_elem.appendChild(createEffectiveQueryDefaultRow(row));
+        }
+        if (!rows.length) {
+            settings_query_default_rows_elem.appendChild(createSettingsEmpty('No effective Query Defaults.'));
+        }
+        return;
+    }
+
+    const draft = getQueryDefaultDraft(scope);
+    const own_names = new Set(draft.rows.map(row => row.name));
+    const rows = draft.rows.filter(row => {
+        const setting = getSettingCatalogEntry(row.name);
+        return !filter || row.name.toLowerCase().includes(filter) || setting?.description.toLowerCase().includes(filter);
+    });
+    for (const row of rows) {
+        settings_query_default_rows_elem.appendChild(createQueryDefaultEditorRow(row, draft));
+    }
+
+    if (scope == 'connection') {
+        const inherited = getScopeQueryDefaultRecords('global')
+            .filter(row => !own_names.has(row.name))
+            .filter(row => {
+                const setting = getSettingCatalogEntry(row.name);
+                return !filter || row.name.toLowerCase().includes(filter) || setting?.description.toLowerCase().includes(filter);
+            });
+        for (const row of inherited) {
+            settings_query_default_rows_elem.appendChild(createQueryDefaultEditorRow(row, draft, { inherited: true }));
+        }
+    }
+
+    if (!settings_query_default_rows_elem.children.length) {
+        settings_query_default_rows_elem.appendChild(createSettingsEmpty(
+            scope == 'connection' ? 'No connection-specific Query Defaults. New rows default to this scope.' : 'No global Query Defaults.'));
+    }
+}
+
+function validateRows(rows, allow_suppress, allow_persisted_unavailable = false) {
+    const errors = [];
+    const names = new Set();
+    for (const row of rows) {
+        const name = String(row.name || '').trim();
+        const error = validateSettingRow(row, {
+            allow_suppress,
+            allow_unavailable: allow_persisted_unavailable && row.persisted
+        });
+        if (error) {
+            errors.push(`${name || 'New row'}: ${error}`);
+        }
+        if (names.has(name)) {
+            errors.push(`${name}: duplicate setting in this scope.`);
+        }
+        names.add(name);
+    }
+    return errors;
+}
+
+function saveCurrentQueryDefaultDraft() {
+    const scope = settings_query_default_scope_elem.value;
+    if (!['global', 'connection'].includes(scope)) {
+        return;
+    }
+    const draft = getQueryDefaultDraft(scope);
+    if (scope == 'connection' && draft.connection_id != current_connection_id) {
+        setSettingsMessage(settings_query_default_message_elem, 'The active connection changed. Review this connection’s draft before saving.', 'error');
+        return;
+    }
+    const errors = validateRows(draft.rows, scope == 'connection', true);
+    if (errors.length) {
+        setSettingsMessage(settings_query_default_message_elem, errors.join(' '), 'error');
+        renderQueryDefaultsEditor();
+        return;
+    }
+    if (!replaceQueryDefaultsScope(scope, draft.connection_id, draft.rows)) {
+        return;
+    }
+    draft.dirty = false;
+    for (const row of draft.rows) {
+        row.persisted = true;
+    }
+    setSettingsMessage(settings_query_default_message_elem, 'Query Defaults saved.', 'success');
+    renderQueryDefaultsEditor();
+}
+
+function getCandidateEffectiveDefaults() {
+    const scope = settings_query_default_scope_elem.value;
+    if (!['global', 'connection'].includes(scope)) {
+        return resolveEffectiveQueryDefaults();
+    }
+    const draft = getQueryDefaultDraft(scope);
+    return resolveEffectiveQueryDefaults(current_connection_id, draft);
+}
+
+async function testEffectiveQueryDefaults() {
+    const scope = settings_query_default_scope_elem.value;
+    if (['global', 'connection'].includes(scope)) {
+        const draft = getQueryDefaultDraft(scope);
+        const errors = validateRows(draft.rows, scope == 'connection', true);
+        if (errors.length) {
+            setSettingsMessage(settings_query_default_message_elem, errors.join(' '), 'error');
+            renderQueryDefaultsEditor();
+            return;
+        }
+    }
+    const connection = getCurrentSettingsConnection();
+    const params = Object.fromEntries([...getCandidateEffectiveDefaults().values()].map(row => [row.name, row.value]));
+    settings_query_default_test_elem.disabled = true;
+    setSettingsMessage(settings_query_default_message_elem, 'Testing effective settings…');
+    try {
+        const url = buildClickHouseUrl(connection.url, connection.user, connection.password, 'JSONEachRow', params);
+        const response = await fetch(url, { method: 'POST', body: 'SELECT 1' });
+        const text = await response.text();
+        if (!response.ok) {
+            throw new Error(text || `Test failed (${response.status}).`);
+        }
+        setSettingsMessage(settings_query_default_message_elem, 'Effective settings accepted by ClickHouse.', 'success');
+    } catch (error) {
+        setSettingsMessage(settings_query_default_message_elem, error.message || 'Effective settings test failed.', 'error');
+    } finally {
+        settings_query_default_test_elem.disabled = false;
+    }
+}
+
+function resetSessionDraft() {
+    const connection = getCurrentSettingsConnection();
+    const record = getSessionRecord();
+    settings_session_draft = {
+        connection_id: connection.id,
+        rows: Object.entries(record.managed).sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => ({ name, value }))
+    };
+}
+
+function createSessionSettingRow(row) {
+    const container = document.createElement('div');
+    container.className = 'settings-editor-row';
+    const name_main = document.createElement('div');
+    name_main.className = 'settings-editor-row-main';
+    const name_input = document.createElement('input');
+    name_input.type = 'text';
+    name_input.placeholder = 'Setting name';
+    name_input.spellcheck = false;
+    name_input.value = row.name;
+    const help = document.createElement('div');
+    let defer_name_validation = false;
+    const render_help = () => {
+        const setting = getSettingCatalogEntry(row.name);
+        if (defer_name_validation && !setting) {
+            help.className = 'settings-setting-help';
+            help.textContent = 'Search by setting name, description, or type.';
+            help.title = help.textContent;
+            container.classList.remove('invalid');
+            return;
+        }
+        const warning = validateSettingRow(row);
+        help.className = warning ? 'settings-setting-warning' : 'settings-setting-help';
+        help.textContent = warning || formatSettingHelp(setting);
+        help.title = help.textContent;
+        container.classList.toggle('invalid', !!warning);
+    };
+    name_main.append(name_input, help);
+    const value_input = document.createElement('input');
+    value_input.type = 'text';
+    value_input.className = 'monospace';
+    value_input.placeholder = 'Raw value';
+    value_input.spellcheck = false;
+    value_input.value = row.value;
+    const managed_badge = document.createElement('span');
+    managed_badge.className = 'settings-source-badge';
+    managed_badge.textContent = 'Managed';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = 'Remove';
+    name_input.addEventListener('input', () => {
+        row.name = name_input.value.trim();
+        defer_name_validation = true;
+        render_help();
+    });
+    value_input.addEventListener('input', () => {
+        row.value = value_input.value;
+        render_help();
+    });
+    remove.addEventListener('click', () => {
+        settings_session_draft.rows.splice(settings_session_draft.rows.indexOf(row), 1);
+        renderSessionSettingsEditor();
+    });
+    registerSettingsCatalogComboboxInput(name_input, {
+        onSelect: setting => {
+            row.name = setting.name;
+            defer_name_validation = false;
+            render_help();
+        },
+        onBlur: () => {
+            defer_name_validation = false;
+            render_help();
+        }
+    });
+    container.append(name_main, value_input, managed_badge, remove);
+    render_help();
+    return container;
+}
+
+function renderSessionSettingsEditor() {
+    if (!settings_session_rows_elem) {
+        return;
+    }
+    closeSettingsCatalogCombobox('rerender');
+    const connection = getCurrentSettingsConnection();
+    if (settings_session_draft.connection_id != connection.id) {
+        resetSessionDraft();
+    }
+    settings_session_rows_elem.replaceChildren();
+    for (const row of settings_session_draft.rows) {
+        settings_session_rows_elem.appendChild(createSessionSettingRow(row));
+    }
+    if (!settings_session_draft.rows.length) {
+        settings_session_rows_elem.appendChild(createSettingsEmpty('No managed Session Settings. Editor queries still share an HTTP session.'));
+    }
+    renderSessionStatus();
+}
+
+function buildSessionSetQuery(managed, reset_names = []) {
+    const assignments = [];
+    for (const name of reset_names) {
+        if (clickhouse_setting_identifier_pattern.test(name) && !(name in managed)) {
+            assignments.push(`${name} = DEFAULT`);
+        }
+    }
+    for (const [name, value] of Object.entries(managed)) {
+        assignments.push(`${name} = ${formatClickHouseStringLiteral(value)}`);
+    }
+    return assignments.length ? `SET ${assignments.join(', ')}` : 'SELECT 1';
+}
+
+async function getClickHouseExceptionCode(response) {
+    const header_code = Number(response.headers.get('X-ClickHouse-Exception-Code') || 0);
+    if (header_code) {
+        return header_code;
+    }
+    if (response.ok) {
+        return 0;
+    }
+    try {
+        const text = await response.clone().text();
+        return Number(text.match(/\bCode:\s*(\d+)/i)?.[1] || 0);
+    } catch (e) {
+        return 0;
+    }
+}
+
+async function sendSessionManagementQuery(record, query, check_existing, signal) {
+    const connection = getCurrentSettingsConnection();
+    const params = {
+        session_id: record.transport_id,
+        session_timeout: settings_session_timeout_seconds
+    };
+    if (check_existing) {
+        params.session_check = '1';
+    }
+    const url = buildClickHouseUrl(connection.url, connection.user, connection.password, 'JSONEachRow', params);
+    const response = await fetch(url, { method: 'POST', body: query, signal });
+    if (!response.ok) {
+        const code = await getClickHouseExceptionCode(response);
+        const text = await response.text();
+        throw new ClickHouseSessionError(text || `Session request failed (${response.status}).`, code);
+    }
+    await response.text();
+}
+
+async function bootstrapManagedSession(record, managed = record.managed, signal) {
+    if (!record.transport_id) {
+        record.transport_id = createTransportSessionId();
+    }
+    await sendSessionManagementQuery(record, buildSessionSetQuery(managed), false, signal);
+    record.active = true;
+    record.applied_names = Object.keys(managed);
+    record.status = 'active';
+    record.message = '';
+    persistSessionSettingsStore();
+    renderSessionStatus();
+}
+
+function rotateSessionTransport(record, status = 'not-started') {
+    record.transport_id = createTransportSessionId();
+    record.applied_names = [];
+    record.active = false;
+    record.status = status;
+    record.message = '';
+    persistSessionSettingsStore();
+}
+
+async function ensureInteractiveSession(signal) {
+    const record = getSessionRecord();
+    if (!record.active || !record.transport_id) {
+        if (!record.transport_id) {
+            rotateSessionTransport(record);
+        }
+        try {
+            await bootstrapManagedSession(record, record.managed, signal);
+        } catch (error) {
+            record.status = error.code == 373 ? 'busy' : 'error';
+            record.message = error.code == 373 ? 'The HTTP session is busy; the request was not retried.' : 'Could not start the HTTP session.';
+            persistSessionSettingsStore();
+            renderSessionStatus();
+            throw error;
+        }
+    }
+    return record;
+}
+
+function buildInteractiveQueryUrl(extra_params, record) {
+    const connection = getCurrentSettingsConnection();
+    return buildClickHouseUrl(connection.url, connection.user, connection.password, default_format, {
+        ...extra_params,
+        ...getEffectiveQueryDefaultParams(),
+        session_id: record.transport_id,
+        session_timeout: settings_session_timeout_seconds,
+        session_check: '1'
+    });
+}
+
+async function fetchInteractiveQuery(query, extra_params, signal) {
+    let record = await ensureInteractiveSession(signal);
+    let response = await fetch(buildInteractiveQueryUrl(extra_params, record), {
+        method: 'POST',
+        body: query,
+        signal,
+        headers: { 'Authorization': 'never' }
+    });
+    let exception_code = await getClickHouseExceptionCode(response);
+
+    if (exception_code == 372) {
+        record.status = 'recovering';
+        record.message = 'The server session expired. Managed settings are being replayed; unmanaged session state was lost.';
+        rotateSessionTransport(record, 'recovering');
+        renderSessionStatus();
+        try {
+            await bootstrapManagedSession(record, record.managed, signal);
+            response = await fetch(buildInteractiveQueryUrl(extra_params, record), {
+                method: 'POST',
+                body: query,
+                signal,
+                headers: { 'Authorization': 'never' }
+            });
+            exception_code = await getClickHouseExceptionCode(response);
+        } catch (error) {
+            record.status = error.code == 373 ? 'busy' : 'error';
+            record.message = 'Session recovery failed. The editor query was not executed.';
+            persistSessionSettingsStore();
+            renderSessionStatus();
+            throw error;
+        }
+    }
+
+    if (exception_code == 373) {
+        record.status = 'busy';
+        record.message = 'The HTTP session is busy. ClickHouse rejected the request and it was not retried.';
+    } else if (response.ok) {
+        record.status = 'active';
+        record.message = '';
+    } else if (exception_code == 372) {
+        record.status = 'error';
+        record.message = 'The recovered HTTP session was not found. The query was not retried again.';
+    }
+    persistSessionSettingsStore();
+    renderSessionStatus();
+    return response;
+}
+
+async function applySessionSettings() {
+    const connection = getCurrentSettingsConnection();
+    if (in_flight || settings_session_draft.connection_id != connection.id) {
+        setSettingsMessage(settings_session_message_elem, 'Wait for the editor query to finish, then review the active connection.', 'error');
+        return;
+    }
+    const errors = validateRows(settings_session_draft.rows, false);
+    if (errors.length) {
+        setSettingsMessage(settings_session_message_elem, errors.join(' '), 'error');
+        renderSessionSettingsEditor();
+        return;
+    }
+
+    const managed = Object.fromEntries(settings_session_draft.rows.map(row => [row.name, String(row.value ?? '')]));
+    const record = getSessionRecord();
+    const previous_applied_names = [...record.applied_names];
+    updateSessionSettingsBusyState(true);
+    setSettingsMessage(settings_session_message_elem, 'Applying managed Session Settings…');
+    try {
+        if (!record.active || !record.transport_id) {
+            rotateSessionTransport(record);
+            await bootstrapManagedSession(record, managed);
+        } else {
+            try {
+                await sendSessionManagementQuery(record, buildSessionSetQuery(managed, previous_applied_names), true);
+            } catch (error) {
+                if (error.code != 372) {
+                    throw error;
+                }
+                rotateSessionTransport(record, 'recovering');
+                await bootstrapManagedSession(record, managed);
+            }
+            record.active = true;
+            record.applied_names = Object.keys(managed);
+        }
+        record.managed = managed;
+        record.status = 'active';
+        record.message = '';
+        persistSessionSettingsStore();
+        setSettingsMessage(settings_session_message_elem, 'Session Settings applied.', 'success');
+    } catch (error) {
+        record.status = error.code == 373 ? 'busy' : 'error';
+        record.message = error.code == 373
+            ? 'The HTTP session is busy. The changes were not applied or retried.'
+            : (error.message || 'Session Settings were rejected by ClickHouse.');
+        persistSessionSettingsStore();
+        setSettingsMessage(settings_session_message_elem, record.message, 'error');
+    } finally {
+        renderSessionStatus();
+        updateSessionSettingsBusyState();
+    }
+}
+
+async function restartManagedSession() {
+    if (in_flight) {
+        return;
+    }
+    const record = getSessionRecord();
+    updateSessionSettingsBusyState(true);
+    setSettingsMessage(settings_session_message_elem, 'Starting a new HTTP session…');
+    rotateSessionTransport(record);
+    try {
+        await bootstrapManagedSession(record, record.managed);
+        setSettingsMessage(settings_session_message_elem, 'New HTTP session started and managed settings replayed.', 'success');
+    } catch (error) {
+        record.status = error.code == 373 ? 'busy' : 'error';
+        record.message = error.message || 'Could not restart the HTTP session.';
+        persistSessionSettingsStore();
+        setSettingsMessage(settings_session_message_elem, record.message, 'error');
+    } finally {
+        renderSessionStatus();
+        updateSessionSettingsBusyState();
+    }
+}
+
+function updateSessionSettingsBusyState(force_busy = false) {
+    if (!settings_session_apply_elem) {
+        return;
+    }
+    const disabled = force_busy || in_flight || !current_connection_id;
+    settings_session_apply_elem.disabled = disabled;
+    settings_session_restart_elem.disabled = disabled;
+    settings_session_add_elem.disabled = disabled;
+}
+
+function handleQueryDefaultsChanged() {
+    const next_state = loadQueryDefaults();
+    if (next_state.unsupported_schema) {
+        setSettingsMessage(settings_query_default_message_elem,
+            `Query Defaults use newer storage schema ${next_state.unsupported_schema_version}; this client will not overwrite them.`, 'error');
+        return;
+    }
+    query_defaults_state = next_state;
+    for (const [key, draft] of settings_query_default_drafts) {
+        if (!draft.dirty) {
+            settings_query_default_drafts.delete(key);
+        }
+    }
+    renderQueryDefaultsEditor();
+}
+
+function handleSettingsPreferenceStorageChanged(key) {
+    if (key == theme_key) {
+        if (!['dark', 'light'].includes(current_url.searchParams.get('theme'))) {
+            const preference = getStoredThemePreference();
+            const next_theme = preference == 'system'
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : preference;
+            setColorTheme(next_theme, false);
+        }
+    } else if (key == download_query_cache_key) {
+        setDownloadQueryCachePreference(window.localStorage.getItem(key) == '1', false);
+    } else if (key == navigator_show_types_key) {
+        setNavigatorTypesVisible(window.localStorage.getItem(key) == '1', false);
+    } else if (key == abort_preview_limit_key) {
+        setAbortPreviewLimit(window.localStorage.getItem(key) == '1', false);
+    } else if (key == query_editor_compact_key) {
+        setEditorCompact(window.localStorage.getItem(key) == '1', false);
+    } else if (key == snippet_insertion_mode_key) {
+        setSnippetInsertionMode(window.localStorage.getItem(key) || 'append', false);
+    }
+    syncSettingsPreferenceControls();
+}
+
+function handleSettingsConnectionChanged(connection) {
+    if (!settings_initialized) {
+        return;
+    }
+    settings_connection_name_elem.textContent = connection?.name || 'the active connection';
+    settings_session_connection_elem.textContent = connection?.name || 'None';
+    const record = getSessionRecord();
+    const revision = String(connection?.updated_at || '');
+    if (record.connection_revision && revision && record.connection_revision != revision) {
+        rotateSessionTransport(record);
+    }
+    record.connection_revision = revision;
+    persistSessionSettingsStore();
+    settings_active_catalog = null;
+    const cached = settings_catalog_cache.get(connection.id);
+    if (cached?.identity == getCatalogIdentity(getCurrentSettingsConnection()) && cached.catalog) {
+        settings_active_catalog = cached.catalog;
+    }
+    resetSessionDraft();
+    renderSettingsCatalog();
+    renderSessionSettingsEditor();
+    renderQueryDefaultsEditor();
+    setSettingsMessage(settings_session_message_elem, record.message || '');
+    setSettingsMessage(settings_query_default_message_elem, '');
+    if (current_workspace_view == 'settings') {
+        void loadSettingsCatalog().catch(() => {});
+    }
+}
+
+async function ensureSettingsLoaded() {
+    syncSettingsPreferenceControls();
+    renderSessionSettingsEditor();
+    renderQueryDefaultsEditor();
+    if (!settings_active_catalog && current_connection_id) {
+        try {
+            await loadSettingsCatalog();
+        } catch (e) {
+            // Section-local status already explains the failure.
+        }
+    }
+}
+
+function initializeSettingsWorkspace() {
+    if (settings_initialized) {
+        return;
+    }
+    settings_initialized = true;
+    query_defaults_state = loadQueryDefaults();
+
+    settings_catalog_refresh_elem.addEventListener('click', () => {
+        void loadSettingsCatalog(true).catch(() => {});
+    });
+    settings_theme_elem.addEventListener('change', () => applyThemePreference(settings_theme_elem.value));
+    settings_snippet_mode_elem.addEventListener('change', () => setSnippetInsertionMode(settings_snippet_mode_elem.value));
+    settings_abort_preview_elem.addEventListener('change', () => setAbortPreviewLimit(settings_abort_preview_elem.checked));
+    settings_query_cache_elem.addEventListener('change', () => setDownloadQueryCachePreference(settings_query_cache_elem.checked));
+    settings_navigator_types_elem.addEventListener('change', () => setNavigatorTypesVisible(settings_navigator_types_elem.checked));
+    settings_compact_editor_elem.addEventListener('change', () => setEditorCompact(settings_compact_editor_elem.checked));
+
+    settings_session_add_elem.addEventListener('click', () => {
+        settings_session_draft.rows.push({ name: '', value: '' });
+        renderSessionSettingsEditor();
+    });
+    settings_session_apply_elem.addEventListener('click', () => void applySessionSettings());
+    settings_session_restart_elem.addEventListener('click', () => void restartManagedSession());
+
+    settings_query_default_scope_elem.addEventListener('change', renderQueryDefaultsEditor);
+    settings_query_default_filter_elem.addEventListener('input', renderQueryDefaultsEditor);
+    settings_query_default_add_elem.addEventListener('click', () => {
+        let scope = settings_query_default_scope_elem.value;
+        if (!['global', 'connection'].includes(scope)) {
+            scope = 'connection';
+            settings_query_default_scope_elem.value = scope;
+        }
+        const draft = getQueryDefaultDraft(scope);
+        draft.rows.push({ name: '', value: '', mode: 'set', persisted: false });
+        markQueryDefaultDraftChanged(draft);
+        renderQueryDefaultsEditor();
+    });
+    settings_query_default_save_elem.addEventListener('click', saveCurrentQueryDefaultDraft);
+    settings_query_default_test_elem.addEventListener('click', () => void testEffectiveQueryDefaults());
+    settings_catalog_combobox_elem.addEventListener('scroll', () => renderSettingsCatalogComboboxVirtualWindow(),
+        { passive: true });
+    settings_workspace_elem.addEventListener('scroll', positionSettingsCatalogCombobox, { passive: true });
+    window.addEventListener('resize', positionSettingsCatalogCombobox, { passive: true });
+    if (typeof ResizeObserver == 'function') {
+        new ResizeObserver(positionSettingsCatalogCombobox).observe(settings_workspace_elem);
+    }
+
+    syncSettingsPreferenceControls();
+    settings_connection_name_elem.textContent = current_connection_name || 'the active connection';
+    settings_session_connection_elem.textContent = current_connection_name || 'None';
+    resetSessionDraft();
+    renderSessionSettingsEditor();
+    renderQueryDefaultsEditor();
+}
+
 function setColorTheme(new_theme, update_preference) {
     theme = new_theme;
     if (update_preference) {
@@ -15469,6 +17913,9 @@ function setColorTheme(new_theme, update_preference) {
     redrawChart();
     redrawDashboardCharts();
     redrawSchemaGraph();
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
+    }
 }
 /// First we check if theme is set via the 'theme' GET parameter, if not, we check localStorage, otherwise we check OS preference.
 let theme = current_url.searchParams.get('theme');
@@ -15476,22 +17923,24 @@ if (['dark', 'light'].indexOf(theme) === -1) {
     theme = window.localStorage.getItem('theme');
 }
 
+const system_theme_media_query = window.matchMedia('(prefers-color-scheme: dark)');
 if (theme) {
     document.documentElement.setAttribute('data-theme', theme);
 } else {
     /// Obtain system-level user preference
-    const media_query_list = window.matchMedia('(prefers-color-scheme: dark)');
-    if (media_query_list.matches) {
+    if (system_theme_media_query.matches) {
         setColorTheme('dark');
     } else {
         setColorTheme('light');
     }
-
-    /// There is a rumor that on some computers, the theme is changing automatically on day/night.
-    media_query_list.addEventListener('change', function(e) {
-        setColorTheme(e.matches ? 'dark' : 'light');
-    });
 }
+
+/// There is a rumor that on some computers, the theme is changing automatically on day/night.
+system_theme_media_query.addEventListener('change', function(e) {
+    if (!['dark', 'light'].includes(current_url.searchParams.get('theme')) && getStoredThemePreference() == 'system') {
+        setColorTheme(e.matches ? 'dark' : 'light');
+    }
+});
 
 document.getElementById('new-connection').addEventListener('click', () => {
     openConnectionEditor();
@@ -15624,6 +18073,10 @@ window.addEventListener('storage', handleLocalStorageChanged);
 
 setSidebarCollapsed(window.localStorage.getItem(sidebar_collapsed_key) === '1', false);
 loadConnections();
+initializeSettingsWorkspace();
+if (current_workspace_view == 'settings') {
+    void ensureSettingsLoaded();
+}
 updateRunButtonText();
 void updateQueryHighlighting();
 

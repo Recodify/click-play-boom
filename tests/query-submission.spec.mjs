@@ -29,6 +29,7 @@ function jsonResponse(response, value) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Expose-Headers': 'X-ClickHouse-Format,X-ClickHouse-Query-Id',
     'Content-Type': 'application/json',
   });
   response.end(JSON.stringify(value));
@@ -39,8 +40,10 @@ function queryResponse(response) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Expose-Headers': 'X-ClickHouse-Format,X-ClickHouse-Query-Id',
     'Content-Type': 'application/x-ndjson',
     'X-ClickHouse-Format': 'JSONStringsEachRowWithProgress',
+    'X-ClickHouse-Query-Id': 'fake-query-id',
   });
   response.end([
     JSON.stringify({ meta: [{ name: 'ok', type: 'UInt8' }] }),
@@ -72,6 +75,11 @@ async function startFakeClickHouse(options = {}) {
   const schemaMvHasGroupBy = options.schemaMvHasGroupBy !== false;
   const schemaFormatFailureMatch = options.schemaFormatFailureMatch || '';
   const submissions = [];
+  const editorRequests = [];
+  const sessionRequests = [];
+  const catalogRequests = [];
+  const statelessSettingsTestRequests = [];
+  const allRequests = [];
   const dashboardRequests = [];
   const dashboardChartRequests = [];
   const schemaRequests = [];
@@ -79,6 +87,30 @@ async function startFakeClickHouse(options = {}) {
   const schemaCompatInsertRequests = [];
   const keeperDatabaseRequests = [];
   const waiters = [];
+  const knownSessions = new Set();
+  let expireNextEditorSession = false;
+  let lockNextEditorSession = false;
+  let rejectNextSettingsTest = false;
+  const settingsCatalogRows = [
+    { name: 'max_threads', value: '8', default: '8', description: 'Maximum query threads', type: 'MaxThreads', min: '1', max: '64', disallowed_values: [], readonly: 0, alias_for: '', is_obsolete: 0, tier: 'Production' },
+    { name: 'max_result_rows', value: '0', default: '0', description: 'Maximum result rows', type: 'UInt64', min: '0', max: null, disallowed_values: [], readonly: 0, alias_for: '', is_obsolete: 0, tier: 'Production' },
+    { name: 'format_csv_delimiter', value: ',', default: ',', description: 'The character used as a delimiter by CSV imports and exports; this intentionally long description verifies that complete catalog metadata remains available on hover.', type: 'Char', min: null, max: null, disallowed_values: [], readonly: 0, alias_for: '', is_obsolete: 0, tier: 'Production' },
+    { name: 'readonly_example', value: '1', default: '1', description: 'Readonly example', type: 'UInt64', min: '0', max: '1', disallowed_values: [], readonly: 1, alias_for: '', is_obsolete: 0, tier: 'Production' },
+    ...Array.from({ length: 14 }, (_, index) => ({
+      name: `format_test_setting_${String(index + 1).padStart(2, '0')}`,
+      value: '0',
+      default: '0',
+      description: `Synthetic format catalog setting ${index + 1}`,
+      type: 'Bool',
+      min: null,
+      max: null,
+      disallowed_values: [],
+      readonly: 0,
+      alias_for: '',
+      is_obsolete: 0,
+      tier: 'Production',
+    })),
+  ];
 
   const schemaMvCreateQuery = schemaMvHasGroupBy
     ? 'CREATE MATERIALIZED VIEW default.events_mv TO default.events_summary AS SELECT id, count() AS c FROM (SELECT id FROM default.events GROUP BY id, name) GROUP BY id'
@@ -140,13 +172,82 @@ async function startFakeClickHouse(options = {}) {
     }
 
     const body = await readRequestBody(request);
+    const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
+    const params = Object.fromEntries(requestUrl.searchParams.entries());
+    allRequests.push({ body, params });
+
+    if (body.includes('FROM system.settings')) {
+      catalogRequests.push({ body, params });
+      response.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Expose-Headers': 'X-ClickHouse-Exception-Code,X-ClickHouse-Format,X-ClickHouse-Query-Id',
+        'Content-Type': 'application/x-ndjson',
+      });
+      response.end(`${settingsCatalogRows.map(row => JSON.stringify(row)).join('\n')}\n`);
+      return;
+    }
+
+    const sessionId = requestUrl.searchParams.get('session_id') || '';
+    const checksSession = requestUrl.searchParams.get('session_check') === '1';
+    if (sessionId) {
+      if (!checksSession) {
+        knownSessions.add(sessionId);
+        sessionRequests.push({ body, params, kind: 'bootstrap' });
+        response.writeHead(200, { 'Content-Type': 'text/plain' });
+        response.end('');
+        return;
+      }
+
+      if (lockNextEditorSession && !/^\s*SET\b/i.test(body)) {
+        lockNextEditorSession = false;
+        response.writeHead(500, {
+          'Content-Type': 'text/plain',
+          'X-ClickHouse-Exception-Code': '373',
+          'Access-Control-Expose-Headers': 'X-ClickHouse-Exception-Code',
+        });
+        response.end('Code: 373. DB::Exception: Session is locked. (SESSION_IS_LOCKED)');
+        return;
+      }
+
+      if ((expireNextEditorSession && !/^\s*SET\b/i.test(body)) || !knownSessions.has(sessionId)) {
+        expireNextEditorSession = false;
+        knownSessions.delete(sessionId);
+        response.writeHead(500, {
+          'Content-Type': 'text/plain',
+          'X-ClickHouse-Exception-Code': '372',
+          'Access-Control-Expose-Headers': 'X-ClickHouse-Exception-Code',
+        });
+        response.end('Code: 372. DB::Exception: Session not found. (SESSION_NOT_FOUND)');
+        return;
+      }
+
+      if (/^\s*SET\b/i.test(body)) {
+        sessionRequests.push({ body, params, kind: 'apply' });
+        response.writeHead(200, { 'Content-Type': 'text/plain' });
+        response.end('');
+        return;
+      }
+
+      editorRequests.push({ body, params });
+    } else if (/^\s*SELECT\s+1\s*$/i.test(body)) {
+      statelessSettingsTestRequests.push({ body, params });
+      if (rejectNextSettingsTest) {
+        rejectNextSettingsTest = false;
+        response.writeHead(400, { 'Content-Type': 'text/plain' });
+        response.end('Code: 115. DB::Exception: Invalid setting value.');
+        return;
+      }
+      queryResponse(response);
+      return;
+    }
+
     if (body.includes('SELECT version() AS v')) {
       jsonResponse(response, { v: 'test', t: 123 });
       return;
     }
 
     if (body.includes('formatQuery({create_query:String})')) {
-      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
       const createQuery = requestUrl.searchParams.get('param_create_query') || '';
       schemaFormatRequests.push(createQuery);
       if (schemaFormatFailureMatch && createQuery.includes(schemaFormatFailureMatch)) {
@@ -177,7 +278,6 @@ async function startFakeClickHouse(options = {}) {
 
     if (body.includes('FROM system.zookeeper')
       && body.includes('allow_unrestricted_reads_from_keeper')) {
-      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
       keeperDatabaseRequests.push({
         body,
         params: Object.fromEntries(requestUrl.searchParams.entries()),
@@ -213,7 +313,6 @@ async function startFakeClickHouse(options = {}) {
     if (body.includes('FROM system.tables')
       && body.includes("target_database != ''")
       && body.includes("target_table != ''")) {
-      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
       schemaCompatInsertRequests.push({
         body,
         user: requestUrl.searchParams.get('user') || '',
@@ -243,10 +342,31 @@ async function startFakeClickHouse(options = {}) {
       return;
     }
 
+    if (body.includes('SELECT table, engine, total_rows, total_bytes FROM system.tables')) {
+      jsonResponse(response, {
+        data: requestUrl.searchParams.get('param_database') === 'default'
+          ? [{ table: 'events', engine: 'MergeTree', total_rows: 2, total_bytes: 128 }]
+          : [],
+      });
+      return;
+    }
+
+    if (body.includes('SELECT name, type')
+      && body.includes('FROM system.columns')
+      && body.includes('table = {table:String}')) {
+      jsonResponse(response, {
+        data: requestUrl.searchParams.get('param_database') === 'default'
+          && requestUrl.searchParams.get('param_table') === 'events'
+          ? [{ name: 'id', type: 'UInt64' }, { name: 'name', type: 'String' }]
+          : [],
+      });
+      return;
+    }
+
     if (body.includes('FROM system.dashboards')) {
-      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
       dashboardRequests.push({
         body,
+        params,
         user: requestUrl.searchParams.get('user') || '',
         password: requestUrl.searchParams.get('password') || '',
       });
@@ -274,7 +394,6 @@ async function startFakeClickHouse(options = {}) {
     }
 
     if (body.includes('SELECT {seconds:UInt32} AS t, toUInt32(2) AS v')) {
-      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
       dashboardChartRequests.push({
         body,
         params: Object.fromEntries(requestUrl.searchParams.entries()),
@@ -294,7 +413,6 @@ async function startFakeClickHouse(options = {}) {
     }
 
     if (body.includes('FROM system.tables') && body.includes('engine_full')) {
-      const requestUrl = new URL(request.url, 'http://fake-clickhouse.test');
       schemaRequests.push({
         body,
         user: requestUrl.searchParams.get('user') || '',
@@ -421,12 +539,26 @@ async function startFakeClickHouse(options = {}) {
   return {
     url: `http://127.0.0.1:${port}/`,
     submissions,
+    editorRequests,
+    sessionRequests,
+    catalogRequests,
+    statelessSettingsTestRequests,
+    allRequests,
     dashboardRequests,
     dashboardChartRequests,
     schemaRequests,
     schemaFormatRequests,
     schemaCompatInsertRequests,
     keeperDatabaseRequests,
+    expireNextSession() {
+      expireNextEditorSession = true;
+    },
+    lockNextSession() {
+      lockNextEditorSession = true;
+    },
+    rejectNextSettingsTest() {
+      rejectNextSettingsTest = true;
+    },
     waitForSubmissions(count) {
       if (submissions.length >= count) {
         return Promise.resolve(submissions.slice());
@@ -463,6 +595,21 @@ async function openAppWithPassword(page, serverUrl, password) {
   await page.goto(`${app_file_url}?url=${encodeURIComponent(serverUrl)}&user=default&password=${encodeURIComponent(password)}`);
   await expect(page.locator('#query')).toBeVisible();
   await expect(page.locator('#run')).toHaveText('Run all');
+}
+
+async function openSettings(page) {
+  await page.locator('#app-view-settings').click();
+  await expect(page.locator('#settings_workspace')).toBeVisible();
+  await expect(page.locator('#settings-catalog-status')).toContainText('settings loaded');
+}
+
+async function addSettingsEditorRow(page, rowsSelector, name, value) {
+  const row = page.locator(`${rowsSelector} .settings-editor-row`)
+    .filter({ has: page.locator('input:not(:disabled)') })
+    .last();
+  await row.locator('input').nth(0).fill(name);
+  await row.locator('input').nth(1).fill(value);
+  return row;
 }
 
 async function stubUplot(page) {
@@ -1117,5 +1264,419 @@ test.describe('query submission safety', () => {
 
     await page.locator('.database-header').first().click({ button: 'right' });
     await expect(page.locator('#navigator-context-menu')).not.toContainText('Generate schema compat table');
+  });
+
+  test('settings is a routable workspace and preferences remain synchronized', async ({ page }) => {
+    await openSettings(page);
+
+    await expect(page).toHaveURL(/(?:\?|&)view=settings(?:&|$)/);
+    await expect(page.locator('dialog')).toHaveCount(0);
+    await page.locator('#settings-abort-preview').check();
+    await expect(page.locator('#abort-preview-limit')).toBeChecked();
+    await page.locator('#settings-compact-editor').check();
+    await expect(page.locator('#query_div')).toHaveClass(/compact/);
+    await page.locator('#settings-snippet-mode').selectOption('overwrite');
+    await expect(page.locator('#snippet-insertion-mode')).toHaveValue('overwrite');
+
+    await page.reload();
+    await expect(page.locator('#settings_workspace')).toBeVisible();
+    await expect(page.locator('#settings-abort-preview')).toBeChecked();
+    await expect(page.locator('#settings-compact-editor')).toBeChecked();
+    await expect(page.locator('#settings-snippet-mode')).toHaveValue('overwrite');
+  });
+
+  test('preference storage events synchronize another open app tab', async ({ page, context }) => {
+    const otherPage = await context.newPage();
+    await openApp(otherPage, fakeClickHouse.url);
+    await openSettings(otherPage);
+    await openSettings(page);
+
+    await page.locator('#settings-query-cache').check();
+    await expect(otherPage.locator('#settings-query-cache')).toBeChecked();
+    await expect(otherPage.locator('#download-use-cache')).toBeChecked();
+
+    await otherPage.close();
+  });
+
+  test('failed effective-settings tests preserve the connection draft and stay stateless', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-query-default-add').click();
+    const row = await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '3');
+    fakeClickHouse.rejectNextSettingsTest();
+    await page.locator('#settings-query-default-test').click();
+
+    await expect(page.locator('#settings-query-default-message')).toContainText('Invalid setting value');
+    await expect(row.locator('input').nth(1)).toHaveValue('3');
+    expect(fakeClickHouse.statelessSettingsTestRequests).toHaveLength(1);
+    expect(fakeClickHouse.statelessSettingsTestRequests[0].params).toMatchObject({ max_threads: '3' });
+    expect(fakeClickHouse.statelessSettingsTestRequests[0].params.session_id).toBeUndefined();
+    expect(await page.evaluate(() => window.localStorage.getItem(query_defaults_key))).toBeNull();
+  });
+
+  test('catalog metadata blocks readonly settings and duplicate rows before save', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-query-default-add').click();
+    const readonlyRow = await addSettingsEditorRow(page, '#settings-query-default-rows', 'readonly_example', '1');
+    await expect(readonlyRow.locator('.settings-setting-warning')).toContainText('readonly');
+    await page.locator('#settings-query-default-save').click();
+    await expect(page.locator('#settings-query-default-message')).toContainText('readonly');
+    await readonlyRow.getByRole('button', { name: 'Remove' }).click();
+
+    await page.locator('#settings-query-default-add').click();
+    const first = await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '2');
+    await expect(first.locator('.settings-setting-help')).toContainText('Maximum query threads');
+    await page.locator('#settings-query-default-add').click();
+    await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '3');
+    await page.locator('#settings-query-default-save').click();
+    await expect(page.locator('#settings-query-default-message')).toContainText('duplicate');
+    expect(await page.evaluate(() => window.localStorage.getItem(query_defaults_key))).toBeNull();
+  });
+
+  test('settings catalog combobox virtualizes every ranked result and supports pointer and keyboard selection', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-query-default-add').click();
+    const row = page.locator('#settings-query-default-rows .settings-editor-row')
+      .filter({ has: page.locator('input:not(:disabled)') })
+      .last();
+    const nameInput = row.locator('input').nth(0);
+    const combobox = page.locator('#settings-catalog-combobox');
+
+    await nameInput.fill('format');
+    await expect(combobox).toBeVisible();
+    await expect(combobox.getByRole('option').first()).toHaveAttribute('aria-setsize', '15');
+    expect(await combobox.getByRole('option').count()).toBeLessThan(15);
+    const scrollMetrics = await combobox.evaluate(element => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight);
+    await expect(combobox.getByRole('option').first().locator('.settings-catalog-option-name'))
+      .toHaveText('format_csv_delimiter');
+    await expect(combobox.getByRole('option').first().locator('.settings-catalog-option-name'))
+      .toHaveAttribute('title', 'format_csv_delimiter');
+    await expect(combobox.getByRole('option').first().locator('.settings-catalog-option-type'))
+      .toHaveAttribute('title', 'Char');
+    await expect(combobox.getByRole('option').first().locator('.settings-catalog-option-description'))
+      .toHaveAttribute('title', /complete catalog metadata remains available on hover/);
+    await expect(row.locator('.settings-setting-warning')).toHaveCount(0);
+
+    await combobox.evaluate(element => {
+      element.scrollTop = element.scrollHeight;
+      element.dispatchEvent(new Event('scroll'));
+    });
+    const finalFormatOption = combobox.getByRole('option')
+      .filter({ hasText: 'format_test_setting_14' });
+    await expect(finalFormatOption).toBeVisible();
+    await finalFormatOption.click();
+    await expect(nameInput).toHaveValue('format_test_setting_14');
+
+    await nameInput.fill('format');
+    await page.keyboard.press('End');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_test_setting_14' }))
+      .toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Home');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_csv_delimiter' }))
+      .toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('ArrowDown');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_test_setting_01' }))
+      .toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('ArrowUp');
+    await expect(combobox.getByRole('option').filter({ hasText: 'format_csv_delimiter' }))
+      .toHaveAttribute('aria-selected', 'true');
+
+    await page.keyboard.press('Escape');
+    await expect(combobox).toBeHidden();
+    await expect(row.locator('.settings-setting-warning')).toHaveCount(0);
+    await nameInput.fill('format');
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await expect(nameInput).toHaveValue('format_test_setting_14');
+    await expect(combobox).toBeHidden();
+
+    await nameInput.fill('MaxThreads');
+    await expect(combobox.getByRole('option')).toHaveCount(1);
+    await page.keyboard.press('Enter');
+    await expect(nameInput).toHaveValue('max_threads');
+    await expect(combobox).toBeHidden();
+    await expect(row.locator('.settings-setting-help')).toContainText('Maximum query threads');
+
+    await nameInput.fill('not_a_real_setting');
+    await expect(row.locator('.settings-setting-warning')).toHaveCount(0);
+    await page.keyboard.press('Tab');
+    await expect(row.locator('.settings-setting-warning')).toContainText('unavailable');
+  });
+
+  test('settings catalog combobox searches descriptions, supports pointer selection, and stays in the viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 420 });
+    await openSettings(page);
+    await page.locator('#settings-session-add').click();
+    const row = page.locator('#settings-session-rows .settings-editor-row')
+      .filter({ has: page.locator('input:not(:disabled)') })
+      .last();
+    const nameInput = row.locator('input').nth(0);
+    await nameInput.scrollIntoViewIfNeeded();
+    await nameInput.fill('CSV imports and exports');
+
+    const combobox = page.locator('#settings-catalog-combobox');
+    await expect(combobox.getByRole('option')).toHaveCount(1);
+    const bounds = await combobox.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        placement: element.dataset.placement,
+      };
+    });
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(bounds.width);
+    expect(bounds.bottom).toBeLessThanOrEqual(bounds.height);
+
+    await combobox.getByRole('option').click();
+    await expect(nameInput).toHaveValue('format_csv_delimiter');
+    await expect(row.locator('.settings-setting-help')).toHaveAttribute(
+      'title', /complete catalog metadata remains available on hover/);
+  });
+
+  test('schema-tree editor actions are disabled outside Query and cannot mutate Settings values', async ({ page }) => {
+    const databaseHeader = page.locator('.database-header').filter({ hasText: 'default' });
+    await databaseHeader.locator('.database-button').click();
+    const table = page.locator('.table')
+      .filter({ has: page.getByRole('button', { name: 'events', exact: true }) })
+      .first();
+    const tableRow = table.locator('.table-row');
+    await expect(tableRow).toBeVisible();
+    await tableRow.locator('.table-link').click();
+    const columnName = table.locator('.column-name').filter({ hasText: 'id' }).first();
+    await expect(columnName).toBeVisible();
+
+    await setEditorText(page, 'SELECT ');
+    await setEditorSelection(page, 7);
+    await tableRow.click({ button: 'right' });
+    await page.getByRole('button', { name: 'Insert name' }).click();
+    await expect(page.locator('#query')).toHaveValue('SELECT default.events');
+
+    await setEditorText(page, 'SELECT guarded;');
+    await openSettings(page);
+    await page.locator('#settings-query-default-add').click();
+    const settingRow = page.locator('#settings-query-default-rows .settings-editor-row')
+      .filter({ has: page.locator('input:not(:disabled)') })
+      .last();
+    const valueInput = settingRow.locator('input').nth(1);
+    await valueInput.fill('safe-value');
+    await valueInput.focus();
+
+    await expect(databaseHeader.locator('.navigator-header-action')).toBeDisabled();
+    await expect(tableRow.locator('.table-menu')).toBeDisabled();
+    await expect(columnName).toHaveAttribute('title', 'Available in the Query workspace');
+    await databaseHeader.click({ button: 'right' });
+    await expect(page.locator('#navigator-context-menu')).not.toHaveClass(/open/);
+    await columnName.dblclick();
+    await expect(page.locator('#query')).toHaveValue('SELECT guarded;');
+    await expect(valueInput).toHaveValue('safe-value');
+
+    await valueInput.focus();
+    await page.evaluate(() => insertIntoQueryEditor('DIRECT_GUARD', { mode: 'insert' }));
+    await expect(valueInput).toHaveValue('safe-value');
+    await expect(page.locator('#query')).toHaveValue(/DIRECT_GUARD/);
+
+    await page.locator('.navigator-connection-menu').click();
+    await expect(page.getByRole('button', { name: 'Edit connection' })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await stubUplot(page);
+    for (const workspace of ['dashboard', 'schema']) {
+      await page.locator(`#app-view-${workspace}`).click();
+      await expect(databaseHeader.locator('.navigator-header-action')).toBeDisabled();
+      await expect(tableRow.locator('.table-menu')).toBeDisabled();
+      await databaseHeader.click({ button: 'right' });
+      await expect(page.locator('#navigator-context-menu')).not.toHaveClass(/open/);
+      await columnName.dblclick();
+      await expect(page.locator('#query')).toHaveValue(/DIRECT_GUARD/);
+    }
+  });
+
+  test('connection Query Defaults are URL parameters and never rewrite editor SQL', async ({ page }) => {
+    await openSettings(page);
+    await expect(page.locator('#settings-query-default-scope')).toHaveValue('connection');
+    await page.locator('#settings-query-default-add').click();
+    await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '3');
+    await page.locator('#settings-query-default-save').click();
+    await expect(page.locator('#settings-query-default-message')).toContainText('saved');
+
+    await page.locator('#app-view-query').click();
+    const sql = 'SELECT 42 AS answer;';
+    await setEditorText(page, sql);
+    await page.locator('#run').click();
+
+    await expect.poll(() => fakeClickHouse.submissions).toEqual([sql]);
+    expect(fakeClickHouse.editorRequests).toHaveLength(1);
+    expect(fakeClickHouse.editorRequests[0].body).toBe(sql);
+    expect(fakeClickHouse.editorRequests[0].params).toMatchObject({
+      max_threads: '3',
+      session_check: '1',
+      session_timeout: '1800',
+    });
+  });
+
+  test('Query Defaults and session parameters stay off dashboard and query-log traffic', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-query-default-add').click();
+    await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '3');
+    await page.locator('#settings-query-default-save').click();
+
+    await page.locator('#app-view-query').click();
+    await setEditorText(page, 'SELECT 9;');
+    await page.locator('#run').click();
+    await expect.poll(() => fakeClickHouse.submissions.length).toBe(1);
+    await expect.poll(() => fakeClickHouse.allRequests.some(request =>
+      request.body.includes('FROM system.query_log')
+    )).toBe(true);
+
+    await stubUplot(page);
+    await page.locator('#app-view-dashboard').click();
+    await expect.poll(() => fakeClickHouse.dashboardChartRequests.length).toBe(1);
+
+    const backgroundRequests = [
+      ...fakeClickHouse.dashboardRequests,
+      ...fakeClickHouse.dashboardChartRequests,
+      ...fakeClickHouse.allRequests.filter(request => request.body.includes('FROM system.query_log')),
+    ];
+    for (const request of backgroundRequests) {
+      expect(request.params.session_id).toBeUndefined();
+      expect(request.params.session_check).toBeUndefined();
+      expect(request.params.max_threads).toBeUndefined();
+    }
+  });
+
+  test('connection override and suppression resolve over a global Query Default', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-query-default-scope').selectOption('global');
+    await page.locator('#settings-query-default-add').click();
+    await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '2');
+    await page.locator('#settings-query-default-save').click();
+
+    await page.locator('#settings-query-default-scope').selectOption('connection');
+    await page.locator('#settings-query-default-add').click();
+    const connectionRow = await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '4');
+    await page.locator('#settings-query-default-save').click();
+    await page.locator('#app-view-query').click();
+    await setEditorText(page, 'SELECT 4;');
+    await page.locator('#run').click();
+    await expect.poll(() => fakeClickHouse.submissions.length).toBe(1);
+    expect(fakeClickHouse.editorRequests[0].params.max_threads).toBe('4');
+
+    await page.locator('#app-view-settings').click();
+    await connectionRow.locator('select').selectOption('suppress');
+    await page.locator('#settings-query-default-save').click();
+    await page.locator('#app-view-query').click();
+    await setEditorText(page, 'SELECT 5;');
+    await page.locator('#run').click();
+    await expect.poll(() => fakeClickHouse.submissions.length).toBe(2);
+    expect(fakeClickHouse.editorRequests[1].params.max_threads).toBeUndefined();
+  });
+
+  test('connection Query Default overrides do not leak when the active connection changes', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-query-default-scope').selectOption('global');
+    await page.locator('#settings-query-default-add').click();
+    await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '2');
+    await page.locator('#settings-query-default-save').click();
+    await page.locator('#settings-query-default-scope').selectOption('connection');
+    await page.locator('#settings-query-default-add').click();
+    await addSettingsEditorRow(page, '#settings-query-default-rows', 'max_threads', '4');
+    await page.locator('#settings-query-default-save').click();
+
+    const secondConnectionId = await page.evaluate(() => {
+      const connection = createConnection('Second');
+      saveConnectionRecord(connection);
+      return connection.id;
+    });
+    await expect.poll(() => page.evaluate(() => current_connection_id)).toBe(secondConnectionId);
+    await page.locator('#app-view-query').click();
+    await setEditorText(page, 'SELECT 2;');
+    await page.locator('#run').click();
+    await expect.poll(() => fakeClickHouse.submissions.length).toBe(1);
+    expect(fakeClickHouse.editorRequests[0].params.max_threads).toBe('2');
+  });
+
+  test('deleting a connection tombstones its Query Defaults at the same revision', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const connection = createConnection('Disposable');
+      saveConnectionRecord(connection);
+      replaceQueryDefaultsScope('connection', connection.id, [
+        { name: 'max_threads', value: '4', mode: 'set' },
+      ]);
+      deleteConnectionById(connection.id);
+      const connectionRecord = getSavedConnectionStore().connections.find(candidate => candidate.id == connection.id);
+      const defaultRecord = loadQueryDefaults().records.find(candidate => candidate.connection_id == connection.id);
+      return {
+        connectionDeletedAt: connectionRecord.deleted_at,
+        defaultDeletedAt: defaultRecord.deleted_at,
+      };
+    });
+
+    expect(result.connectionDeletedAt).not.toBe('');
+    expect(result.defaultDeletedAt).toBe(result.connectionDeletedAt);
+  });
+
+  test('managed Session Settings apply once and editor queries share the checked session', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-session-add').click();
+    await addSettingsEditorRow(page, '#settings-session-rows', 'max_threads', '5');
+    await page.locator('#settings-session-apply').click();
+    await expect(page.locator('#settings-session-message')).toContainText('applied');
+    await expect(page.locator('#settings-session-status')).toHaveText('Active');
+
+    expect(fakeClickHouse.sessionRequests).toHaveLength(1);
+    expect(fakeClickHouse.sessionRequests[0].body).toBe("SET max_threads = '5'");
+    const sessionId = fakeClickHouse.sessionRequests[0].params.session_id;
+
+    await page.locator('#app-view-query').click();
+    await setEditorText(page, 'SELECT 5;');
+    await page.locator('#run').click();
+    await expect.poll(() => fakeClickHouse.submissions).toEqual(['SELECT 5;']);
+    expect(fakeClickHouse.editorRequests[0].params).toMatchObject({
+      session_id: sessionId,
+      session_check: '1',
+    });
+  });
+
+  test('session expiry recovers once, lock does not retry, and reload rotates the transport ID', async ({ page }) => {
+    await openSettings(page);
+    await page.locator('#settings-session-add').click();
+    await addSettingsEditorRow(page, '#settings-session-rows', 'max_threads', '6');
+    await page.locator('#settings-session-apply').click();
+    await expect(page.locator('#settings-session-status')).toHaveText('Active');
+    const originalSessionId = fakeClickHouse.sessionRequests.at(-1).params.session_id;
+
+    await page.locator('#app-view-query').click();
+    fakeClickHouse.expireNextSession();
+    await setEditorText(page, 'SELECT 6;');
+    await page.locator('#run').click();
+    await expect.poll(() => fakeClickHouse.submissions).toEqual(['SELECT 6;']);
+    const recoveredSessionId = fakeClickHouse.editorRequests.at(-1).params.session_id;
+    expect(recoveredSessionId).not.toBe(originalSessionId);
+    expect(fakeClickHouse.sessionRequests.at(-1).body).toBe("SET max_threads = '6'");
+
+    fakeClickHouse.lockNextSession();
+    await setEditorText(page, 'SELECT 7;');
+    await page.locator('#run').click();
+    await expect(page.locator('.error-output')).toContainText('SESSION_IS_LOCKED');
+    expect(fakeClickHouse.submissions).toEqual(['SELECT 6;']);
+    await expect(page.locator('#settings-session-status')).toHaveText('Busy');
+
+    await page.reload();
+    await page.locator('#app-view-query').click();
+    await setEditorText(page, 'SELECT 8;');
+    await page.locator('#run').click();
+    await expect.poll(() => fakeClickHouse.submissions).toEqual(['SELECT 6;', 'SELECT 8;']);
+    const reloadedSessionId = fakeClickHouse.editorRequests.at(-1).params.session_id;
+    expect(reloadedSessionId).not.toBe(recoveredSessionId);
+    expect(fakeClickHouse.sessionRequests.at(-1).body).toBe("SET max_threads = '6'");
   });
 });

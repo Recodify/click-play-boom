@@ -86,58 +86,6 @@ function getCurrentDashboardConnection() {
     };
 }
 
-function updateWorkspaceTabs() {
-    const is_query = current_workspace_view == 'query';
-    const is_dashboard = current_workspace_view == 'dashboard';
-    const is_schema = current_workspace_view == 'schema';
-    document.body.classList.toggle('workspace-query', is_query);
-    document.body.classList.toggle('workspace-dashboard', is_dashboard);
-    document.body.classList.toggle('workspace-schema', is_schema);
-    app_view_query_elem.classList.toggle('active', is_query);
-    app_view_dashboard_elem.classList.toggle('active', is_dashboard);
-    app_view_schema_elem.classList.toggle('active', is_schema);
-    app_view_query_elem.setAttribute('aria-selected', is_query ? 'true' : 'false');
-    app_view_dashboard_elem.setAttribute('aria-selected', is_dashboard ? 'true' : 'false');
-    app_view_schema_elem.setAttribute('aria-selected', is_schema ? 'true' : 'false');
-    dashboard_workspace_elem.hidden = !is_dashboard;
-    schema_workspace_elem.hidden = !is_schema;
-    results_workspace_elem.hidden = !is_query;
-}
-
-function updateWorkspaceUrl(view) {
-    try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('view', view);
-        window.history.replaceState(window.history.state, '', url);
-    } catch (e) {
-        // Some file:// contexts do not allow history mutation.
-    }
-}
-
-function setWorkspaceView(view, options = {}) {
-    current_workspace_view = ['dashboard', 'schema'].includes(view) ? view : 'query';
-    updateWorkspaceTabs();
-    if (options.update_url !== false) {
-        updateWorkspaceUrl(current_workspace_view);
-    }
-
-    if (current_workspace_view == 'dashboard') {
-        void ensureDashboardLoaded(options);
-    } else if (current_workspace_view == 'schema') {
-        void ensureSchemaLoaded(options);
-    } else {
-        resizeChart();
-        query_area.focus();
-    }
-}
-
-function initializeWorkspaceViews() {
-    app_view_query_elem.addEventListener('click', () => setWorkspaceView('query'));
-    app_view_dashboard_elem.addEventListener('click', () => setWorkspaceView('dashboard'));
-    app_view_schema_elem.addEventListener('click', () => setWorkspaceView('schema'));
-    updateWorkspaceTabs();
-}
-
 function initializeDashboardView() {
     if (dashboard_state.initialized) {
         return;

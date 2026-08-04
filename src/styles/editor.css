@@ -26,6 +26,8 @@
             min-width: 0;
             flex: 0 0 auto;
             margin-left: auto;
+            max-width: 100%;
+            overflow-x: auto;
         }
 
         .app-view-tab
@@ -323,19 +325,24 @@
         body.workspace-dashboard #results_workspace,
         body.workspace-schema #query_div,
         body.workspace-schema #run_div,
-        body.workspace-schema #results_workspace
+        body.workspace-schema #results_workspace,
+        body.workspace-settings #query_div,
+        body.workspace-settings #run_div,
+        body.workspace-settings #results_workspace
         {
             display: none;
         }
 
         body.workspace-query #dashboard_workspace,
-        body.workspace-query #schema_workspace
+        body.workspace-query #schema_workspace,
+        body.workspace-query #settings_workspace
         {
             display: none;
         }
 
         body.workspace-dashboard #controls,
-        body.workspace-schema #controls
+        body.workspace-schema #controls,
+        body.workspace-settings #controls
         {
             margin-bottom: 0;
         }

@@ -7,6 +7,9 @@ function setColorTheme(new_theme, update_preference) {
     redrawChart();
     redrawDashboardCharts();
     redrawSchemaGraph();
+    if (typeof syncSettingsPreferenceControls == 'function') {
+        syncSettingsPreferenceControls();
+    }
 }
 /// First we check if theme is set via the 'theme' GET parameter, if not, we check localStorage, otherwise we check OS preference.
 let theme = current_url.searchParams.get('theme');
@@ -14,22 +17,24 @@ if (['dark', 'light'].indexOf(theme) === -1) {
     theme = window.localStorage.getItem('theme');
 }
 
+const system_theme_media_query = window.matchMedia('(prefers-color-scheme: dark)');
 if (theme) {
     document.documentElement.setAttribute('data-theme', theme);
 } else {
     /// Obtain system-level user preference
-    const media_query_list = window.matchMedia('(prefers-color-scheme: dark)');
-    if (media_query_list.matches) {
+    if (system_theme_media_query.matches) {
         setColorTheme('dark');
     } else {
         setColorTheme('light');
     }
-
-    /// There is a rumor that on some computers, the theme is changing automatically on day/night.
-    media_query_list.addEventListener('change', function(e) {
-        setColorTheme(e.matches ? 'dark' : 'light');
-    });
 }
+
+/// There is a rumor that on some computers, the theme is changing automatically on day/night.
+system_theme_media_query.addEventListener('change', function(e) {
+    if (!['dark', 'light'].includes(current_url.searchParams.get('theme')) && getStoredThemePreference() == 'system') {
+        setColorTheme(e.matches ? 'dark' : 'light');
+    }
+});
 
 document.getElementById('new-connection').addEventListener('click', () => {
     openConnectionEditor();
@@ -162,6 +167,10 @@ window.addEventListener('storage', handleLocalStorageChanged);
 
 setSidebarCollapsed(window.localStorage.getItem(sidebar_collapsed_key) === '1', false);
 loadConnections();
+initializeSettingsWorkspace();
+if (current_workspace_view == 'settings') {
+    void ensureSettingsLoaded();
+}
 updateRunButtonText();
 void updateQueryHighlighting();
 

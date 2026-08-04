@@ -136,7 +136,7 @@
                         <span id="url_status"><span id="server_info" class="navigator-footer-status-text">Connection
                                 status unavailable</span>●</span>
                         <span id="client-version" class="client-version" title="Client UI version">client
-                            2026.07.22.2</span>
+                            2026.08.03.1</span>
                     </div>
                 </div>
             </div>
@@ -248,6 +248,8 @@
                         aria-selected="false">Dashboard</button>
                     <button id="app-view-schema" class="app-view-tab" type="button" role="tab"
                         aria-selected="false">Schema</button>
+                    <button id="app-view-settings" class="app-view-tab" type="button" role="tab"
+                        aria-selected="false">Settings</button>
                 </div>
                 <div id="theme"><span id="toggle-dark" title="Switch to dark theme">🌘</span><span id="toggle-light"
                         title="Switch to light theme">☀️</span></div>
@@ -429,6 +431,119 @@
                         title="Zoom in" aria-label="Zoom in">+</button>
                 </div>
             </div>
+        </section>
+        <section id="settings_workspace" class="settings-workspace" hidden>
+            <header class="settings-header">
+                <div>
+                    <h1>Settings</h1>
+                    <p>Preferences are global. Session Settings and connection-scoped Query Defaults apply to
+                        <strong id="settings-connection-name">the active connection</strong>.</p>
+                </div>
+                <div class="settings-catalog-actions">
+                    <span id="settings-catalog-status" class="settings-inline-status" role="status"
+                        aria-live="polite">Setting catalog not loaded</span>
+                    <button id="settings-catalog-refresh" type="button">Refresh setting catalog</button>
+                </div>
+            </header>
+
+            <div class="settings-sections">
+                <section class="settings-card" aria-labelledby="settings-preferences-title">
+                    <div class="settings-card-heading">
+                        <div>
+                            <h2 id="settings-preferences-title">User Preferences</h2>
+                            <p>Browser-wide display and editor behavior.</p>
+                        </div>
+                    </div>
+                    <div class="settings-preference-grid">
+                        <label class="settings-field">
+                            <span>Theme</span>
+                            <select id="settings-theme">
+                                <option value="system">System</option>
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </label>
+                        <label class="settings-field">
+                            <span>Snippet insertion</span>
+                            <select id="settings-snippet-mode">
+                                <option value="append">Append</option>
+                                <option value="insert">Insert at cursor</option>
+                                <option value="overwrite">Replace query</option>
+                            </select>
+                        </label>
+                        <label class="settings-check"><input id="settings-abort-preview" type="checkbox">
+                            <span>Abort at preview limit</span></label>
+                        <label class="settings-check"><input id="settings-query-cache" type="checkbox">
+                            <span>Reuse cached results for download and copy</span></label>
+                        <label class="settings-check"><input id="settings-navigator-types" type="checkbox">
+                            <span>Show navigator engine and type metadata</span></label>
+                        <label class="settings-check"><input id="settings-compact-editor" type="checkbox">
+                            <span>Compact query editor</span></label>
+                    </div>
+                    <div id="settings-preferences-message" class="settings-message" role="status"
+                        aria-live="polite"></div>
+                </section>
+
+                <section class="settings-card" aria-labelledby="settings-session-title">
+                    <div class="settings-card-heading">
+                        <div>
+                            <h2 id="settings-session-title">Session Settings</h2>
+                            <p>Managed values are replayed in this tab. Reload starts a new HTTP session; temporary
+                                tables, <code>USE</code>, and manually entered <code>SET</code> state are discarded.</p>
+                        </div>
+                        <span id="settings-session-status" class="settings-status-badge">Not started</span>
+                    </div>
+                    <div class="settings-session-meta">
+                        <span>Connection: <strong id="settings-session-connection">None</strong></span>
+                        <span>Inactivity timeout: <strong>30 minutes</strong></span>
+                    </div>
+                    <div id="settings-session-rows" class="settings-editor-rows"></div>
+                    <div class="settings-actions">
+                        <button id="settings-session-add" type="button">Add setting</button>
+                        <span class="settings-action-spacer"></span>
+                        <button id="settings-session-restart" type="button">Restart session</button>
+                        <button id="settings-session-apply" class="settings-primary-action" type="button">Apply</button>
+                    </div>
+                    <div id="settings-session-message" class="settings-message" role="status"
+                        aria-live="polite"></div>
+                </section>
+
+                <section class="settings-card settings-card-wide" aria-labelledby="settings-query-defaults-title">
+                    <div class="settings-card-heading">
+                        <div>
+                            <h2 id="settings-query-defaults-title">Query Defaults</h2>
+                            <p>Sent as HTTP parameters only for queries submitted from the editor. SQL is never
+                                rewritten, and background requests remain stateless.</p>
+                        </div>
+                    </div>
+                    <div class="settings-query-toolbar">
+                        <label class="settings-field settings-scope-field">
+                            <span>View and edit</span>
+                            <select id="settings-query-default-scope">
+                                <option value="connection" selected>Current connection</option>
+                                <option value="global">Global</option>
+                                <option value="effective">Effective</option>
+                            </select>
+                        </label>
+                        <label class="settings-field settings-search-field">
+                            <span>Filter</span>
+                            <input id="settings-query-default-filter" type="search"
+                                placeholder="Setting name or description" spellcheck="false">
+                        </label>
+                    </div>
+                    <div id="settings-query-default-rows" class="settings-editor-rows"></div>
+                    <div class="settings-actions">
+                        <button id="settings-query-default-add" type="button">Add setting</button>
+                        <span class="settings-action-spacer"></span>
+                        <button id="settings-query-default-test" type="button">Test effective settings</button>
+                        <button id="settings-query-default-save" class="settings-primary-action" type="button">Save</button>
+                    </div>
+                    <div id="settings-query-default-message" class="settings-message" role="status"
+                        aria-live="polite"></div>
+                </section>
+            </div>
+            <div id="settings-catalog-combobox" class="settings-catalog-combobox" role="listbox"
+                aria-label="ClickHouse settings" hidden></div>
         </section>
         <div id="download-dropdown">
             <div>
