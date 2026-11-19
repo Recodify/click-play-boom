@@ -1,5 +1,12 @@
 # Release Notes
 
+## client 2026.11.19.1
+
+- Reworked the README around product capabilities rather than workspace navigation, with complete coverage of authoring, execution, navigation,
+  SQL generation, snippets, history, result sharing, downloads, visualization, and scoped settings.
+- Added consistently scaled light-theme product and feature screenshots while retaining an explicitly labelled dark-theme example.
+- Moved repository, contributor, status, and lineage information behind the product overview, quick start, and detailed feature guide.
+
 ## client 2026.09.02.2
 
 - Made direct opening of the standalone HTML file the primary demo workflow and removed the unnecessary Python web-server prerequisite.
