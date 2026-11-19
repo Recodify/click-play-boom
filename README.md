@@ -1,197 +1,180 @@
-# click-play-boom
+# Click Play Boom
 
-`click-play-boom` is a single-file ClickHouse HTTP query interface.
+**A full ClickHouse workbench delivered as one deployable HTML file.**
 
-![dark theme query editor](./imgs/dark.png)
-
-A rework of the ClickHouse Play page that keeps the same lightweight shape:
-
-- one self-contained deployable HTML file
-- split source files for development
-- no framework or runtime package dependencies
-- no external resources loaded on startup.
-
-The rework focuses on making the browser UI useful for real query work rather than only one-off single-statement experiments.
+Click Play Boom turns the lightweight ClickHouse Play page into a browser workspace for exploring servers, writing and running SQL, inspecting
+results, monitoring dashboards, visualizing schemas, and managing query behavior. Deployment is simply: open
+[`click-play-boom.html`](./click-play-boom.html). The application needs no web server, framework, package installation, or startup resource fetches;
+serving the same file over HTTP is optional.
 
 
-## What It Does
+## Four Workspaces, One Connection
 
-- Runs ClickHouse queries over the HTTP interface.
-- Executes all statements in the editor, or only the currently selected text.
-- Splits multi-statement scripts using the embedded ClickHouse lexer when WebAssembly is available.
-- Shows each executed statement in its own result tab.
-- Keeps an action history for executed statements and their status.
-- Manages multiple saved connections in browser local storage.
-- Shows the active connection clearly above the editor.
-- Loads schemas through a navigator with databases, tables, dictionaries, views, materialized views, and columns.
-- Inserts database, table, dictionary, view, and column names from the navigator into the query editor.
-- Provides table actions to generate common SQL:
-  - `SELECT *`
-  - `SELECT` with all column names
-  - `SELECT count(*)`
-  - `SELECT formatReadableQuantity(count(*))`
-  - `SHOW TABLE`
-  - `system.tables` lookup
-  - `system.query_log` lookup
-  - `INSERT` template
-  - `DROP TABLE` / `DROP DICTIONARY` / `DROP VIEW`
-- Provides numeric column actions to generate quantile/min/avg/max stats SQL.
-- Stores query snippets in local folders.
-- Supports result downloads in ClickHouse formats such as CSV, TSV, JSON, JSONLines, Parquet, Markdown, or a custom format.
-- Can optionally write preview results to ClickHouse query cache so a later download can reuse the same result.
-- Supports compact editor mode, resizable sidebar, and light/dark themes.
+| Workspace | What it provides |
+| --- | --- |
+| **Query** | A script editor with schema autocomplete, multi-statement execution, result tabs, history, charts, downloads, and formatted copying. |
+| **Dashboard** | Native rendering of ClickHouse dashboards with time controls, synchronized zoom, editable charts, reordering, and a JSON editor. |
+| **Schema** | An interactive dependency graph with columns, engines, materialized-view flows, dictionary sources, details, and load heat maps. |
+| **Settings** | Global preferences, managed per-connection HTTP sessions, and global or connection-scoped query defaults. |
 
-## Files
+The active saved connection follows you between workspaces. Dashboard, Schema, navigator, autocomplete, download, and query-log requests remain
+stateless; only queries submitted from the editor participate in its managed session and Query Defaults.
 
-- [`click-play-boom.html`](./click-play-boom.html) is the generated, committed app artifact. Open or deploy this file.
-- [`src/`](./src/) contains the editable source HTML, CSS, JavaScript, templates, and embedded assets.
-- [`tools/build-single-file.mjs`](./tools/build-single-file.mjs) assembles the source files into the root HTML artifact.
+## Query Workspace
 
-Edit files under `src/`, then regenerate the artifact:
+![Query workspace showing the schema navigator and a formatted result](./imgs/query-dark.png)
 
-```bash
-npm run build
-```
+The editor works as a SQL script buffer rather than a single-query box:
 
-Install the repo-managed pre-commit hook once to regenerate and stage the artifact automatically during local commits:
+- Run the selected text, or every statement when there is no selection, with `Ctrl+Enter` / `Cmd+Enter`.
+- Split scripts with the embedded ClickHouse WebAssembly lexer, with a simple semicolon fallback when WebAssembly is unavailable.
+- Execute statements sequentially and keep each response in its own status-bearing result tab.
+- Complete databases, tables, views, dictionaries, and columns from lazily loaded schema metadata.
+- Use four-space Tab indentation, Shift+Tab outdent, syntax highlighting, a resizable editor, and compact mode.
+- Render streaming table results, raw formats, `JSONCompactColumns` charts, and ClickHouse `EXPLAIN` graphs.
+- Inspect row counts, transfer volume, query time, memory usage, and query-log statistics without losing prior results.
+- Copy results as Markdown, CSV, or TSV; copy a query and its result as one Markdown document; or download in any ClickHouse output format.
+- Optionally reuse ClickHouse query-cache entries for result copying and downloads instead of rerunning expensive queries.
 
-```bash
-npm run hooks:install
-```
+The sidebar complements the editor with:
 
-Check that the committed artifact is fresh:
+- Multiple saved connections organized into folders, with connection status and server version visible at a glance.
+- A lazy schema navigator whose database, table, view, dictionary, and numeric-column actions generate useful SQL safely into the editor.
+- Searchable snippet folders with append, insert-at-cursor, and replace modes, ordering controls, and JSON import/export.
+- Per-statement execution history linked back to the corresponding result tab.
 
-```bash
-npm run build:check
-```
+## Dashboard Workspace
 
-Run the focused browser safety tests for query selection/submission:
+![Dashboard workspace rendering queries against the demo database](./imgs/dashboard-dark.png)
 
-```bash
-npm run browsers:install
-npm run test:query-submit
-```
+Dashboard loads the definitions exposed by `system.dashboards` and renders them inside the application using the active connection. Relative or
+absolute time ranges and bucket controls apply immediately, while charts support synchronized zoom, reset, height expansion, and drag reordering.
+Charts can be added, edited, or removed transiently, and the entire working dashboard can be edited as JSON.
 
-## Usage
+The repository includes [`demo/dashboard.json`](./demo/dashboard.json), the four-chart definition used for the screenshot above.
 
-Open [`click-play-boom.html`](./click-play-boom.html) in a browser.
+## Schema Workspace
 
-By default, when opened from the filesystem, it targets:
+![Schema workspace showing tables, a materialized-view pipeline, and a dictionary dependency](./imgs/schema-dark.png)
+
+Schema turns ClickHouse metadata into an interactive graph:
+
+- Search tables and columns, filter databases, include system tables, and toggle column details.
+- Follow table/view dependencies, materialized-view targets, dictionary sources, and Distributed table relationships.
+- Inspect engine details, keys, row/byte counts, comments, refresh state, and lazily formatted `CREATE` statements.
+- Re-layout, drag, select, and zoom the graph.
+- Colour materialized-view pipelines by executions, rows, bytes, duration, or memory recorded in `system.query_views_log`.
+- Supply compatibility metadata for ClickHouse versions that do not expose materialized-view targets in `system.tables`.
+
+## Settings Workspace
+
+![Settings workspace with managed session settings and effective query defaults](./imgs/settings-dark.png)
+Settings centralizes browser preferences and query behavior. Its virtualized, ranked settings picker exposes every matching entry from
+`system.settings` without rendering the entire catalog into the DOM.
+
+Session Settings are managed per connection and browser tab. The application replays configured values into a dedicated ClickHouse HTTP session,
+detects busy or expired sessions, performs one controlled recovery, and starts a fresh session after a page reload. Query Defaults are sent as HTTP
+parameters for editor queries without rewriting SQL; global values can be overridden or suppressed per connection and tested before use.
+
+## Quick Start
+
+Open [`click-play-boom.html`](./click-play-boom.html) directly in a browser. A file-based launch defaults to:
 
 ```text
 http://localhost:8123/
 ```
 
-When served over HTTP, it defaults to the same origin that served the page. You can also pass connection details in the URL:
+When served over HTTP, the initial connection defaults to the page's origin. Explicit connection details can be supplied in the URL:
 
 ```text
 click-play-boom.html?url=http%3A%2F%2Flocalhost%3A8123%2F&user=default
 ```
 
-The app sends queries with `add_http_cors_header=1`, so the target ClickHouse server must be reachable from the browser and allow the browser request to complete.
+The app sends `add_http_cors_header=1`, so ClickHouse must be reachable from the browser and allow the request. Saved connection details, including
+passwords, are kept in browser `localStorage`; use this as a local/development convenience rather than a secure secret store. A password supplied in
+the URL is removed from the address after the page initializes, but is still stored with the saved connection.
 
-## Running Queries
+## Reusable Demo Environment
 
-Use the editor as a SQL script buffer.
+The committed demo creates an isolated ClickHouse 26.3 LTS instance and a realistic `click_play_boom_demo` database. It includes MergeTree tables,
+an active materialized-view pipeline, a normal view, a dictionary, compatibility metadata for the Schema workspace, 80,640 request events, and 240
+deployment records. Initialization runs only when the demo volume is first created.
 
-- Press `Ctrl+Enter` or `Cmd+Enter` to run.
-- If text is selected, only the selected text is executed.
-- If nothing is selected, all statements in the editor are executed.
-- Each statement is run sequentially and receives its own result tab.
-- Press the run button while a query is active to stop after the current request is cancelled.
+Start it:
 
-The current implementation uses ClickHouse lexer tokenization for statement splitting when the browser supports WebAssembly. If WebAssembly is unavailable, it falls back to simple semicolon splitting.
+```bash
+docker compose -f demo/compose.yaml up -d --wait
+```
 
-## Navigator
+Open [`click-play-boom.html`](./click-play-boom.html) directly. In the Navigator, select **New connection** (`+`) and enter the demo connection
+details below. No application server is required.
 
-The left navigator stores connections locally and lazy-loads schema information from ClickHouse system tables.
+The demo endpoints and credentials are:
 
-- Select a connection to make it active and load databases.
-- Expand databases to load tables, dictionaries, and views.
-- Expand tables to load columns.
-- Use the filter box to search connections and loaded schema.
-- Use database/table context menus and column double-clicks to insert names into the editor.
-- Use table context menus to generate SQL into the editor.
-- Use the connection context menu to edit/delete a connection or open the native Dashboard or Schema workspace for that server.
+| Setting | Value |
+| --- | --- |
+| HTTP interface | `http://localhost:18123/` |
+| Native interface | `localhost:19000` |
+| Username | `demo` |
+| Password | `clickplayboom` |
+| Database | `click_play_boom_demo` |
 
-Connection details are stored in browser local storage, including passwords. Treat this as a local development convenience, not a secure secret store.
+Inspect the seeded data from the command line:
 
-## Snippets
+```bash
+docker compose -f demo/compose.yaml exec clickhouse \
+  clickhouse-client --user demo --password clickplayboom \
+  --query "SELECT service, count() FROM click_play_boom_demo.requests GROUP BY service ORDER BY service"
+```
 
-The snippets tab stores reusable queries in browser local storage.
+To recreate the data from the initialization scripts, remove only the demo containers and volume, then start it again:
 
-- Create folders.
-- Save the current editor contents.
-- Load snippets back into the editor by appending, inserting at the cursor, or replacing the editor contents.
-- Choose the default snippet insertion mode from the snippets panel.
-- Append, insert, replace, rename, update, or delete snippets through their context menus.
+```bash
+docker compose -f demo/compose.yaml down --volumes
+docker compose -f demo/compose.yaml up -d --wait
+```
 
-## Downloads
+To reproduce the Dashboard screenshot, open the Dashboard workspace, choose **Edit dashboard JSON**, replace the editor contents with
+[`demo/dashboard.json`](./demo/dashboard.json), and apply the change.
 
-After a successful query, use the download control to rerun the active result query with a download-oriented output format. The download filename can be provided manually, or left blank to derive a name from the first `FROM` table in the query.
+## Deployment and Development
 
-Supported presets are:
+The repository separates maintainable source from the deployable artifact:
 
-- `CSVWithNames` shown as `CSV (with headers)`
-- `TSVWithNames` shown as `TSV (with headers)`
-- `JSON`
-- `Parquet`
-- `Markdown`
+- [`click-play-boom.html`](./click-play-boom.html) is the generated, committed application. Open or deploy this file.
+- [`src/`](./src/) contains the editable HTML, CSS, JavaScript, templates, and embedded assets.
+- [`tools/build-single-file.mjs`](./tools/build-single-file.mjs) assembles the source tree into the root HTML artifact.
+- [`demo/`](./demo/) contains the reproducible ClickHouse environment and screenshot dashboard definition.
 
-Additional ClickHouse formats are available in the dropdown, and you can still enter any ClickHouse format name manually. Downloaded files use normalized file extensions such as `.csv`, `.tsv`, `.jsonl`, `.parquet`, and `.md`.
+No npm installation or bundler is required to run the generated application. Development uses Node for the small build tool and Playwright for the
+focused browser safety tests. Edit files under `src/`, then regenerate the artifact:
 
-When "Reuse cached result for download" is enabled, preview queries are written to ClickHouse query cache and downloads are requested with query-cache reads enabled. This is useful for large or expensive results, but it depends on server support and query-cache settings.
+```bash
+npm run build
+```
 
-## Browser State
-
-The app stores preferences and local data in `localStorage`, including:
-
-- saved connections
-- active connection
-- navigator expansion state
-- sidebar width/collapsed state
-- active sidebar tab
-- query snippets
-- compact editor preference
-- download cache preference
-- theme preference
-
-
-## Development
-
-The project keeps the original ClickHouse Play deployment constraint of being a standalone HTML document:
-
-- CSS is authored under `src/styles/` and embedded into the generated page.
-- JavaScript is authored under `src/scripts/` and embedded into the generated page.
-- Templates and assets are authored under `src/templates/` and `src/assets/`.
-- No npm install is required.
-- No bundler is required.
-- No external scripts, fonts, or images are loaded during startup.
-
-This keeps deployment simple: replace or serve the HTML file wherever you want the query UI to live.
-
-Useful development checks:
+Install the repository-managed pre-commit hook once to regenerate and stage the artifact automatically:
 
 ```bash
 npm run hooks:install
-npm run build
+```
+
+Useful checks are:
+
+```bash
 npm run build:check
 npm run browsers:install
 npm run test:query-submit
 node --check tools/build-single-file.mjs
 find src/scripts -name '*.js' -print0 | xargs -0 -n1 node --check
+docker compose -f demo/compose.yaml config --quiet
 ```
+
+The generated page embeds its CSS, application JavaScript, templates, icons, and ClickHouse lexer. It loads no external resources during startup;
+the larger upstream visualization libraries used for charts and `EXPLAIN` graphs are fetched lazily only when those features are requested.
 
 ## Lineage
 
-A fork of https://github.com/ClickHouse/ClickHouse/blob/v26.3.3.20-lts/programs/server/play.html
-
-## Status
-
-The app is usable as a local/development ClickHouse HTTP query UI. Known rough edges from the current implementation include:
-
-- long query text can still take up too much vertical space in result summaries
-- very wide result tables can make horizontal scrolling awkward
-- result copy-to-clipboard options are still pending
-- session/server settings management is still future work
-- saved/admin query panels are still future work
+Click Play Boom is a substantial rework of the ClickHouse Play page from
+[`ClickHouse/ClickHouse` v26.3.3.20-lts](https://github.com/ClickHouse/ClickHouse/blob/v26.3.3.20-lts/programs/server/play.html), preserving its clean,
+fast, standalone deployment model while expanding it into a practical day-to-day workspace.

@@ -1,0 +1,26 @@
+name: click-play-boom-demo
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3
+    environment:
+      CLICKHOUSE_DB: click_play_boom_demo
+      CLICKHOUSE_USER: demo
+      CLICKHOUSE_PASSWORD: clickplayboom
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "18123:8123"
+      - "19000:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "demo", "--password", "clickplayboom", "--query", "SELECT 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+volumes:
+  clickhouse-data:
+
