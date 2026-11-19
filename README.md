@@ -23,6 +23,7 @@ stateless; only queries submitted from the editor participate in its managed ses
 ## Query Workspace
 
 ![Query workspace showing the schema navigator and a formatted result](./imgs/query-dark.png)
+![Query workspace showing the schema navigator and a formatted result](./imgs/query.png)
 
 The editor works as a SQL script buffer rather than a single-query box:
 
