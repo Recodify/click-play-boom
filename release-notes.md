@@ -1,5 +1,15 @@
 # Release Notes
 
+## client 2026.09.02.2
+
+- Made direct opening of the standalone HTML file the primary demo workflow and removed the unnecessary Python web-server prerequisite.
+
+## client 2026.09.02.1
+
+- Reworked the README around the Query, Dashboard, Schema, and Settings workspaces with current screenshots and complete handoff commands.
+- Added a reusable Docker Compose demo pinned to ClickHouse 26.3 LTS with realistic seeded data, schema relationships, materialized-view target
+  compatibility metadata, and a four-chart dashboard definition.
+
 ## client 2026.08.03.1
 
 - Made every matching ClickHouse setting browseable through the catalog combobox while keeping DOM rendering bounded

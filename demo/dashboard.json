@@ -1,0 +1,24 @@
+{
+  "params": {
+    "seconds": "86400",
+    "rounding": "300"
+  },
+  "queries": [
+    {
+      "title": "Requests per five minutes",
+      "query": "SELECT toUnixTimestamp(bucket) AS time, sum(requests) AS requests FROM click_play_boom_demo.request_rollup_5m WHERE bucket >= now() - INTERVAL {seconds:UInt32} SECOND GROUP BY bucket ORDER BY bucket"
+    },
+    {
+      "title": "Traffic by service",
+      "query": "SELECT toUnixTimestamp(bucket) AS time, service, sum(requests) AS requests FROM click_play_boom_demo.request_rollup_5m WHERE bucket >= now() - INTERVAL {seconds:UInt32} SECOND GROUP BY bucket, service ORDER BY bucket, service"
+    },
+    {
+      "title": "Errors by service",
+      "query": "SELECT toUnixTimestamp(bucket) AS time, service, sum(errors) AS errors FROM click_play_boom_demo.request_rollup_5m WHERE bucket >= now() - INTERVAL {seconds:UInt32} SECOND GROUP BY bucket, service ORDER BY bucket, service"
+    },
+    {
+      "title": "p95 latency by service",
+      "query": "SELECT toUnixTimestamp(toStartOfFiveMinutes(observed_at)) AS time, service, quantile(0.95)(latency_ms) AS p95_ms FROM click_play_boom_demo.requests WHERE observed_at >= now() - INTERVAL {seconds:UInt32} SECOND GROUP BY time, service ORDER BY time, service"
+    }
+  ]
+}
