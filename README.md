@@ -45,7 +45,7 @@ The sidebar complements the editor with:
 
 ## Dashboard Workspace
 
-![Dashboard workspace rendering queries against the demo database](./imgs/dashboard.png)
+![Dashboard workspace rendering queries against the demo database](./imgs/dashboard-dark.png)
 
 Dashboard loads the definitions exposed by `system.dashboards` and renders them inside the application using the active connection. Relative or
 absolute time ranges and bucket controls apply immediately, while charts support synchronized zoom, reset, height expansion, and drag reordering.
@@ -55,7 +55,7 @@ The repository includes [`demo/dashboard.json`](./demo/dashboard.json), the four
 
 ## Schema Workspace
 
-![Schema workspace showing tables, a materialized-view pipeline, and a dictionary dependency](./imgs/schema.png)
+![Schema workspace showing tables, a materialized-view pipeline, and a dictionary dependency](./imgs/schema-dark.png)
 
 Schema turns ClickHouse metadata into an interactive graph:
 
