@@ -68,7 +68,7 @@ Schema turns ClickHouse metadata into an interactive graph:
 
 ## Settings Workspace
 
-![Settings workspace with managed session settings and effective query defaults](./imgs/settings.png)
+![Settings workspace with managed session settings and effective query defaults](./imgs/settings-dark.png)
 Settings centralizes browser preferences and query behavior. Its virtualized, ranked settings picker exposes every matching entry from
 `system.settings` without rendering the entire catalog into the DOM.
 
