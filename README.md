@@ -1,6 +1,6 @@
 # Click Play Boom
 
-**ClickHouse Play on steroids: a full ClickHouse workbench delivered as one deployable HTML file.**
+**ClickHouse Play with added 💥: a full ClickHouse workbench delivered as one deployable HTML file.**
 
 Click Play Boom keeps the qualities that make the original ClickHouse Play page so useful—a direct connection to ClickHouse, a fast browser UI,
 and no application server—then expands them into a practical environment for day-to-day work. Write and run SQL, explore servers, generate common
@@ -10,7 +10,7 @@ Open or serve [`click-play-boom.html`](./click-play-boom.html), connect to Click
 
 ![Click Play Boom query editor, schema navigator, and results](./imgs/query.png)
 
-## Features
+## At a glance
 
 | Feature | What it gives you |
 | --- | --- |
@@ -76,149 +76,133 @@ docker compose -f demo/compose.yaml down --volumes
 docker compose -f demo/compose.yaml up -d --wait
 ```
 
-## SQL Authoring and Multi-Statement Execution
+## Features
 
-The Query workspace is a SQL script buffer rather than a single-query box:
+### SQL Authoring and Multi-Statement Execution
 
-- Run selected text—or every statement when nothing is selected—with `Ctrl+Enter` / `Cmd+Enter`.
-- Split scripts with the embedded ClickHouse WebAssembly lexer, with a simple semicolon fallback when WebAssembly is unavailable.
-- Execute statements sequentially and keep each response in its own status-bearing result tab.
-- Complete databases, tables, views, dictionaries, aliases, and columns from lazily loaded schema metadata.
-- Load table and column metadata on demand when qualified names are typed, even if the navigator branch has not been opened.
-- Use four-space Tab indentation, Shift+Tab outdent, syntax highlighting, a resizable editor, compact mode, and editor-aware undo.
-- Keep inserted or generated runnable SQL selected so it can be executed immediately.
+Unlike the stock ClickHouse Play interface, the editor works as a proper SQL script buffer, much like the query editors in pgAdmin, DBeaver, SSMS or MySQL Workbench. Keep several statements in the same editor and run all of them, or just the ones you need.
 
-### Schema-aware autocomplete
+- **Run everything:** With no text selected, click **Run All** to execute every statement in the editor.
+- **Run a selection:** Highlight one or more statements and click **Run Selected** to execute only that selection.
+- **Use the keyboard:** `Ctrl+Enter` (`Cmd+Enter` on macOS) runs the current selection, or all statements if nothing is selected.
+- **Keep the results:** Statements execute sequentially, each with its own result tab, status, statistics and history entry. You can move between results without rerunning anything.
 
-Autocomplete understands qualified database and table names as well as tables referenced by the current statement.
-
-![Schema-aware table autocomplete](./imgs/feature-autocomplete.png)
-
-### True script execution
-
-Unlike the stock Play workflow, a script can contain several statements and run them all in one action. Each statement receives its own result tab,
-status, statistics, and history entry.
+The editor also supports syntax highlighting, four-space Tab indentation, `Shift+Tab` to outdent, undo, resizing and a compact mode. SQL generated or inserted by other parts of the application is selected ready to run. Statements are split using ClickHouse's WebAssembly lexer, with a semicolon-based fallback if WebAssembly is unavailable.
 
 ![Two statements executed into independent result tabs](./imgs/feature-multi-statement.png)
 
-## Navigator and SQL Generation
+### Schema-aware autocomplete
 
-The Navigator combines connection management with a lazy schema browser:
+Autocomplete uses the schema of the connected ClickHouse server rather than just guessing SQL keywords. It understands database-qualified names, tables referenced in the current statement, aliases and their columns, as well as views and dictionaries.
 
-- Save multiple ClickHouse connections, organize them into folders, and switch the active connection without leaving the page.
-- See connection status, server version, table engines, column types, row estimates, and storage sizes at a glance.
-- Filter connections and loaded schema from one search box.
-- Browse tables, materialized views, normal views, and dictionaries as distinct object types.
-- Double-click database, table, view, dictionary, or column names to insert correctly qualified identifiers at the cursor.
-- Refresh schema metadata after server changes without reloading the application.
+- Type a `.` after a database, table or alias to see relevant completions.
+- Press **`Ctrl+Space`** to request suggestions without a dot, for example when completing SQL clauses such as `WHERE`.
+- You don't need to expand the relevant table in the Navigator first: metadata can be loaded when you type a qualified name.
 
-Object-aware actions generate SQL in the editor for review rather than executing hidden operations. Table and view actions include:
+![Schema-aware table autocomplete](./imgs/feature-autocomplete.png)
 
-- `SELECT *` and `SELECT` with all columns
-- `count(*)` and `formatReadableQuantity(count(*))`
-- `SHOW TABLE`, `system.tables`, and `system.query_log` lookups
-- `INSERT` templates
-- Type-correct `DROP TABLE`, `DROP VIEW`, `DROP MATERIALIZED VIEW`, and `DROP DICTIONARY` statements
-- Cluster-aware destructive statements where matching Keeper metadata is available
+### Navigator and SQL Generation
+
+The Navigator in the sidebar is both a connection manager and a schema browser. Save several ClickHouse servers, group connections into folders and switch between them without opening another page. It shows connection status and server version, then loads databases and their objects as you explore them, rather than fetching the entire schema up front.
+
+Use the search box to filter connections and loaded schema. Expand a database to browse its tables, ordinary and materialized views, dictionaries and columns, including engine, type, row estimates and storage information. Double-click a database, object or column to insert its properly qualified name into the SQL editor. Refresh the schema after changing objects on the server.
+
+The useful bit is the context menu: **right-click an object to generate SQL for it** rather than typing the same queries from scratch. Depending on the object, you can generate:
+
+- `SELECT *` or an explicit `SELECT` containing all columns.
+- `count(*)` or `formatReadableQuantity(count(*))`.
+- Metadata lookups using `SHOW TABLE`, `system.tables` or `system.query_log`.
+- `INSERT` templates and type-correct `DROP` statements for tables, views, materialized views and dictionaries.
+- Cluster-aware destructive statements where matching Keeper metadata is available.
+
+Generated SQL appears in the editor for you to review and run; the Navigator doesn't execute destructive operations behind your back.
 
 ![Context-aware SQL generation from the schema navigator](./imgs/feature-sql-generation.png)
 
-Numeric columns can generate ready-to-run quantile, minimum, average, and maximum statistics queries.
+Numeric columns have their own statistics generation, including quantiles, minimum, average and maximum. Useful when you're exploring unfamiliar data and don't fancy typing a miniature analytics query every time.
 
 ![Statistics SQL generated from a numeric column](./imgs/feature-stats-generation.png)
 
-## Snippets and History
+### Snippets and History
 
-Snippets turn the sidebar into a lightweight SQL library or command palette:
+**Snippets** are saved bits of SQL you want to reuse. Organize them into folders, search for them and insert them into the editor without hunting through old files or query tabs.
 
-- Organize snippets into searchable, reorderable folders.
-- Append a snippet, insert it at the cursor, or replace the editor contents.
-- Choose a default insertion mode while retaining per-snippet actions.
-- Import and export complete snippet collections as JSON.
-- Preserve newer snippet and connection changes when several browser tabs are open.
+- Append a snippet to your existing script, insert it at the cursor or replace the editor contents.
+- Set your preferred insertion method as the default, while retaining the other actions for individual snippets.
+- Import and export the complete snippet library as JSON. Changes to snippets and connections are reconciled when you have several browser tabs open.
 
 ![Reusable snippets organized into folders](./imgs/feature-snippets.png)
 
-History records each statement—not merely each click of Run—with its status, connection, query summary, statistics, and link to the corresponding
-result tab. Queries can also be copied directly from history. History belongs to the current browser session and resets when the page reloads.
+**History** records individual executed statements, not just each click of **Run**. Revisit the SQL, see its connection, status and statistics, copy it or jump back to the matching result tab. History lasts for the current browser session; reloading the page clears it.
 
-## Results, Copying, and Downloads
+### Results, Copying and Downloads
 
-Every executed statement receives an independent result panel. Click Play Boom renders streaming tables, raw ClickHouse formats,
-`JSONCompactColumns` charts, and ClickHouse `EXPLAIN` graphs while preserving earlier results for comparison.
+Every statement gets its own result tab, so running another query doesn't replace the last result. The viewer handles tabular and streaming responses, raw ClickHouse output formats, `JSONCompactColumns` charts and `EXPLAIN` graphs.
 
-Result summaries expose row counts, transfer volume, elapsed query time, client/network timing, memory use, and statistics recovered from
-`system.query_log`. Query details remain available without taking over the result area.
+The result summary exposes the details you generally need when investigating performance: rows returned, transfer size, query and network timing, memory use and, where available, additional figures from `system.query_log`.
 
-### Share results without rerunning the query
+#### Copy results or share the query with them
 
-Tabular results can be copied as Markdown, CSV, or TSV. Copy the SQL and its result together as a ready-to-share Markdown document, download the
-same combined document, copy the original query, or copy supported rendered text formats directly.
+You don't have to reformat a result or take screenshots just to share it with someone.
+
+- Copy tabular results as **Markdown**, **CSV** or **TSV**.
+- Copy or download **the SQL and its result together** as a single Markdown document, so the recipient can see exactly where the data came from.
+- Copy just the SQL, or copy supported rendered text output directly.
+- **Right-click a cell** to copy its exact value, rather than selecting text across an entire row.
 
 ![Result-copy options for common sharing workflows](./imgs/feature-result-copy.png)
 
-Right-click any result cell to copy its exact value without dragging across a wide table or accidentally including neighboring whitespace.
-
 ![Copying an individual result value](./imgs/feature-copy-value.png)
 
-### Download in the format you need
+#### Download in the format you need
 
-Downloads support named CSV and TSV files with headers, JSON, Parquet, Markdown, Arrow, Avro, ORC, Native, RowBinary, and many other ClickHouse
-formats. Enter a custom format name when the server supports something newer. Filenames can be supplied explicitly or derived from the first table
-in the query, with normalized extensions such as `.csv`, `.tsv`, `.jsonl`, `.parquet`, and `.md`.
+Use the download options to get results out of the browser in a format another tool can consume. Supported formats include CSV and TSV with headers, JSON, Parquet, Markdown, Arrow, Avro, ORC, Native and RowBinary, plus custom formats supported by your ClickHouse server.
+
+Give the file a name yourself or let Click Play Boom derive one from the first table in the query, with an appropriate extension such as `.csv`, `.tsv`, `.jsonl`, `.parquet` or `.md`.
 
 ![Named, multi-format result downloads](./imgs/feature-download.png)
 
-For large or expensive queries, optional ClickHouse query-cache integration lets copy and download actions reuse the preview result instead of
-rerunning the original query.
+For expensive queries, optional ClickHouse query-cache integration can let copy and download operations reuse the preview result instead of rerunning the original query just to export it.
 
-## Dashboards
+### Dashboards
 
-The Dashboard workspace loads definitions exposed by `system.dashboards` and renders them inside the application using the active connection.
-Relative and absolute time ranges and bucket controls apply immediately, while synchronized zoom makes it easy to investigate the same period
-across several charts.
+The **Dashboard** workspace displays dashboards defined by ClickHouse in `system.dashboards` using your current connection. It's a way to explore those charts alongside your queries, without moving to a separate monitoring application.
 
-Charts can be reset, expanded vertically, and reordered by dragging. Add, edit, or remove charts for the current session, or work with the entire
-dashboard definition in the built-in JSON editor.
+Choose a relative or absolute time range and adjust the chart buckets. Zooming is synchronized across charts, making it easier to compare the same spike or slowdown in several metrics. You can reset or expand charts, drag them into a different order, and add, edit or remove charts for the current session. There's also a JSON editor for working with the complete dashboard definition.
 
 ![Native ClickHouse dashboards in the light theme](./imgs/dashboard.png)
 
-The repository includes [`demo/dashboard.json`](./demo/dashboard.json), the four-chart definition used by the demo.
+The demo includes a four-chart definition at [`demo/dashboard.json`](./demo/dashboard.json) if you want something to explore immediately.
 
-## Schema Visualization
+### Schema Visualization
 
-The Schema workspace turns ClickHouse metadata into an explorable view of how data is structured and moves through the server:
+The **Schema** workspace is for understanding how a ClickHouse database fits together, particularly when it has a lot of views and materialized-view pipelines. Instead of following `CREATE` statements manually, explore the relationships as a graph.
 
-- Search tables and columns, filter databases, include system tables, and toggle column detail.
-- Follow table and view dependencies, materialized-view targets, dictionary sources, and Distributed table relationships.
-- Inspect engines, keys, row and byte counts, comments, refresh state, and lazily formatted `CREATE` statements.
-- Re-layout, drag, select, and zoom the graph to focus on the part of the system that matters.
-- Colour materialized-view pipelines by executions, rows, bytes, duration, or memory recorded in `system.query_views_log`.
-- Supply compatibility metadata for ClickHouse versions that do not expose materialized-view targets in `system.tables`.
+- Search for tables or columns, select databases, optionally include system tables and show or hide column detail.
+- Follow table and view dependencies, materialized-view targets, dictionary sources and Distributed table relationships.
+- Select an object to inspect its engine, keys, row and byte counts, comments, refresh status and formatted `CREATE` statement.
+- Drag nodes around, zoom or re-layout the graph to focus on the part you're investigating.
+- Colour materialized-view pipelines by executions, rows, bytes, duration or memory from `system.query_views_log` to see where work is happening.
+
+For ClickHouse versions that don't expose materialized-view targets through `system.tables`, compatibility metadata can supply those relationships.
 
 ![Schema dependencies and materialized-view flow](./imgs/schema.png)
 
-## Scoped Settings and Preferences
+### Settings and Preferences
 
-The Settings workspace brings browser preferences and query behavior together. Its ranked, virtualized picker makes every matching entry from
-`system.settings` searchable without rendering the entire catalog into the page.
+Settings fall into three distinct scopes. The distinction matters: changing the editor's appearance is not the same thing as changing a ClickHouse session or adding a setting to every query.
 
-Settings are deliberately separated by scope:
+- **User Preferences** control browser-level behaviour such as theme, compact editor mode, snippet insertion, Navigator detail, preview limits and result reuse.
+- **Session Settings** apply to the managed ClickHouse HTTP session for a particular connection and browser tab. Configured values are replayed into that session; busy or expired sessions are detected and a controlled recovery is attempted. Reloading starts a fresh session.
+- **Query Defaults** are sent as HTTP parameters, without modifying the SQL text. Define defaults globally, override or suppress them for a particular connection, and test the effective values before running a query.
 
-- **User Preferences** control browser-wide display and editor behavior, including theme, snippet insertion, result reuse, navigator detail,
-  preview limits, and compact editor mode.
-- **Session Settings** are managed per connection and browser tab. Click Play Boom replays configured values into a dedicated ClickHouse HTTP
-  session, detects busy or expired sessions, performs one controlled recovery, and starts a fresh session after a reload.
-- **Query Defaults** are sent as HTTP parameters without rewriting SQL. Define them globally, override or suppress them for individual connections,
-  and test the effective values before running a query.
+The settings picker searches the available entries in `system.settings` without trying to render the entire list at once.
 
 ![User preferences, Session Settings, and Query Defaults](./imgs/settings.png)
 
-Dashboard, Schema, navigator, autocomplete, download, and query-log requests remain stateless; only editor queries use the managed session and
-Query Defaults.
+Only queries run through the SQL editor use the managed session and Query Defaults. Navigator, Dashboard, Schema, autocomplete, download and query-log requests remain stateless.
 
-Light, dark, and system-driven themes apply consistently across every workspace. The main screenshots use the light theme to retain ClickHouse
-Play's visual lineage; the same Query workspace is shown below in dark mode.
+Choose light, dark or system theme. Here's the Query workspace in dark mode:
 
 ![The Query workspace in dark mode](./imgs/query-dark.png)
 
