@@ -10,7 +10,21 @@ Open or serve [`click-play-boom.html`](./click-play-boom.html), connect to Click
 
 ![Click Play Boom query editor, schema navigator, and results](./imgs/query.png)
 
-## At a glance
+## Quick Start
+
+### Clickhouse running on localhost 8123?
+
+- Open [`click-play-boom.html`](./click-play-boom.html) in a browser.
+- Done. Yep, that's it.
+
+### Clickhouse running remotely?
+
+- Open [`click-play-boom.html`](./click-play-boom.html) in a browser.
+- Click the `+` in the navigator to add a new connection. ![alt text](imgs/new-connection.png)
+- Enter name, host, port, user, password.
+- Done.
+
+## Features - At a Glance
 
 | Feature | What it gives you |
 | --- | --- |
@@ -28,53 +42,55 @@ Open or serve [`click-play-boom.html`](./click-play-boom.html), connect to Click
 The product is organized into four connected workspaces—**Query**, **Dashboard**, **Schema**, and **Settings**—but the active connection follows you
 between them. Features such as the navigator, snippets, and history remain available in the shared sidebar.
 
-## Quick Start
+## Why not DBeaver, DataGrip or similar tools?
 
-Open [`click-play-boom.html`](./click-play-boom.html) directly in a browser. A file-based launch defaults to:
+DBeaver, DataGrip and other general-purpose database clients are excellent tools, but ClickHouse support is often constrained by generic database drivers and abstractions.
 
-```text
-http://localhost:8123/
+**Click Play Boom is built specifically for ClickHouse**, exposing its native functionality directly through the HTTP interface.
+
+| Feature | Click Play Boom | General-purpose clients |
+|---|:---:|:---:|
+| SQL editor, autocomplete and history | ✅ | ✅ |
+| Multi-statement execution | ✅ | ✅ |
+| Native ClickHouse output formats | ✅ | ⚠️ |
+| ClickHouse-specific settings management | ✅ | ⚠️ |
+| Materialized-view pipeline visualization | ✅ | ❌ |
+| Pipeline execution metrics | ✅ | ❌ |
+| Integrated `system.dashboards` | ✅ | ❌ |
+| ClickHouse-native downloads | ✅ | ⚠️ |
+| No installation or drivers | ✅ | ❌ |
+
+✅ Supported · ⚠️ Limited or client-dependent · ❌ Not generally available
+
+### A practical example
+
+Making use of ClickHouse output formats:
+
+```sql
+SELECT *
+FROM system.aggregate_function_combinators
+FORMAT JSON
 ```
 
-Select **New connection** (`+`) in the Navigator to save another ClickHouse server. When the page is served over HTTP, the initial connection
-defaults to the page's origin. Connection details can also be supplied in the URL:
+Click-Play-Boom:
+✅ - results as json.
+![click-play-boom shows JSON as expected](imgs/cpb-output-format.png)
 
-```text
-click-play-boom.html?url=http%3A%2F%2Flocalhost%3A8123%2F&user=default
-```
+#### DBeaver 26.0.0
 
-Click Play Boom sends `add_http_cors_header=1`, so ClickHouse must be reachable from the browser and allow the request. Saved connection details,
-including passwords, are stored in browser `localStorage`; treat this as a local/development convenience rather than a secure secret store. A
-password supplied in the URL is removed from the address after initialization, but is still stored with the saved connection.
+❌ `Only RowBinaryWithNamesAndTypes is supported for output format`.
 
-### Try the Demo
+![DBeaver throws an error](imgs/dbeaver.png)
 
-The included demo provides an isolated ClickHouse 26.3 LTS instance and a realistic `click_play_boom_demo` database. It contains MergeTree tables,
-an active materialized-view pipeline, a normal view, a dictionary, Schema compatibility metadata, 80,640 request events, and 240 deployment
-records. Initialization runs only when the demo volume is first created.
 
-Start it with:
+#### DataGrip 2026.3
 
-```bash
-docker compose -f demo/compose.yaml up -d --wait
-```
+❌ `Only RowBinaryWithNamesAndTypes is supported for output format`.
 
-Open [`click-play-boom.html`](./click-play-boom.html), select **New connection** (`+`), and use:
+![Datagrip trows an error](imgs/datagrip.png)
 
-| Setting | Value |
-| --- | --- |
-| HTTP interface | `http://localhost:18123/` |
-| Native interface | `localhost:19000` |
-| Username | `demo` |
-| Password | `clickplayboom` |
-| Database | `click_play_boom_demo` |
+**The point isn't to replace DBeaver or DataGrip.** If you work across multiple database engines, they're great choices. If you work primarily with ClickHouse, Click Play Boom provides a more direct, ClickHouse-native experience — in a single HTML file.
 
-To recreate the demo data, remove only its containers and volume, then start it again:
-
-```bash
-docker compose -f demo/compose.yaml down --volumes
-docker compose -f demo/compose.yaml up -d --wait
-```
 
 ## Features
 
@@ -206,6 +222,35 @@ Choose light, dark or system theme. Here's the Query workspace in dark mode:
 
 ![The Query workspace in dark mode](./imgs/query-dark.png)
 
+## Try the Demo
+
+The included demo provides an isolated ClickHouse 26.3 LTS instance and a realistic `click_play_boom_demo` database. It contains MergeTree tables,
+an active materialized-view pipeline, a normal view, a dictionary, Schema compatibility metadata, 80,640 request events, and 240 deployment
+records. Initialization runs only when the demo volume is first created.
+
+Start it with:
+
+```bash
+docker compose -f demo/compose.yaml up -d --wait
+```
+
+Open [`click-play-boom.html`](./click-play-boom.html), select **New connection** (`+`), and use:
+
+| Setting | Value |
+| --- | --- |
+| HTTP interface | `http://localhost:18123/` |
+| Native interface | `localhost:19000` |
+| Username | `demo` |
+| Password | `clickplayboom` |
+| Database | `click_play_boom_demo` |
+
+To recreate the demo data, remove only its containers and volume, then start it again:
+
+```bash
+docker compose -f demo/compose.yaml down --volumes
+docker compose -f demo/compose.yaml up -d --wait
+```
+
 ## Development and Contributing
 
 The repository separates maintainable source from the deployable application:
@@ -249,6 +294,14 @@ docker compose -f demo/compose.yaml exec clickhouse \
 
 The generated page embeds its CSS, application JavaScript, templates, icons, and ClickHouse lexer. It loads no external resources during startup;
 the larger upstream visualization libraries used for charts and `EXPLAIN` graphs are fetched lazily only when those features are requested.
+
+## Notes
+
+
+- Click Play Boom sends `add_http_cors_header=1`, so ClickHouse must be reachable from the browser and allow the request.
+- Saved connection details,
+including passwords, are stored in browser `localStorage`; treat this as a local/development convenience rather than a secure secret store.
+
 
 ## Project Status
 
