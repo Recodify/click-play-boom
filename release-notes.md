@@ -1,5 +1,9 @@
 # Release Notes
 
+## client 2026.11.20.4
+
+- Added the Click Play Boom logo to the top of the README and made its letter cutouts transparent.
+
 ## client 2026.11.19.1
 
 - Reworked the README around product capabilities rather than workspace navigation, with complete coverage of authoring, execution, navigation,

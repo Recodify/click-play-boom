@@ -1,8 +1,9 @@
-# Click Play Boom
 
-**ClickHouse Play with added 💥: a full ClickHouse workbench delivered as one deployable HTML file.**
+<img src="./src/assets/clickhouse-logo.svg" alt="Click Play Boom" width="720">
 
-**Click Play Boom doesn't try to reinvent ClickHouse. It gets out of its way.**
+# ClickHouse Play with added 💥
+## A full ClickHouse workbench delivered as one deployable HTML file. No abstraction, just ClickHouse.
+
 
 Click Play Boom keeps the qualities that make the original ClickHouse Play page so useful—a direct connection to ClickHouse, a fast browser UI, and no application server—then expands them into a practical environment for day-to-day work. Write and run SQL, explore servers, generate common queries, inspect and export results, monitor dashboards, visualize schema dependencies, and control query behavior without installing a framework.
 
@@ -59,12 +60,12 @@ DBeaver and DataGrip are capable general-purpose database clients. [CH-UI](https
 | Persistent ClickHouse session settings | ✅ | ✅ | ✅ | ❌ |
 | Integrated ClickHouse settings management | ✅ | ❌ | ❌ | ❌ |
 | Materialized-view pipeline visualization | ✅ | ❌ | ❌ | ✅ |
-| Pipeline execution metrics | ✅ | ❌ | ❌ | ⚠️💲 |
+| Pipeline execution metrics | ✅ | ❌ | ❌ | 💲💲 |
 | Native `system.dashboards` integration | ✅ | ❌ | ❌ | ❌ |
 | Broad ClickHouse-native downloads | ✅ | ❌ | ❌ | ⚠️ |
 | No installation or additional backend | ✅ | ❌ | ❌ | ❌ |
 
-✅ Supported · ⚠️ Limited, different or not fully evaluated · ❌ Unsupported in the tested workflow · 💲 Related monitoring is available in CH-UI Pro; equivalent per-materialized-view metrics have not been verified.
+✅ Supported · ⚠️ Limited, different or not fully evaluated · ❌ Unsupported in the tested workflow · 💲 Pro-version only $1k+/year.
 
 ### A practical example
 
@@ -84,17 +85,13 @@ FORMAT JSON;
 
 ![Click Play Boom rendering native ClickHouse JSON](./imgs/cpb-output-format.png)
 
-DBeaver and DataGrip can export result grids as JSON; that's different from executing SQL with `FORMAT JSON` and displaying the response ClickHouse actually returns. CH-UI supports server-side export in a limited selection of formats, but its query editor did not display explicitly requested JSON, Markdown or XML in our tests.
-
-Click Play Boom also displays formats such as Markdown, XML and CSV as returned by ClickHouse. **Copy rendered result** takes that output directly to the clipboard, so you can paste native Markdown into documentation, JSON into a tool, or CSV into another workflow without a separate conversion step. Downloads can request server-native formats including Parquet, Arrow, Native and more.
-
-The same philosophy extends to settings. In our tests, DBeaver, DataGrip and Click Play Boom retained a `SET max_threads = 2` value into a subsequent query. CH-UI's subsequent query returned the default. Click Play Boom also lets you browse `system.settings`, manage HTTP-session values and configure per-query defaults explicitly.
-
-**The difference is focus.** Use the tool that suits the job: Grafana for cross-source dashboards, cron or an orchestrator for scheduled work, and Click Play Boom for exploring, querying and understanding ClickHouse. No new platform to operate just to run SQL.
+**See Appendix for details**
 
 ## Features
 
 ### SQL Authoring and Multi-Statement Execution
+
+![Two statements executed into independent result tabs](./imgs/feature-multi-statement.png)
 
 Unlike the stock ClickHouse Play interface, the editor works as a proper SQL script buffer, much like the query editors in pgAdmin, DBeaver, SSMS or MySQL Workbench. Keep several statements in the same editor and run all of them, or just the ones you need.
 
@@ -105,9 +102,11 @@ Unlike the stock ClickHouse Play interface, the editor works as a proper SQL scr
 
 The editor also supports syntax highlighting, four-space Tab indentation, `Shift+Tab` to outdent, undo, resizing and a compact mode. SQL generated or inserted by other parts of the application is selected ready to run. Statements are split using ClickHouse's WebAssembly lexer, with a semicolon-based fallback if WebAssembly is unavailable.
 
-![Two statements executed into independent result tabs](./imgs/feature-multi-statement.png)
+
 
 ### Schema-aware autocomplete
+
+![Schema-aware table autocomplete](./imgs/feature-autocomplete.png)
 
 Autocomplete uses the schema of the connected ClickHouse server rather than just guessing SQL keywords. It understands database-qualified names, tables referenced in the current statement, aliases and their columns, as well as views and dictionaries.
 
@@ -115,9 +114,11 @@ Autocomplete uses the schema of the connected ClickHouse server rather than just
 - Press **`Ctrl+Space`** to request suggestions without a dot, for example when completing SQL clauses such as `WHERE`.
 - You don't need to expand the relevant table in the Navigator first: metadata can be loaded when you type a qualified name.
 
-![Schema-aware table autocomplete](./imgs/feature-autocomplete.png)
+
 
 ### Navigator and SQL Generation
+
+![Context-aware SQL generation from the schema navigator](./imgs/feature-sql-generation.png)
 
 The Navigator in the sidebar is both a connection manager and a schema browser. Save several ClickHouse servers, group connections into folders and switch between them without opening another page. It shows connection status and server version, then loads databases and their objects as you explore them, rather than fetching the entire schema up front.
 
@@ -133,13 +134,16 @@ The useful bit is the context menu: **right-click an object to generate SQL for 
 
 Generated SQL appears in the editor for you to review and run; the Navigator doesn't execute destructive operations behind your back.
 
-![Context-aware SQL generation from the schema navigator](./imgs/feature-sql-generation.png)
-
-Numeric columns have their own statistics generation, including quantiles, minimum, average and maximum. Useful when you're exploring unfamiliar data and don't fancy typing a miniature analytics query every time.
+#### Auto-Stats on Numeric columns
 
 ![Statistics SQL generated from a numeric column](./imgs/feature-stats-generation.png)
 
+Numeric columns have their own statistics generation, including quantiles, minimum, average and maximum. Useful when you're exploring unfamiliar data and don't fancy typing a miniature analytics query every time.
+
+
 ### Snippets and History
+
+![Reusable snippets organized into folders](./imgs/feature-snippets.png)
 
 **Snippets** are saved bits of SQL you want to reuse. Organize them into folders, search for them and insert them into the editor without hunting through old files or query tabs.
 
@@ -147,7 +151,7 @@ Numeric columns have their own statistics generation, including quantiles, minim
 - Set your preferred insertion method as the default, while retaining the other actions for individual snippets.
 - Import and export the complete snippet library as JSON. Changes to snippets and connections are reconciled when you have several browser tabs open.
 
-![Reusable snippets organized into folders](./imgs/feature-snippets.png)
+
 
 **History** records individual executed statements, not just each click of **Run**. Revisit the SQL, see its connection, status and statistics, copy it or jump back to the matching result tab. History lasts for the current browser session; reloading the page clears it.
 
@@ -163,7 +167,10 @@ Every statement gets its own result tab, so running another query doesn't replac
 
 The result summary exposes the details you generally need when investigating performance: rows returned, transfer size, query and network timing, memory use and, where available, additional figures from `system.query_log`.
 
-#### Copy results or share the query with them
+#### Copy results or share the query and results with a single click
+
+![Result-copy options for common sharing workflows](./imgs/feature-result-copy.png)
+![Copying an individual result value](./imgs/feature-copy-value.png)
 
 You don't have to reformat a result or take screenshots just to share it with someone.
 
@@ -172,31 +179,29 @@ You don't have to reformat a result or take screenshots just to share it with so
 - Copy just the SQL, or copy supported rendered text output directly.
 - **Right-click a cell** to copy its exact value, rather than selecting text across an entire row.
 
-![Result-copy options for common sharing workflows](./imgs/feature-result-copy.png)
-
-![Copying an individual result value](./imgs/feature-copy-value.png)
 
 #### Download in the format you need
+
+![Named, multi-format result downloads](./imgs/feature-download.png)
 
 Use the download options to get results out of the browser in a format another tool can consume. Supported formats include CSV and TSV with headers, JSON, Parquet, Markdown, Arrow, Avro, ORC, Native and RowBinary, plus custom formats supported by your ClickHouse server.
 
 Give the file a name yourself or let Click Play Boom derive one from the first table in the query, with an appropriate extension such as `.csv`, `.tsv`, `.jsonl`, `.parquet` or `.md`.
 
-![Named, multi-format result downloads](./imgs/feature-download.png)
-
 For expensive queries, optional ClickHouse query-cache integration can let copy and download operations reuse the preview result instead of rerunning the original query just to export it.
 
 ### Dashboards
+
+![Native ClickHouse dashboards in the light theme](./imgs/dashboard.png)
 
 The **Dashboard** workspace displays dashboards defined by ClickHouse in `system.dashboards` using your current connection. It's a way to explore those charts alongside your queries, without moving to a separate monitoring application.
 
 Choose a relative or absolute time range and adjust the chart buckets. Zooming is synchronized across charts, making it easier to compare the same spike or slowdown in several metrics. You can reset or expand charts, drag them into a different order, and add, edit or remove charts for the current session. There's also a JSON editor for working with the complete dashboard definition.
 
-![Native ClickHouse dashboards in the light theme](./imgs/dashboard.png)
-
-The demo includes a four-chart definition at [`demo/dashboard.json`](./demo/dashboard.json) if you want something to explore immediately.
 
 ### Schema Visualization
+
+![Schema dependencies and materialized-view flow](./imgs/schema.png)
 
 The **Schema** workspace is for understanding how a ClickHouse database fits together, particularly when it has a lot of views and materialized-view pipelines. Instead of following `CREATE` statements manually, explore the relationships as a graph.
 
@@ -208,9 +213,9 @@ The **Schema** workspace is for understanding how a ClickHouse database fits tog
 
 For ClickHouse versions that don't expose materialized-view targets through `system.tables`, compatibility metadata can supply those relationships.
 
-![Schema dependencies and materialized-view flow](./imgs/schema.png)
-
 ### Settings and Preferences
+
+![User preferences, Session Settings, and Query Defaults](./imgs/settings.png)
 
 Settings fall into three distinct scopes. The distinction matters: changing the editor's appearance is not the same thing as changing a ClickHouse session or adding a setting to every query.
 
@@ -220,13 +225,10 @@ Settings fall into three distinct scopes. The distinction matters: changing the 
 
 The settings picker searches the available entries in `system.settings` without trying to render the entire list at once.
 
-![User preferences, Session Settings, and Query Defaults](./imgs/settings.png)
-
-Only queries run through the SQL editor use the managed session and Query Defaults. Navigator, Dashboard, Schema, autocomplete, download and query-log requests remain stateless.
-
-Choose light, dark or system theme. Here's the Query workspace in dark mode:
-
+### Black or white madame?
 ![The Query workspace in dark mode](./imgs/query-dark.png)
+
+Choose light a light or dark theme to suite your preference or mood!
 
 ## Try the Demo
 
@@ -291,10 +293,6 @@ docker compose -f demo/compose.yaml exec clickhouse \
 
 The generated page embeds its CSS, application JavaScript, templates, icons, and ClickHouse lexer. It loads no external resources during startup; the larger upstream visualization libraries used for charts and `EXPLAIN` graphs are fetched lazily only when those features are requested.
 
-## Notes
-
-- Click Play Boom sends `add_http_cors_header=1`, so ClickHouse must be reachable from the browser and allow the request.
-- Saved connection details, including passwords, are stored in browser `localStorage`; treat this as a local/development convenience rather than a secure secret store.
 
 ## Project Status
 
@@ -303,3 +301,19 @@ Click Play Boom is an actively developed, browser-based ClickHouse workbench int
 ## Lineage
 
 Click Play Boom is a substantial rework of the ClickHouse Play page from [`ClickHouse/ClickHouse` v26.3.3.20-lts](https://github.com/ClickHouse/ClickHouse/blob/v26.3.3.20-lts/programs/server/play.html). It preserves the original's fast, standalone deployment model and familiar interaction style while expanding it into a practical day-to-day workbench.
+
+## Appendix
+
+## Implementation Notes
+
+- Click Play Boom sends `add_http_cors_header=1`, so ClickHouse must be reachable from the browser and allow the request.
+- Saved connection details, including passwords, are stored in browser `localStorage`; treat this as a local/development convenience rather than a secure secret store.
+
+### Tool Comparision Notes
+DBeaver and DataGrip can export result grids as JSON; that's different from executing SQL with `FORMAT JSON` and displaying the response ClickHouse actually returns. CH-UI supports server-side export in a limited selection of formats, but its query editor did not display explicitly requested JSON, Markdown or XML in our tests.
+
+Click Play Boom also displays formats such as Markdown, XML and CSV as returned by ClickHouse. **Copy rendered result** takes that output directly to the clipboard, so you can paste native Markdown into documentation, JSON into a tool, or CSV into another workflow without a separate conversion step. Downloads can request server-native formats including Parquet, Arrow, Native and more.
+
+The same philosophy extends to settings. In our tests, DBeaver, DataGrip and Click Play Boom retained a `SET max_threads = 2` value into a subsequent query. CH-UI's subsequent query returned the default. Click Play Boom also lets you browse `system.settings`, manage HTTP-session values and configure per-query defaults explicitly.
+
+**The difference is focus.** Use the tool that suits the job: Grafana for cross-source dashboards, cron or an orchestrator for scheduled work, and Click Play Boom for exploring, querying and understanding ClickHouse. No new platform to operate just to run SQL.
