@@ -2,9 +2,9 @@
 
 **ClickHouse Play with added 💥: a full ClickHouse workbench delivered as one deployable HTML file.**
 
-Click Play Boom keeps the qualities that make the original ClickHouse Play page so useful—a direct connection to ClickHouse, a fast browser UI,
-and no application server—then expands them into a practical environment for day-to-day work. Write and run SQL, explore servers, generate common
-queries, inspect and export results, monitor dashboards, visualize schema dependencies, and control query behavior without installing a framework.
+**Click Play Boom doesn't try to reinvent ClickHouse. It gets out of its way.**
+
+Click Play Boom keeps the qualities that make the original ClickHouse Play page so useful—a direct connection to ClickHouse, a fast browser UI, and no application server—then expands them into a practical environment for day-to-day work. Write and run SQL, explore servers, generate common queries, inspect and export results, monitor dashboards, visualize schema dependencies, and control query behavior without installing a framework.
 
 Open or serve [`click-play-boom.html`](./click-play-boom.html), connect to ClickHouse, and start working.
 
@@ -12,85 +12,85 @@ Open or serve [`click-play-boom.html`](./click-play-boom.html), connect to Click
 
 ## Quick Start
 
-### Clickhouse running on localhost 8123?
+### ClickHouse running on localhost:8123?
 
 - Open [`click-play-boom.html`](./click-play-boom.html) in a browser.
 - Done. Yep, that's it.
 
-### Clickhouse running remotely?
+### ClickHouse running elsewhere?
 
 - Open [`click-play-boom.html`](./click-play-boom.html) in a browser.
-- Click the `+` in the navigator to add a new connection. ![alt text](imgs/new-connection.png)
-- Enter name, host, port, user, password.
+- Click the `+` in the Navigator to add a new connection.
+
+  ![New connection](./imgs/new-connection.png)
+- Enter the connection name, HTTP URL, username and password.
 - Done.
 
 ## Features - At a Glance
 
-| Feature | What it gives you |
-| --- | --- |
-| **SQL authoring** | Syntax highlighting, schema-aware autocomplete, four-space indentation, richer undo, and a resizable or compact editor. |
-| **True multi-statement execution** | Run an exact selection or every statement in a script, with sequential execution and an independent result tab for each statement. |
-| **Navigator and connection manager** | Organize saved connections into folders, inspect server health and version, and lazily browse databases, tables, views, dictionaries, and columns. |
-| **Context-aware SQL generation** | Generate common reads, counts, statistics, metadata lookups, inserts, and object-specific DDL directly from the schema navigator. |
-| **Snippets and history** | Store reusable SQL in searchable folders, insert it in several ways, import or export collections, and revisit every statement executed in the current session. |
-| **Result inspection and sharing** | Inspect query statistics, copy individual values, export results in common formats, or share a query and its result as one Markdown document. |
-| **Flexible downloads** | Download results in common or custom ClickHouse formats with useful filenames and optional query-cache reuse for expensive results. |
-| **Dashboards and visualizations** | Explore native ClickHouse dashboards, query charts, `EXPLAIN` graphs, schema relationships, materialized-view flows, and pipeline load. |
-| **Scoped settings** | Manage browser-wide preferences, per-connection HTTP session settings, and global or connection-specific query defaults. |
-| **Standalone deployment** | Run the entire workbench from one self-contained HTML file, locally or from any web server. |
+| Feature                              | What it gives you                                                                                                                                               |
+| :----------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SQL authoring**                    | Syntax highlighting, schema-aware autocomplete, four-space indentation, richer undo, and a resizable or compact editor.                                         |
+| **True multi-statement execution**   | Run an exact selection or every statement in a script, with sequential execution and an independent result tab for each statement.                              |
+| **Navigator and connection manager** | Organize saved connections into folders, inspect server health and version, and lazily browse databases, tables, views, dictionaries, and columns.              |
+| **Context-aware SQL generation**     | Generate common reads, counts, statistics, metadata lookups, inserts, and object-specific DDL directly from the schema navigator.                               |
+| **Snippets and history**             | Store reusable SQL in searchable folders, insert it in several ways, import or export collections, and revisit every statement executed in the current session. |
+| **Result inspection and sharing**    | Inspect query statistics, copy individual values, export results in common formats, or share a query and its result as one Markdown document.                   |
+| **Flexible downloads**               | Download results in common or custom ClickHouse formats with useful filenames and optional query-cache reuse for expensive results.                             |
+| **Dashboards and visualizations**    | Explore native ClickHouse dashboards, query charts, `EXPLAIN` graphs, schema relationships, materialized-view flows, and pipeline load.                         |
+| **Scoped settings**                  | Manage browser-wide preferences, per-connection HTTP session settings, and global or connection-specific query defaults.                                        |
+| **Standalone deployment**            | Run the entire workbench from one self-contained HTML file, locally or from any web server.                                                                     |
 
-The product is organized into four connected workspaces—**Query**, **Dashboard**, **Schema**, and **Settings**—but the active connection follows you
-between them. Features such as the navigator, snippets, and history remain available in the shared sidebar.
+The product is organized into four connected workspaces—**Query**, **Dashboard**, **Schema**, and **Settings**—but the active connection follows you between them. Features such as the navigator, snippets, and history remain available in the shared sidebar.
 
-## Why not DBeaver, DataGrip or similar tools?
+## Why not DBeaver, DataGrip, CH-UI or similar tools?
 
-DBeaver, DataGrip and other general-purpose database clients are excellent tools, but ClickHouse support is often constrained by generic database drivers and abstractions.
+DBeaver and DataGrip are capable general-purpose database clients. [CH-UI](https://github.com/caioricciuti/ch-ui) is a broader ClickHouse platform, bringing SQL editing together with dashboards, monitoring, scheduling and AI.
 
-**Click Play Boom is built specifically for ClickHouse**, exposing its native functionality directly through the HTTP interface.
+**Click Play Boom is deliberately a ClickHouse workbench, not another data platform.** It works directly with ClickHouse over HTTP, without a separate backend or a layer that restricts native SQL and result formats.
 
-| Feature | Click Play Boom | General-purpose clients |
-|---|:---:|:---:|
-| SQL editor, autocomplete and history | ✅ | ✅ |
-| Multi-statement execution | ✅ | ✅ |
-| Native ClickHouse output formats | ✅ | ⚠️ |
-| ClickHouse-specific settings management | ✅ | ⚠️ |
-| Materialized-view pipeline visualization | ✅ | ❌ |
-| Pipeline execution metrics | ✅ | ❌ |
-| Integrated `system.dashboards` | ✅ | ❌ |
-| ClickHouse-native downloads | ✅ | ⚠️ |
-| No installation or drivers | ✅ | ❌ |
+| Feature | Click Play Boom | DBeaver | DataGrip | CH-UI |
+| :--- | :---: | :---: | :---: | :---: |
+| SQL editor, autocomplete and history | ✅ | ✅ | ✅ | ✅ |
+| Multi-statement script execution | ✅ | ✅ | ✅ | ✅ |
+| Execute selected multi-statement SQL | ✅ | ⚠️ | ✅ | ✅ |
+| Explicit ClickHouse `FORMAT` output | ✅ | ❌ | ❌ | ❌ |
+| Copy native formatted results | ✅ | ❌ | ❌ | ❌ |
+| Persistent ClickHouse session settings | ✅ | ✅ | ✅ | ❌ |
+| Integrated ClickHouse settings management | ✅ | ❌ | ❌ | ❌ |
+| Materialized-view pipeline visualization | ✅ | ❌ | ❌ | ✅ |
+| Pipeline execution metrics | ✅ | ❌ | ❌ | ⚠️💲 |
+| Native `system.dashboards` integration | ✅ | ❌ | ❌ | ❌ |
+| Broad ClickHouse-native downloads | ✅ | ❌ | ❌ | ⚠️ |
+| No installation or additional backend | ✅ | ❌ | ❌ | ❌ |
 
-✅ Supported · ⚠️ Limited or client-dependent · ❌ Not generally available
+✅ Supported · ⚠️ Limited, different or not fully evaluated · ❌ Unsupported in the tested workflow · 💲 Related monitoring is available in CH-UI Pro; equivalent per-materialized-view metrics have not been verified.
 
 ### A practical example
 
-Making use of ClickHouse output formats:
-
+Run the same SQL against the same ClickHouse server:
 ```sql
 SELECT *
 FROM system.aggregate_function_combinators
-FORMAT JSON
+FORMAT JSON;
 ```
 
-Click-Play-Boom:
-✅ - results as json.
-![click-play-boom shows JSON as expected](imgs/cpb-output-format.png)
+| Client | Result |
+| :--- | :--- |
+| **Click Play Boom** | ✅ Displays ClickHouse's JSON response, ready to copy |
+| **DBeaver 26.0.0** | ❌ JDBC driver rejects the format |
+| **DataGrip 2026.3** | ❌ JDBC driver rejects the format |
+| **CH-UI 2.33.1** | ❌ Reports a successful query but displays no JSON |
 
-#### DBeaver 26.0.0
+![Click Play Boom rendering native ClickHouse JSON](./imgs/cpb-output-format.png)
 
-❌ `Only RowBinaryWithNamesAndTypes is supported for output format`.
+DBeaver and DataGrip can export result grids as JSON; that's different from executing SQL with `FORMAT JSON` and displaying the response ClickHouse actually returns. CH-UI supports server-side export in a limited selection of formats, but its query editor did not display explicitly requested JSON, Markdown or XML in our tests.
 
-![DBeaver throws an error](imgs/dbeaver.png)
+Click Play Boom also displays formats such as Markdown, XML and CSV as returned by ClickHouse. **Copy rendered result** takes that output directly to the clipboard, so you can paste native Markdown into documentation, JSON into a tool, or CSV into another workflow without a separate conversion step. Downloads can request server-native formats including Parquet, Arrow, Native and more.
 
+The same philosophy extends to settings. In our tests, DBeaver, DataGrip and Click Play Boom retained a `SET max_threads = 2` value into a subsequent query. CH-UI's subsequent query returned the default. Click Play Boom also lets you browse `system.settings`, manage HTTP-session values and configure per-query defaults explicitly.
 
-#### DataGrip 2026.3
-
-❌ `Only RowBinaryWithNamesAndTypes is supported for output format`.
-
-![Datagrip trows an error](imgs/datagrip.png)
-
-**The point isn't to replace DBeaver or DataGrip.** If you work across multiple database engines, they're great choices. If you work primarily with ClickHouse, Click Play Boom provides a more direct, ClickHouse-native experience — in a single HTML file.
-
+**The difference is focus.** Use the tool that suits the job: Grafana for cross-source dashboards, cron or an orchestrator for scheduled work, and Click Play Boom for exploring, querying and understanding ClickHouse. No new platform to operate just to run SQL.
 
 ## Features
 
@@ -152,6 +152,12 @@ Numeric columns have their own statistics generation, including quantiles, minim
 **History** records individual executed statements, not just each click of **Run**. Revisit the SQL, see its connection, status and statistics, copy it or jump back to the matching result tab. History lasts for the current browser session; reloading the page clears it.
 
 ### Results, Copying and Downloads
+
+#### ClickHouse formats are first-class results
+
+ClickHouse supports far more than conventional row-and-column results. Add `FORMAT JSON`, `FORMAT Markdown`, `FORMAT XML` or another supported textual format to a query and Click Play Boom shows the response itself, rather than forcing it through a grid renderer. Copy the rendered result straight to the clipboard or download it for use elsewhere.
+
+This is intentionally different from exporting a table *as* JSON or Markdown after execution: **ClickHouse chooses the serialization**, not the client.
 
 Every statement gets its own result tab, so running another query doesn't replace the last result. The viewer handles tabular and streaming responses, raw ClickHouse output formats, `JSONCompactColumns` charts and `EXPLAIN` graphs.
 
@@ -224,28 +230,24 @@ Choose light, dark or system theme. Here's the Query workspace in dark mode:
 
 ## Try the Demo
 
-The included demo provides an isolated ClickHouse 26.3 LTS instance and a realistic `click_play_boom_demo` database. It contains MergeTree tables,
-an active materialized-view pipeline, a normal view, a dictionary, Schema compatibility metadata, 80,640 request events, and 240 deployment
-records. Initialization runs only when the demo volume is first created.
+The included demo provides an isolated ClickHouse 26.3 LTS instance and a realistic `click_play_boom_demo` database. It contains MergeTree tables, an active materialized-view pipeline, a normal view, a dictionary, Schema compatibility metadata, 80,640 request events, and 240 deployment records. Initialization runs only when the demo volume is first created.
 
 Start it with:
-
 ```bash
 docker compose -f demo/compose.yaml up -d --wait
 ```
 
 Open [`click-play-boom.html`](./click-play-boom.html), select **New connection** (`+`), and use:
 
-| Setting | Value |
-| --- | --- |
-| HTTP interface | `http://localhost:18123/` |
-| Native interface | `localhost:19000` |
-| Username | `demo` |
-| Password | `clickplayboom` |
-| Database | `click_play_boom_demo` |
+| Setting          | Value                     |
+| :--------------- | :------------------------ |
+| HTTP interface   | `http://localhost:18123/` |
+| Native interface | `localhost:19000`         |
+| Username         | `demo`                    |
+| Password         | `clickplayboom`           |
+| Database         | `click_play_boom_demo`    |
 
 To recreate the demo data, remove only its containers and volume, then start it again:
-
 ```bash
 docker compose -f demo/compose.yaml down --volumes
 docker compose -f demo/compose.yaml up -d --wait
@@ -260,21 +262,17 @@ The repository separates maintainable source from the deployable application:
 - [`tools/build-single-file.mjs`](./tools/build-single-file.mjs) assembles the source tree into the root HTML artifact.
 - [`demo/`](./demo/) contains the reproducible ClickHouse environment and screenshot dashboard definition.
 
-No npm installation or bundler is required to run the generated application. Development uses Node for the small build tool and Playwright for
-focused browser safety tests. Edit files under `src/`, then regenerate the artifact:
-
+No npm installation or bundler is required to run the generated application. Development uses Node for the small build tool and Playwright for focused browser safety tests. Edit files under `src/`, then regenerate the artifact:
 ```bash
 npm run build
 ```
 
 Install the repository-managed pre-commit hook once to regenerate and stage the artifact automatically:
-
 ```bash
 npm run hooks:install
 ```
 
 Useful development checks are:
-
 ```bash
 npm run build:check
 npm run browsers:install
@@ -285,32 +283,23 @@ docker compose -f demo/compose.yaml config --quiet
 ```
 
 Inspect the seeded demo data from the command line with:
-
 ```bash
 docker compose -f demo/compose.yaml exec clickhouse \
   clickhouse-client --user demo --password clickplayboom \
   --query "SELECT service, count() FROM click_play_boom_demo.requests GROUP BY service ORDER BY service"
 ```
 
-The generated page embeds its CSS, application JavaScript, templates, icons, and ClickHouse lexer. It loads no external resources during startup;
-the larger upstream visualization libraries used for charts and `EXPLAIN` graphs are fetched lazily only when those features are requested.
+The generated page embeds its CSS, application JavaScript, templates, icons, and ClickHouse lexer. It loads no external resources during startup; the larger upstream visualization libraries used for charts and `EXPLAIN` graphs are fetched lazily only when those features are requested.
 
 ## Notes
 
-
 - Click Play Boom sends `add_http_cors_header=1`, so ClickHouse must be reachable from the browser and allow the request.
-- Saved connection details,
-including passwords, are stored in browser `localStorage`; treat this as a local/development convenience rather than a secure secret store.
-
+- Saved connection details, including passwords, are stored in browser `localStorage`; treat this as a local/development convenience rather than a secure secret store.
 
 ## Project Status
 
-Click Play Boom is an actively developed, browser-based ClickHouse workbench intended for direct use against servers reachable from the browser.
-Its standalone architecture keeps deployment deliberately simple, while browser CORS rules and the local storage of connection credentials make
-it best suited to trusted local, development, and internal environments.
+Click Play Boom is an actively developed, browser-based ClickHouse workbench intended for direct use against servers reachable from the browser. Its standalone architecture keeps deployment deliberately simple, while browser CORS rules and the local storage of connection credentials make it best suited to trusted local, development, and internal environments.
 
 ## Lineage
 
-Click Play Boom is a substantial rework of the ClickHouse Play page from
-[`ClickHouse/ClickHouse` v26.3.3.20-lts](https://github.com/ClickHouse/ClickHouse/blob/v26.3.3.20-lts/programs/server/play.html). It preserves the
-original's fast, standalone deployment model and familiar interaction style while expanding it into a practical day-to-day workbench.
+Click Play Boom is a substantial rework of the ClickHouse Play page from [`ClickHouse/ClickHouse` v26.3.3.20-lts](https://github.com/ClickHouse/ClickHouse/blob/v26.3.3.20-lts/programs/server/play.html). It preserves the original's fast, standalone deployment model and familiar interaction style while expanding it into a practical day-to-day workbench.
